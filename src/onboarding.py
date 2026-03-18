@@ -224,6 +224,9 @@ class Onboarding:
 
             _say(message="Registering accounts on the homeserver...")
 
+            # Resolve server name for user IDs (matches CONDUIT_SERVER_NAME)
+            server_name: str = "memtrix.local"
+
             bot_data: dict[str, Any] = {}
             for acct_username, acct_password, acct_label in accounts:
                 try:
@@ -250,9 +253,6 @@ class Onboarding:
 
             # Print credentials table
             _say(message="Here are the accounts I created. [bold]Save these passwords now![/bold]")
-
-            # Resolve server name for user IDs (matches CONDUIT_SERVER_NAME)
-            server_name: str = "memtrix.local"
 
             table: Table = Table(title="Matrix Accounts")
             table.add_column("Account", style="cyan")

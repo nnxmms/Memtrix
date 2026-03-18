@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- Fix onboarding issue
+
 ## 1.0.2
 
 - Install `git` in container environment
