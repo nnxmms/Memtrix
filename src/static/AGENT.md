@@ -80,13 +80,33 @@ You can also fetch the content of a specific URL using the `fetch_url` tool. Use
 You have shell access inside your container via the `run_command` tool. The working directory is your workspace. You run as a non-root user with a read-only root filesystem — only workspace/, data/, and /tmp are writable.
 
 
+## Behavior
+> Content of BEHAVIOR.md
+---
+**This is how you should behave**
+
 {{BEHAVIOR}}
 
+
+## Soul
+> Content of SOUL.md
+---
+**This is who you are**
 
 {{SOUL}}
 
 
+## User
+> Content of USER.md
+---
+**This is who you are talking to**
+
 {{USER}}
 
+
+## Memory
+> Content of MEMORY.md
+---
+**This is your long term memory**
 
 {{MEMORY}}
