@@ -5,6 +5,7 @@ import re
 from datetime import date
 from typing import Any
 
+from src.memory_index import MemoryIndex
 from src.tools.base import BaseTool
 
 # Pattern for valid memory filenames
@@ -64,6 +65,7 @@ class WriteMemoryFileTool(BaseTool):
         This is the WriteMemoryFileTool which writes the complete content of a daily memory file.
         Requires that read_memory_file was called first for the same file.
         """
+        self._workspace_dir: str = workspace_dir
         self._memory_dir: str = os.path.join(workspace_dir, "memory")
         os.makedirs(name=self._memory_dir, exist_ok=True)
         super().__init__(
@@ -105,5 +107,9 @@ class WriteMemoryFileTool(BaseTool):
 
         # Clear the read marker for this file
         BaseTool._read_files.discard(filename)
+
+        # Index the updated content for RAG search
+        index: MemoryIndex = MemoryIndex.get_instance(workspace_dir=self._workspace_dir)
+        index.index_memory(filename=filename, content=content)
 
         return f"Successfully updated memory/{filename}."
