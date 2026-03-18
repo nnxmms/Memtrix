@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- Install `git` in container environment
+
 ## 1.0.1
 
 - Set Matrix display names during onboarding and on bot startup.
