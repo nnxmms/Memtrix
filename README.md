@@ -16,42 +16,46 @@ It's not a chatbot. It's an **agent** — it can search the web, browse pages, e
 
 ## Highlights
 
-- **Fully self-hosted** — LLM, homeserver, search engine, vector database — everything runs locally
-- **Agentic tool system** — auto-discovered tools with an iterative reasoning loop
-- **Persistent memory** — daily journals with semantic search (RAG) powered by local embeddings
-- **Self-aware persona** — core identity files that Memtrix reads, understands, and updates itself
-- **Per-room sessions** — each Matrix room maintains its own conversation context
-- **Security hardened** — non-root, read-only filesystem, all capabilities dropped
+- **Fully self-hosted**: LLM, homeserver, search engine, vector database — everything runs locally
+- **Agentic tool system**: auto-discovered tools with an iterative reasoning loop
+- **Persistent memory**: daily journals with semantic search (RAG) powered by local embeddings
+- **Self-aware persona**: core identity files that Memtrix reads, understands, and updates itself
+- **Per-room sessions**: each Matrix room maintains its own conversation context
+- **Security hardened**: non-root, read-only filesystem, all capabilities dropped
 
 ## Architecture
 
-```mermaid
-graph TB
-    Element["Element Desktop<br/><i>Matrix Client</i>"]
-
-    subgraph Docker Compose
-        Memtrix["Memtrix<br/><i>Agent</i>"]
-        Conduit["Conduit<br/><i>Matrix Server</i>"]
-        SearXNG["SearXNG<br/><i>Search Engine</i>"]
-        ChromaDB["ChromaDB<br/><i>Vector Memory</i>"]
-    end
-
-    Ollama["Ollama<br/><i>LLM + Embeddings</i>"]
-
-    Element <-->|Matrix Protocol| Conduit
-    Memtrix <-->|Events & Messages| Conduit
-    Memtrix -->|Web Search| SearXNG
-    Memtrix -->|Embed & Query| ChromaDB
-    Memtrix -->|Chat & Embed| Ollama
+```
+                          ┌──────────────────┐
+                          │ Element Desktop  │
+                          │ (Matrix Client)  │
+                          └────────┬─────────┘
+                                   │
+┌──────────────────────────────────┼──────────────────────┐
+│  Docker Compose                  │                      │
+│                                  │                      │
+│  ┌───────────┐    ┌──────────────┴──┐    ┌───────────┐  │
+│  │  Memtrix  │◄──►│    Conduit      │    │  SearXNG  │  │
+│  │  (Agent)  │    │ (Matrix Server) │    │ (Search)  │  │
+│  └─────┬─────┘    └─────────────────┘    └─────▲─────┘  │
+│        │                                       │        │
+│        ├───────────────────────────────────────┘        │
+│        │                                                │
+│        ├──► ChromaDB (vector memory, embedded)          │
+│        │                                                │
+└────────┼────────────────────────────────────────────────┘
+         │
+         ▼
+    Ollama (LLM + Embeddings)
 ```
 
 | Component | Role |
 |-----------|------|
-| **Memtrix** | Python agent — orchestrates LLM calls, tool execution, memory, sessions |
-| **Conduit** | Lightweight Matrix homeserver (local-only, no federation) |
-| **SearXNG** | Privacy-respecting metasearch engine for web access |
-| **ChromaDB** | Embedded vector database for semantic memory search |
-| **Ollama** | Local LLM inference + embedding model (runs separately) |
+| Memtrix | Python agent — orchestrates LLM calls, tool execution, memory, sessions |
+| Conduit | Lightweight Matrix homeserver (local-only, no federation) |
+| SearXNG | Privacy-respecting metasearch engine for web access |
+| ChromaDB | Embedded vector database for semantic memory search |
+| Ollama | Local LLM inference + embedding model (runs separately) |
 
 ## Tools
 
@@ -234,43 +238,43 @@ All configuration lives in `data/config.json`:
 ```
 Memtrix/
 ├── src/
-│   ├── main.py                  # Entry point
-│   ├── memtrix.py               # Core — wires channels, providers, sessions
-│   ├── orchestrator.py          # Agentic loop — LLM calls, tool execution
-│   ├── session.py               # Per-room conversation persistence
-│   ├── commands.py              # Slash command registry (/clear, /verbose, /help)
-│   ├── memory_index.py          # ChromaDB + Ollama embeddings (RAG)
-│   ├── config.py                # Config path constant
-│   ├── onboarding.py            # Interactive setup wizard (Rich TUI)
+│   ├── main.py                    # Entry point
+│   ├── memtrix.py                 # Core — wires channels, providers, sessions
+│   ├── orchestrator.py            # Agentic loop — LLM calls, tool execution
+│   ├── session.py                 # Per-room conversation persistence
+│   ├── commands.py                # Slash command registry (/clear, /verbose, /help)
+│   ├── memory_index.py            # ChromaDB + Ollama embeddings (RAG)
+│   ├── config.py                  # Config path constant
+│   ├── onboarding.py              # Interactive setup wizard (Rich TUI)
 │   ├── channels/
-│   │   ├── base.py              # BaseChannel interface
-│   │   ├── cli.py               # CLI channel (stdin/stdout)
-│   │   └── matrix.py            # Matrix channel (nio + async bridge)
+│   │   ├── base.py                # BaseChannel interface
+│   │   ├── cli.py                 # CLI channel (stdin/stdout)
+│   │   └── matrix.py              # Matrix channel (nio + async bridge)
 │   ├── providers/
-│   │   ├── base.py              # BaseProvider interface
-│   │   ├── ollama.py            # Ollama LLM provider
-│   │   └── utils.py             # Dynamic provider discovery
+│   │   ├── base.py                # BaseProvider interface
+│   │   ├── ollama.py              # Ollama LLM provider
+│   │   └── utils.py               # Dynamic provider discovery
 │   ├── tools/
-│   │   ├── base.py              # BaseTool interface + read tracker
-│   │   ├── utils.py             # Dynamic tool discovery
-│   │   ├── time_tool.py         # Current time
-│   │   ├── core_file_tools.py   # Read/write persona files
-│   │   ├── memory_file_tools.py # Read/write daily journals
-│   │   ├── search_memory_tool.py# Semantic memory search
-│   │   ├── web_search_tool.py   # Web search via SearXNG
-│   │   ├── fetch_url_tool.py    # URL content extraction
-│   │   └── run_command_tool.py  # Shell command execution
+│   │   ├── base.py                # BaseTool interface + read tracker
+│   │   ├── utils.py               # Dynamic tool discovery
+│   │   ├── time_tool.py           # Current time
+│   │   ├── core_file_tools.py     # Read/write persona files
+│   │   ├── memory_file_tools.py   # Read/write daily journals
+│   │   ├── search_memory_tool.py  # Semantic memory search
+│   │   ├── web_search_tool.py     # Web search via SearXNG
+│   │   ├── fetch_url_tool.py      # URL content extraction
+│   │   └── run_command_tool.py    # Shell command execution
 │   └── static/
-│       ├── config.json          # Config template
-│       ├── conduit.toml         # Conduit homeserver config
-│       ├── searxng/             # SearXNG settings
-│       ├── AGENT.md             # System prompt template
-│       ├── BEHAVIOR.md          # Behavior defaults
-│       ├── SOUL.md              # Soul template
-│       ├── USER.md              # User profile template
-│       └── MEMORY.md            # Memory template
-├── workspace/                   # Live persona files (mounted into container)
-├── data/                        # Persistent data (config, sessions, vector index)
+│       ├── config.json            # Config template
+│       ├── conduit.toml           # Conduit homeserver config
+│       ├── searxng/               # SearXNG settings
+│       ├── AGENT.md               # System prompt template
+│       ├── BEHAVIOR.md            # Behavior defaults
+│       ├── SOUL.md                # Soul template
+│       ├── USER.md                # User profile template
+│       └── MEMORY.md              # Memory template
+├── workspace/                     # Live persona files (mounted into container)
+├── data/                          # Persistent data (config, sessions, vector index)
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
