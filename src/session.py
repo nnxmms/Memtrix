@@ -3,6 +3,7 @@
 import json
 import os
 import uuid
+from datetime import date
 from typing import Any
 
 
@@ -11,24 +12,38 @@ class Session:
     def __init__(self, sessions_dir: str, session_id: str | None = None) -> None:
         """
         This is the Session class which manages short-term conversation history.
-        Each session is stored as a JSON file in the sessions directory.
+        Each session is stored as a JSON file in sessions_dir/yyyy-mm-dd/.
         """
-        # Sessions directory
+        # Sessions root directory
         self._sessions_dir: str = sessions_dir
         os.makedirs(self._sessions_dir, exist_ok=True)
 
         # Session id — use existing or create new
-        if session_id and os.path.isfile(os.path.join(sessions_dir, f"{session_id}.json")):
+        existing_path: str | None = self._find_session(session_id=session_id) if session_id else None
+
+        if existing_path:
             self._session_id: str = session_id
+            self._path: str = existing_path
         else:
             self._session_id = str(uuid.uuid4())
-            # Create empty session file
-            path: str = os.path.join(self._sessions_dir, f"{self._session_id}.json")
-            with open(file=path, mode="w") as f:
+            day_dir: str = os.path.join(self._sessions_dir, date.today().isoformat())
+            os.makedirs(day_dir, exist_ok=True)
+            self._path = os.path.join(day_dir, f"{self._session_id}.json")
+            with open(file=self._path, mode="w") as f:
                 json.dump(obj=[], fp=f)
 
         # Message history
         self._history: list[dict[str, Any]] = self._load_history()
+
+    def _find_session(self, session_id: str) -> str | None:
+        """
+        This function searches date subdirectories for an existing session file.
+        """
+        for entry in os.listdir(self._sessions_dir):
+            candidate: str = os.path.join(self._sessions_dir, entry, f"{session_id}.json")
+            if os.path.isfile(candidate):
+                return candidate
+        return None
 
     @property
     def session_id(self) -> str:
@@ -41,16 +56,14 @@ class Session:
         """
         This function loads the message history from the session file.
         """
-        path: str = os.path.join(self._sessions_dir, f"{self._session_id}.json")
-        with open(file=path, mode="r") as f:
+        with open(file=self._path, mode="r") as f:
             return json.load(fp=f)
 
     def _save_history(self) -> None:
         """
         This function persists the message history to the session file.
         """
-        path: str = os.path.join(self._sessions_dir, f"{self._session_id}.json")
-        with open(file=path, mode="w") as f:
+        with open(file=self._path, mode="w") as f:
             json.dump(obj=self._history, fp=f, indent=2)
 
     @property

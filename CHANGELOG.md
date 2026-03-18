@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- Store sessions in date-based subdirectories (`data/sessions/yyyy-mm-dd/`).
+
 ## 1.1.0
 
 - Enable extended thinking (`think: true`) for Ollama models via per-model config.
