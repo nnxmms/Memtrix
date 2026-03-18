@@ -1,0 +1,5 @@
+aiohttp
+matrix-nio
+ollama
+requests
+rich

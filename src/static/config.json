@@ -1,0 +1,11 @@
+{
+    "main-agent": {
+        "provider": "",
+        "model": "",
+        "channel": ""
+    },
+    "workspace-directory": "/home/memtrix/workspace",
+    "providers": {},
+    "models": {},
+    "channels": {}
+}

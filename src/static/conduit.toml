@@ -1,0 +1,9 @@
+[global]
+server_name = "memtrix.local"
+database_backend = "rocksdb"
+database_path = "/var/lib/matrix-conduit"
+port = 6167
+address = "0.0.0.0"
+allow_registration = true
+allow_federation = false
+trusted_servers = ["matrix.org"]

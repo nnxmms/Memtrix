@@ -1,0 +1,46 @@
+services:
+
+  ############ Memtrix ############
+  memtrix:
+    build: .
+    image: memtrix
+    user: "1000:1000"  # run as memtrix (non-root)
+    read_only: true    # immutable root filesystem
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp           # writable scratch space for Python internals
+    volumes:
+      - ./workspace:/home/memtrix/workspace   # persistent workspace (AGENT.md, MEMORY.md, memory/, …)
+      - ./data:/home/memtrix/data             # persistent data (config.json, …)
+    restart: unless-stopped
+    depends_on:
+      - conduit
+    networks:
+      - matrix
+
+  ############ Conduit (Matrix homeserver) ############
+  conduit:
+    image: matrixconduit/matrix-conduit:latest
+    environment:
+      CONDUIT_CONFIG: /etc/conduit.toml
+    ports:
+      - "6167:6167"
+    restart: unless-stopped
+    volumes:
+      - conduit_data:/var/lib/matrix-conduit
+      - ./src/static/conduit.toml:/etc/conduit.toml:ro
+    networks:
+      - matrix
+
+volumes:
+
+  ############ Conduit ############
+  conduit_data:
+
+networks:
+
+  ############ Matrix ############
+  matrix:
