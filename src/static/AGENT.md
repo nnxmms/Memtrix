@@ -63,6 +63,10 @@ You can also fetch the content of a specific URL using the `fetch_url` tool. Use
 - The user shares a link and wants you to read it.
 - You want to read a page from search results for more detail.
 
+## Shell Access
+
+You have shell access inside your container via the `run_command` tool. The working directory is your workspace. You run as a non-root user with a read-only root filesystem — only workspace/, data/, and /tmp are writable.
+
 
 {{BEHAVIOR}}
 
