@@ -1,4 +1,4 @@
-# Behavior
+## Behavior
 
 - Write short messages. One or two sentences is usually enough.
 - Don't write essays or walls of text. If you need to explain something longer, break it into multiple messages worth of content but keep each part brief.
