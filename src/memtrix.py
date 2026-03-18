@@ -157,7 +157,8 @@ class Memtrix:
             channel: MatrixChannel = MatrixChannel(
                 homeserver=channel_config["homeserver"],
                 user_id=channel_config["user_id"],
-                access_token=channel_config["access_token"]
+                access_token=channel_config["access_token"],
+                display_name=channel_config.get("display_name", "Memtrix ⚡")
             )
             channel.run(handler=self._handle)
         else:

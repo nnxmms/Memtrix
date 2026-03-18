@@ -13,7 +13,7 @@ from nio import AsyncClient, MatrixRoom, RoomMessageText, SyncResponse
 
 class MatrixChannel:
 
-    def __init__(self, homeserver: str, user_id: str, access_token: str) -> None:
+    def __init__(self, homeserver: str, user_id: str, access_token: str, display_name: str = "Memtrix") -> None:
         """
         This is the MatrixChannel class which provides a Matrix bot interface.
         """
@@ -24,6 +24,7 @@ class MatrixChannel:
         self._homeserver: str = homeserver.rstrip("/")
         self._user_id: str = user_id
         self._access_token: str = access_token
+        self._display_name: str = display_name
 
         # Handler callback
         self._handler: Callable[[str, str, Callable[[str], None]], str] | None = None
@@ -33,6 +34,17 @@ class MatrixChannel:
 
         # Timestamp after which we process messages
         self._start_time: float = 0.0
+
+    async def _set_display_name(self) -> None:
+        """
+        This function sets the bot's display name via the Matrix REST API.
+        """
+        url: str = f"{self._homeserver}/_matrix/client/v3/profile/{quote(string=self._user_id)}/displayname"
+        headers: dict[str, str] = {"Authorization": f"Bearer {self._access_token}"}
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url=url, headers=headers, json={"displayname": self._display_name}) as resp:
+                if resp.status == 200:
+                    print(f"Display name set to '{self._display_name}'")
 
     async def _join_room(self, room_id: str) -> None:
         """
@@ -100,6 +112,9 @@ class MatrixChannel:
 
         # Record start time (milliseconds) to skip old messages
         self._start_time = time.time() * 1000
+
+        # Set the display name
+        await self._set_display_name()
 
         # Initial sync to catch up on pending invites
         print(f"Matrix channel connecting to {self._homeserver} as {self._user_id}...")

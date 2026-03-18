@@ -150,6 +150,18 @@ class Onboarding:
         response.raise_for_status()
         return response.json()
 
+    def _set_display_name(self, homeserver: str, user_id: str, access_token: str, display_name: str) -> None:
+        """
+        This function sets a user's display name on the Matrix homeserver.
+        """
+        url: str = f"{homeserver.rstrip('/')}/_matrix/client/v3/profile/{requests.utils.quote(user_id)}/displayname"
+        requests.put(
+            url=url,
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"displayname": display_name},
+            timeout=10
+        )
+
     def setup_new_channel(self) -> None:
         """
         This function is used to interactively setup a new channel instance.
@@ -206,8 +218,8 @@ class Onboarding:
             # Register the three accounts
             accounts: list[tuple[str, str, str]] = [
                 ("admin", admin_password, "Admin"),
-                ("memtrix", bot_password, "Memtrix Bot"),
-                (username, user_password, "Your account")
+                ("memtrix", bot_password, "Memtrix"),
+                (username, user_password, username.capitalize())
             ]
 
             _say(message="Registering accounts on the homeserver...")
@@ -220,6 +232,16 @@ class Onboarding:
                         username=acct_username,
                         password=acct_password
                     )
+                    # Set the display name
+                    acct_user_id: str = result.get("user_id", f"@{acct_username}:{server_name}")
+                    acct_token: str = result.get("access_token", "")
+                    if acct_token:
+                        self._set_display_name(
+                            homeserver=homeserver,
+                            user_id=acct_user_id,
+                            access_token=acct_token,
+                            display_name=acct_label
+                        )
                     console.print(f"  [green]✓[/green] {acct_label} ([bold]{acct_username}[/bold]) registered")
                     if acct_username == "memtrix":
                         bot_data: dict[str, Any] = result
