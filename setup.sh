@@ -25,7 +25,7 @@ for file in config.json; do
 done
 
 # Copy static files into ./workspace/ (skip if already exist)
-for file in AGENT.md MEMORY.md SOUL.md USER.md; do
+for file in AGENT.md BEHAVIOR.md MEMORY.md SOUL.md USER.md; do
     dest="$WORKSPACE_DIR/$file"
     if [[ ! -f "$dest" ]]; then
         cp "$STATIC_DIR/$file" "$dest"

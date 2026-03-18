@@ -2,7 +2,10 @@
     "main-agent": {
         "provider": "",
         "model": "",
-        "channel": ""
+        "channel": "",
+        "session": "",
+        "sessions": {},
+        "verbose": true
     },
     "workspace-directory": "/home/memtrix/workspace",
     "providers": {},

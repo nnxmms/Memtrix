@@ -21,9 +21,14 @@ class OllamaProvider(BaseProvider):
         # Ollama client
         self._client: Client = Client(host=self.base_url)
 
-    def completions(self, model: str, history: list[dict[str, str]]) -> str:
+    def completions(self, model: str, history: list[dict], tools: list[dict] | None = None) -> Any:
         """
-        This function takes the chat history and returns the model's response.
+        This function takes the chat history and returns the model's message response.
         """
-        response: Any = self._client.chat(model=model, messages=history)
-        return response.message.content
+        # Build kwargs, only include tools if provided
+        kwargs: dict[str, Any] = {"model": model, "messages": history}
+        if tools:
+            kwargs["tools"] = tools
+
+        response: Any = self._client.chat(**kwargs)
+        return response.message

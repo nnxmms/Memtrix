@@ -25,7 +25,7 @@ class CLIChannel(BaseChannel):
         """
         return input("You: ").strip()
 
-    def run(self, handler: Callable[[str], str]) -> None:
+    def run(self, handler: Callable[[str, str, Callable[[str], None]], str]) -> None:
         """
         This function starts the CLI loop, calling handler for each user message.
         """
@@ -37,4 +37,6 @@ class CLIChannel(BaseChannel):
                 break
             if not user_input:
                 continue
-            self.send_message(message=handler(user_input))
+            # Notify prints status messages inline
+            reply: str = handler(user_input, "cli", lambda msg: print(f"  {msg}"))
+            self.send_message(message=reply)

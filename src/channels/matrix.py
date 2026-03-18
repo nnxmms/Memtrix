@@ -26,7 +26,7 @@ class MatrixChannel:
         self._access_token: str = access_token
 
         # Handler callback
-        self._handler: Callable[[str], str] | None = None
+        self._handler: Callable[[str, str, Callable[[str], None]], str] | None = None
 
         # Async Matrix client
         self._client: AsyncClient | None = None
@@ -57,8 +57,23 @@ class MatrixChannel:
         if event.server_timestamp < self._start_time:
             return
 
-        # Process the message and send the reply
-        reply: str = self._handler(event.body)
+        # Build a notify callback that sends messages to this room in real-time
+        loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
+
+        def notify(msg: str) -> None:
+            """Send a status message to the room synchronously from within the async loop."""
+            future = asyncio.run_coroutine_threadsafe(
+                self._client.room_send(
+                    room_id=room.room_id,
+                    message_type="m.room.message",
+                    content={"msgtype": "m.notice", "body": msg}
+                ),
+                loop
+            )
+            future.result(timeout=10)
+
+        # Process the message with real-time notifications
+        reply: str = await asyncio.to_thread(self._handler, event.body, room.room_id, notify)
         await self._client.room_send(
             room_id=room.room_id,
             message_type="m.room.message",
@@ -99,7 +114,7 @@ class MatrixChannel:
         # Listen for new events indefinitely
         await self._client.sync_forever(timeout=30000)
 
-    def run(self, handler: Callable[[str], str]) -> None:
+    def run(self, handler: Callable[[str, str, Callable[[str], None]], str]) -> None:
         """
         This function starts the Matrix event loop, calling handler for each incoming message.
         """

@@ -24,8 +24,9 @@ class BaseChannel:
         """
         raise NotImplementedError
 
-    def run(self, handler: Callable[[str], str]) -> None:
+    def run(self, handler: Callable[[str, str, Callable[[str], None]], str]) -> None:
         """
         This function starts the channel loop, calling handler for each incoming message.
+        The handler receives the message, a room id, and a notify callback for status updates.
         """
         raise NotImplementedError
