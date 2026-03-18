@@ -29,6 +29,7 @@ class Orchestrator:
         self._tool_schemas: list[dict[str, Any]] = [tool.schema() for tool in tools]
 
         # System prompt built from workspace files
+        self._workspace_dir: str = workspace_dir
         self._system_prompt: str = self._build_system_prompt(workspace_dir=workspace_dir)
 
         # Optional callback for verbose/status messages
@@ -100,6 +101,9 @@ class Orchestrator:
         """
         This function processes a user message through the agentic loop and returns the final response.
         """
+        # Reset read-before-write tracker for core file tools
+        BaseTool._read_files.clear()
+
         # Inject system prompt at the start of a fresh session
         if not session.history:
             session.append(message={"role": "system", "content": self._system_prompt})
@@ -131,7 +135,8 @@ class Orchestrator:
                 tool_args: dict[str, Any] = tool_call.function.arguments
 
                 # Notify about the tool call
-                self._emit(message=f"→ Tool call: {tool_name}")
+                args_summary: str = ", ".join(f"{k}={v}" for k, v in tool_args.items() if k != "content")
+                self._emit(message=f"→ Tool call: {tool_name}({args_summary})")
 
                 # Execute the tool or report an error
                 if tool_name in self._tools:
@@ -146,6 +151,10 @@ class Orchestrator:
                 self._emit(message=f"→ Tool response received")
 
                 session.append(message={"role": "tool", "content": result})
+
+                # Rebuild system prompt if a core file was updated
+                if tool_name == "write_core_file" and result.startswith("Successfully"):
+                    self._system_prompt = self._build_system_prompt(workspace_dir=self._workspace_dir)
 
         # Exhausted iterations — ask for a final answer without tools
         session.append(message={"role": "user", "content": "Please provide your final answer now."})

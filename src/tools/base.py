@@ -5,6 +5,9 @@ from typing import Any
 
 class BaseTool:
 
+    # Shared tracker for read-before-write enforcement on core files
+    _read_files: set[str] = set()
+
     def __init__(self, name: str, description: str, parameters: dict[str, Any]) -> None:
         """
         This is the BaseTool class which all tools inherit from.
