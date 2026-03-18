@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2
+
+- System Prompt structure update
+- Update static core files
+
 ## 1.1.1
 
 - Store sessions in date-based subdirectories (`data/sessions/yyyy-mm-dd/`).

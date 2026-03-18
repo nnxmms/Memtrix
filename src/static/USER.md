@@ -1,1 +1,1 @@
-YOU DONT HAVE A ANY INFORMATION ABOUT THE USER YET. ASK THE USER WHO HE/SHE IS.
+// Information about the user you are talking to go here

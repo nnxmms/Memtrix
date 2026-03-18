@@ -1,1 +1,1 @@
-REPLACE THIS PLACEHOLDER IN MEMORY.md WITH FIRST ENTRY
+// Long term memories go here
