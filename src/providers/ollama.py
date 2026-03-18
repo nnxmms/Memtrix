@@ -21,7 +21,7 @@ class OllamaProvider(BaseProvider):
         # Ollama client
         self._client: Client = Client(host=self.base_url)
 
-    def completions(self, model: str, history: list[dict], tools: list[dict] | None = None) -> Any:
+    def completions(self, model: str, history: list[dict], tools: list[dict] | None = None, think: bool = False) -> Any:
         """
         This function takes the chat history and returns the model's message response.
         """
@@ -29,6 +29,8 @@ class OllamaProvider(BaseProvider):
         kwargs: dict[str, Any] = {"model": model, "messages": history}
         if tools:
             kwargs["tools"] = tools
+        if think:
+            kwargs["think"] = True
 
         response: Any = self._client.chat(**kwargs)
         return response.message

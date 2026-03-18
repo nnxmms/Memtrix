@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from typing import Any, Callable
 
 from src.providers.base import BaseProvider
@@ -14,13 +15,14 @@ MAX_ITERATIONS: int = 10
 
 class Orchestrator:
 
-    def __init__(self, provider: BaseProvider, model: str, tools: list[BaseTool], workspace_dir: str) -> None:
+    def __init__(self, provider: BaseProvider, model: str, tools: list[BaseTool], workspace_dir: str, think: bool = False) -> None:
         """
         This is the Orchestrator class which runs the agentic tool-calling loop.
         """
         # LLM provider and model
         self._provider: BaseProvider = provider
         self._model: str = model
+        self._think: bool = think
 
         # Tool registry keyed by name
         self._tools: dict[str, BaseTool] = {tool.name: tool for tool in tools}
@@ -35,11 +37,29 @@ class Orchestrator:
         # Optional callback for verbose/status messages
         self._notify: Callable[[str], None] | None = None
 
+        # Optional callback for reasoning display
+        self._notify_reasoning: Callable[[str], None] | None = None
+
     def set_notify(self, callback: Callable[[str], None]) -> None:
         """
         This function sets the callback for sending verbose notifications.
         """
         self._notify = callback
+
+    def set_notify_reasoning(self, callback: Callable[[str], None] | None) -> None:
+        """
+        This function sets the callback for sending reasoning notifications.
+        """
+        self._notify_reasoning = callback
+
+    def _emit_reasoning(self, message: Any) -> None:
+        """
+        This function emits the model's reasoning content if available and callback is set.
+        """
+        if self._notify_reasoning:
+            thinking: str = getattr(message, "thinking", None) or ""
+            if thinking.strip():
+                self._notify_reasoning(f"💭 {thinking.strip()}")
 
     def _emit(self, message: str) -> None:
         """
@@ -117,12 +137,16 @@ class Orchestrator:
             message: Any = self._provider.completions(
                 model=self._model,
                 history=session.history,
-                tools=self._tool_schemas
+                tools=self._tool_schemas,
+                think=self._think
             )
+
+            # Emit reasoning if available
+            self._emit_reasoning(message=message)
 
             # If no tool calls, save and return the final text response
             if not message.tool_calls:
-                response: str = message.content or ""
+                response: str = self._strip_thinking(text=message.content or "")
                 session.append(message={"role": "assistant", "content": response})
                 return response
 
@@ -158,7 +182,17 @@ class Orchestrator:
 
         # Exhausted iterations — ask for a final answer without tools
         session.append(message={"role": "user", "content": "Please provide your final answer now."})
-        message = self._provider.completions(model=self._model, history=session.history)
-        response: str = message.content or ""
+        message = self._provider.completions(model=self._model, history=session.history, think=self._think)
+        self._emit_reasoning(message=message)
+        response: str = self._strip_thinking(text=message.content or "")
         session.append(message={"role": "assistant", "content": response})
         return response
+
+    @staticmethod
+    def _strip_thinking(text: str) -> str:
+        """
+        This function removes leaked <think>...</think> tags from model output.
+        """
+        cleaned: str = re.sub(pattern=r"<think>.*?</think>", repl="", string=text, flags=re.DOTALL)
+        cleaned = re.sub(pattern=r"</think>", repl="", string=cleaned)
+        return cleaned.strip()

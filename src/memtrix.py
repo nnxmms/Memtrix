@@ -71,12 +71,14 @@ class Memtrix:
         # Discover tools and create the orchestrator
         workspace_dir: str = self._config["workspace-directory"]
         tools: list[BaseTool] = discover_tools(workspace_dir=workspace_dir)
+        think: bool = model_config.get("think", False)
 
         self._orchestrator = Orchestrator(
             provider=self._provider,
             model=self._model,
             tools=tools,
-            workspace_dir=workspace_dir
+            workspace_dir=workspace_dir,
+            think=think
         )
 
         # Load existing sessions from config
@@ -135,6 +137,12 @@ class Memtrix:
             self._orchestrator.set_notify(callback=notify)
         else:
             self._orchestrator.set_notify(callback=None)
+
+        # Set up reasoning callback if reasoning display is on
+        if self._commands.reasoning:
+            self._orchestrator.set_notify_reasoning(callback=notify)
+        else:
+            self._orchestrator.set_notify_reasoning(callback=None)
 
         # Get the session for this room and run the orchestrator
         session: Session = self._get_session(room_id=room_id)

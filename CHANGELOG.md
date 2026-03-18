@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0
+
+- Enable extended thinking (`think: true`) for Ollama models via per-model config.
+- Add `/reasoning on|off` command to display model reasoning in Matrix.
+- Strip leaked `<think>` tags from model responses.
+- Simplify self-learning prompt to improve smaller model performance.
+
 ## 1.0.3
 
 - Fix onboarding issue

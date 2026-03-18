@@ -12,7 +12,7 @@ class BaseProvider:
         # LLM provider
         self.name: str = name
 
-    def completions(self, model: str, history: list[dict], tools: list[dict] | None = None) -> Any:
+    def completions(self, model: str, history: list[dict], tools: list[dict] | None = None, think: bool = False) -> Any:
         """
         This function takes the chat history and returns the provider's message response.
         The returned object must have .content (str | None) and .tool_calls (list | None).
