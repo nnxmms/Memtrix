@@ -4,7 +4,7 @@
 
 **A self-hosted, privacy-first personal AI agent with persistent memory and agentic tool use.**
 
-Built with Python · Powered by Ollama · Communicates over Matrix
+Built with Python · Powered by Ollama · Communicates over Matrix · v1.0.0
 
 ---
 
@@ -332,6 +332,18 @@ The onboarding wizard automatically discovers new providers and prompts for thei
 | HTML Parsing | BeautifulSoup4 |
 | Container | Docker (security-hardened) |
 | TUI | Rich (onboarding wizard) |
+
+## Versioning
+
+Memtrix follows [Semantic Versioning](https://semver.org/) — `MAJOR.MINOR.PATCH`.
+
+| Bump | When | Example |
+|------|------|---------|
+| **PATCH** | Bug fixes, small tweaks | Fixing a tool error, adjusting prompt wording |
+| **MINOR** | New features, backward compatible | Adding a new tool, new channel, new slash command |
+| **MAJOR** | Breaking changes | Config format redesign, architecture overhaul |
+
+The version lives in `src/__init__.py` and is printed on startup.
 
 ## License
 

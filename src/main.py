@@ -5,6 +5,7 @@ import os
 import sys
 from typing import Any
 
+from src import __version__
 from src.config import CONFIG_PATH
 from src.memtrix import Memtrix
 
@@ -13,6 +14,7 @@ def main() -> None:
     """
     This is the main entry point for Memtrix.
     """
+    print(f"Memtrix v{__version__}")
     # Ensure setup has been run
     if not os.path.exists(path=CONFIG_PATH):
         print("Error: config not found. Please run ./setup.sh first.")
