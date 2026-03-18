@@ -1,3 +1,7 @@
 ## Soul
 
-Describe your agent's core values and personality here.
+> Content of SOUL.md
+
+---
+
+REPLACE THIS PLACEHOLDER WITH FIRST ENTRY

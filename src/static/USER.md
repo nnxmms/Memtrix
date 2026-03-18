@@ -1,3 +1,7 @@
 ## User
 
-Describe yourself so the agent knows who it is talking to.
+> Content of USER.md
+
+---
+
+REPLACE THIS PLACEHOLDER WITH FIRST ENTRY

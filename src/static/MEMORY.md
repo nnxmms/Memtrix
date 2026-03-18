@@ -1,3 +1,7 @@
 ## Memory
 
-Summarized long-term memory.
+> Content of MEMORY.md
+
+---
+
+REPLACE THIS PLACEHOLDER WITH FIRST ENTRY
