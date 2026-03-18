@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+
+- Receive files sent via Element — saved to `workspace/attachments/`.
+- New `send_file` tool — Memtrix can send files back to the user.
+- Use Conduit's authenticated media endpoint (`/_matrix/client/v1/media/download/`) for file downloads.
+
 ## 1.1.2
 
 - System Prompt structure update

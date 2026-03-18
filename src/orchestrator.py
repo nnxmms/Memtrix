@@ -40,6 +40,9 @@ class Orchestrator:
         # Optional callback for reasoning display
         self._notify_reasoning: Callable[[str], None] | None = None
 
+        # Optional callback for sending files
+        self._send_file: Callable[[str], None] | None = None
+
     def set_notify(self, callback: Callable[[str], None]) -> None:
         """
         This function sets the callback for sending verbose notifications.
@@ -51,6 +54,15 @@ class Orchestrator:
         This function sets the callback for sending reasoning notifications.
         """
         self._notify_reasoning = callback
+
+    def set_send_file(self, callback: Callable[[str], None] | None) -> None:
+        """
+        This function sets the callback for sending files to the channel.
+        """
+        self._send_file = callback
+        # Propagate to the send_file tool if it exists
+        if "send_file" in self._tools:
+            self._tools["send_file"].set_send_file(callback=callback)
 
     def _emit_reasoning(self, message: Any) -> None:
         """

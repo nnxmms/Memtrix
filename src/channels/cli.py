@@ -38,5 +38,5 @@ class CLIChannel(BaseChannel):
             if not user_input:
                 continue
             # Notify prints status messages inline
-            reply: str = handler(user_input, "cli", lambda msg: print(f"  {msg}"))
+            reply: str = handler(user_input, "cli", lambda msg: print(f"  {msg}"), None)
             self.send_message(message=reply)

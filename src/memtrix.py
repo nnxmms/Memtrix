@@ -119,10 +119,11 @@ class Memtrix:
 
         return "Session cleared."
 
-    def _handle(self, user_input: str, room_id: str, notify: Callable[[str], None]) -> str:
+    def _handle(self, user_input: str, room_id: str, notify: Callable[[str], None], send_file: Callable[[str], None] | None = None) -> str:
         """
         This function handles a user message and returns the response.
         The notify callback sends real-time status messages to the channel.
+        The send_file callback sends a file to the channel.
         """
         # Handle /clear — needs access to sessions and room_id
         if user_input.strip().lower() == "/clear":
@@ -144,6 +145,9 @@ class Memtrix:
         else:
             self._orchestrator.set_notify_reasoning(callback=None)
 
+        # Set up send_file callback
+        self._orchestrator.set_send_file(callback=send_file)
+
         # Get the session for this room and run the orchestrator
         session: Session = self._get_session(room_id=room_id)
         return self._orchestrator.run(user_message=user_input, session=session)
@@ -161,12 +165,16 @@ class Memtrix:
         channel_type: str = channel_config["type"]
 
         # Start the appropriate channel
+        workspace_dir: str = self._config["workspace-directory"]
+        attachments_dir: str = os.path.join(workspace_dir, "attachments")
+
         if channel_type == "matrix":
             channel: MatrixChannel = MatrixChannel(
                 homeserver=channel_config["homeserver"],
                 user_id=channel_config["user_id"],
                 access_token=channel_config["access_token"],
-                display_name=channel_config.get("display_name", "Memtrix ⚡")
+                display_name=channel_config.get("display_name", "Memtrix ⚡"),
+                attachments_dir=attachments_dir
             )
             channel.run(handler=self._handle)
         else:
