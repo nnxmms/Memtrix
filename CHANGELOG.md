@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1
+
+- Fix secret placeholders in `config.json` being overwritten with plaintext tokens on first session creation.
+
 ## 1.3.0
 
 - Move secrets from `config.json` to `.env` file with `$PLACEHOLDER` references.

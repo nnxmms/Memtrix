@@ -4,7 +4,7 @@
 
 **A self-hosted, privacy-first personal AI agent with persistent memory and agentic tool use.**
 
-Built with Python · Powered by Ollama · Communicates over Matrix · v1.3.0
+Built with Python · Powered by Ollama · Communicates over Matrix · v1.3.1
 
 ---
 

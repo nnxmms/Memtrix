@@ -86,6 +86,16 @@ class Memtrix:
         for room_id, session_id in sessions_map.items():
             self._sessions[room_id] = Session(sessions_dir=self._sessions_dir, session_id=session_id)
 
+    def _save_sessions(self) -> None:
+        """
+        This function persists the sessions mapping to config without overwriting secret placeholders.
+        """
+        with open(file=CONFIG_PATH, mode="r") as f:
+            disk_config: dict[str, Any] = json.load(fp=f)
+        disk_config["main-agent"]["sessions"] = self._config["main-agent"]["sessions"]
+        with open(file=CONFIG_PATH, mode="w") as f:
+            json.dump(obj=disk_config, fp=f, indent=4)
+
     def _get_session(self, room_id: str) -> Session:
         """
         This function returns the session for a room, creating one if it doesn't exist.
@@ -94,12 +104,10 @@ class Memtrix:
             session: Session = Session(sessions_dir=self._sessions_dir)
             self._sessions[room_id] = session
 
-            # Persist the new mapping to config
-            if "sessions" not in self._config["main-agent"]:
-                self._config["main-agent"]["sessions"] = {}
+            # Persist the new mapping to config (read-modify-write to preserve placeholders)
+            self._config["main-agent"].setdefault("sessions", {})
             self._config["main-agent"]["sessions"][room_id] = session.session_id
-            with open(file=CONFIG_PATH, mode="w") as f:
-                json.dump(obj=self._config, fp=f, indent=4)
+            self._save_sessions()
 
         return self._sessions[room_id]
 
@@ -110,12 +118,10 @@ class Memtrix:
         session: Session = Session(sessions_dir=self._sessions_dir)
         self._sessions[room_id] = session
 
-        # Persist the updated mapping to config
-        if "sessions" not in self._config["main-agent"]:
-            self._config["main-agent"]["sessions"] = {}
+        # Persist the updated mapping to config (read-modify-write to preserve placeholders)
+        self._config["main-agent"].setdefault("sessions", {})
         self._config["main-agent"]["sessions"][room_id] = session.session_id
-        with open(file=CONFIG_PATH, mode="w") as f:
-            json.dump(obj=self._config, fp=f, indent=4)
+        self._save_sessions()
 
         return "Session cleared."
 
