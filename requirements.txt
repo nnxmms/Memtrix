@@ -1,8 +1,10 @@
 aiohttp
 beautifulsoup4
 chromadb
+einops
 matrix-nio
 ollama
 openai
 requests
 rich
+sentence-transformers

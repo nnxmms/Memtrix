@@ -1,43 +1,63 @@
 #!/usr/bin/python3
 
-import json
+import hashlib
 import os
+import threading
+import time
 from typing import Any
 
 import chromadb
-from ollama import Client
+from sentence_transformers import SentenceTransformer
 
 from src.config import CONFIG_PATH
 
+# Model is downloaded once to data/models/ and reused across restarts
+EMBEDDING_MODEL: str = "nomic-ai/nomic-embed-text-v1.5"
+EMBEDDING_DIM: int = 256  # Matryoshka truncation (768 -> 256) for faster inference
 
-class OllamaEmbeddingFunction:
+# Periodic sync interval in seconds
+SYNC_INTERVAL: int = 300
 
-    def __init__(self, base_url: str, model: str) -> None:
+
+class LocalEmbeddingFunction:
+
+    def __init__(self, model_dir: str) -> None:
         """
-        This is the OllamaEmbeddingFunction which generates embeddings via Ollama.
+        This is the LocalEmbeddingFunction which generates embeddings using a local model.
         """
-        self._client: Client = Client(host=base_url)
-        self._model: str = model
+        # Redirect all HuggingFace caches to the writable data volume
+        os.environ["HF_HOME"] = model_dir
+        os.environ["TRANSFORMERS_CACHE"] = model_dir
+
+        self._model: SentenceTransformer = SentenceTransformer(
+            model_name_or_path=EMBEDDING_MODEL,
+            cache_folder=model_dir,
+            trust_remote_code=True,
+            truncate_dim=EMBEDDING_DIM
+        )
 
     @staticmethod
     def name() -> str:
         """
         This function returns the embedding function name for ChromaDB.
         """
-        return "ollama"
+        return "local"
 
     def __call__(self, input: list[str]) -> list[list[float]]:
         """
         This function generates embeddings for a list of texts.
         """
-        response: Any = self._client.embed(model=self._model, input=input)
-        return response.embeddings
+        prefixed: list[str] = [f"search_document: {text}" for text in input]
+        embeddings = self._model.encode(sentences=prefixed, normalize_embeddings=True, show_progress_bar=False)
+        return embeddings.tolist()
 
     def embed_query(self, input: list[str]) -> list[list[float]]:
         """
         This function generates embeddings for query texts.
         """
-        return self.__call__(input=input)
+        prefixed: list[str] = [f"search_query: {text}" for text in input]
+        embeddings = self._model.encode(sentences=prefixed, normalize_embeddings=True, show_progress_bar=False)
+        return embeddings.tolist()
 
 
 class MemoryIndex:
@@ -57,25 +77,24 @@ class MemoryIndex:
         """
         This is the MemoryIndex class which manages vector search over daily memory files.
         """
-        # Read config for Ollama connection and embedding model
-        with open(file=CONFIG_PATH, mode="r") as f:
-            config: dict[str, Any] = json.load(fp=f)
+        # Model cache directory (inside mounted data volume)
+        data_dir: str = os.path.dirname(CONFIG_PATH)
+        model_dir: str = os.path.join(data_dir, "models")
 
-        provider_name: str = config["main-agent"]["provider"]
-        provider_config: dict[str, Any] = config["providers"][provider_name]
-        base_url: str = provider_config["base_url"]
-        embedding_model: str = config["main-agent"].get("embedding_model", "nomic-embed-text")
-
-        # Embedding function via Ollama
-        self._embedding_fn: OllamaEmbeddingFunction = OllamaEmbeddingFunction(
-            base_url=base_url,
-            model=embedding_model
+        # Local embedding function
+        self._embedding_fn: LocalEmbeddingFunction = LocalEmbeddingFunction(
+            model_dir=model_dir
         )
 
         # ChromaDB persistent client
-        data_dir: str = os.path.dirname(CONFIG_PATH)
         persist_dir: str = os.path.join(data_dir, "memory_index")
-        self._client: chromadb.ClientAPI = chromadb.PersistentClient(path=persist_dir)
+        self._client: chromadb.ClientAPI = chromadb.PersistentClient(
+            path=persist_dir,
+            settings=chromadb.Settings(
+                anonymized_telemetry=False,
+                is_persistent=True
+            )
+        )
         self._collection: chromadb.Collection = self._client.get_or_create_collection(
             name="daily_memories",
             embedding_function=self._embedding_fn
@@ -84,22 +103,28 @@ class MemoryIndex:
         # Memory directory
         self._memory_dir: str = os.path.join(workspace_dir, "memory")
 
-        # Sync any existing memory files not yet indexed
-        self._sync_existing()
+        # Content hashes to detect changes (filename -> md5 hex)
+        self._hashes: dict[str, str] = {}
 
-    def _sync_existing(self) -> None:
+        # Full reindex on startup
+        self._reindex_all()
+
+    @staticmethod
+    def _hash_content(content: str) -> str:
         """
-        This function indexes any existing memory files that are not yet in the vector store.
+        This function returns the MD5 hex digest of a string.
+        """
+        return hashlib.md5(content.encode()).hexdigest()
+
+    def _reindex_all(self) -> None:
+        """
+        This function reindexes all memory files on startup.
         """
         if not os.path.isdir(s=self._memory_dir):
             return
 
-        existing_ids: set[str] = set(self._collection.get()["ids"])
-
         for filename in sorted(os.listdir(self._memory_dir)):
             if not filename.endswith(".md"):
-                continue
-            if filename in existing_ids:
                 continue
 
             path: str = os.path.join(self._memory_dir, filename)
@@ -107,9 +132,35 @@ class MemoryIndex:
                 content: str = f.read()
 
             if content.strip():
-                self.index_memory(filename=filename, content=content)
+                self._hashes[filename] = self._hash_content(content=content)
+                self._index_memory(filename=filename, content=content)
 
-    def index_memory(self, filename: str, content: str) -> None:
+    def sync_changed(self) -> None:
+        """
+        This function checks for new or modified memory files and reindexes them.
+        """
+        if not os.path.isdir(s=self._memory_dir):
+            return
+
+        for filename in sorted(os.listdir(self._memory_dir)):
+            if not filename.endswith(".md"):
+                continue
+
+            path: str = os.path.join(self._memory_dir, filename)
+            with open(file=path, mode="r") as f:
+                content: str = f.read()
+
+            if not content.strip():
+                continue
+
+            content_hash: str = self._hash_content(content=content)
+            if self._hashes.get(filename) == content_hash:
+                continue
+
+            self._hashes[filename] = content_hash
+            self._index_memory(filename=filename, content=content)
+
+    def _index_memory(self, filename: str, content: str) -> None:
         """
         This function indexes or updates a memory file in the vector store.
         """
@@ -119,6 +170,18 @@ class MemoryIndex:
             documents=[content],
             metadatas=[{"date": date_str, "filename": filename}]
         )
+
+    def start_periodic_sync(self) -> None:
+        """
+        This function starts a background thread that periodically syncs changed memory files.
+        """
+        def _sync_loop() -> None:
+            while True:
+                time.sleep(SYNC_INTERVAL)
+                self.sync_changed()
+
+        thread: threading.Thread = threading.Thread(target=_sync_loop, daemon=True)
+        thread.start()
 
     def search(self, query: str, n_results: int = 5) -> list[dict[str, Any]]:
         """

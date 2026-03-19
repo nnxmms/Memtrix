@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.0
+
+- Replace Ollama-based embeddings with local `nomic-embed-text-v1.5` via `sentence-transformers`.
+- Embedding model downloads once to `data/models/` and runs on-device (no external API dependency).
+- Remove `embedding_model` config key — the model is now built-in.
+- Use Matryoshka truncation (768 → 256 dimensions) for faster embedding inference.
+- Reindex all memory files on startup; sync changed files every 5 minutes via background thread.
+- Remove inline embedding from `write_memory_file` tool for faster tool execution.
+- Mount `data/cache/` as writable cache volume for ChromaDB and HuggingFace.
+- Add `einops` dependency required by nomic-embed-text.
+
 ## 1.4.4
 
 - Fix OpenRouter tool-calling: sanitize message history (`type`, `id`, JSON-string arguments) and tool schemas (strip empty parameters) for strict OpenAI-compatible providers.

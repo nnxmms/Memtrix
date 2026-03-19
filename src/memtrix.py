@@ -10,6 +10,7 @@ from src.channels.cli import CLIChannel
 from src.channels.matrix import MatrixChannel
 from src.commands import Commands
 from src.config import CONFIG_PATH
+from src.memory_index import MemoryIndex
 from src.orchestrator import Orchestrator
 from src.providers.base import BaseProvider
 from src.session import Session
@@ -72,6 +73,10 @@ class Memtrix:
         workspace_dir: str = self._config["workspace-directory"]
         tools: list[BaseTool] = discover_tools(workspace_dir=workspace_dir)
         think: bool = model_config.get("think", False)
+
+        # Eagerly initialize the memory index so existing files are indexed at startup
+        index: MemoryIndex = MemoryIndex.get_instance(workspace_dir=workspace_dir)
+        index.start_periodic_sync()
 
         self._orchestrator = Orchestrator(
             provider=self._provider,

@@ -4,7 +4,7 @@
 
 **A self-hosted, privacy-first personal AI agent with persistent memory and agentic tool use.**
 
-Built with Python · Powered by Ollama & OpenRouter · Communicates over Matrix · v1.4.4
+Built with Python · Powered by Ollama & OpenRouter · Communicates over Matrix · v1.5.0
 
 ---
 
@@ -47,7 +47,7 @@ It's not a chatbot. It's an **agent** — it can search the web, browse pages, e
 └────────┼────────────────────────────────────────────────┘
          │
          ▼
-    Ollama (LLM + Embeddings)
+    Ollama (LLM)
     OpenRouter (cloud LLMs)
 ```
 
@@ -57,7 +57,7 @@ It's not a chatbot. It's an **agent** — it can search the web, browse pages, e
 | Conduit | Lightweight Matrix homeserver (local-only, no federation) |
 | SearXNG | Privacy-respecting metasearch engine for web access |
 | ChromaDB | Embedded vector database for semantic memory search |
-| Ollama | Local LLM inference + embedding model (runs separately) |
+| Ollama | Local LLM inference (runs separately) |
 | OpenRouter | Cloud LLM gateway — access models from OpenAI, Anthropic, Google, etc. |
 
 ## Tools
@@ -140,7 +140,7 @@ Chronological, append-only logs of each day's conversations. Every journal follo
 
 ### Semantic Search (RAG)
 
-Daily journals are automatically embedded using a local Ollama embedding model (e.g. `nomic-embed-text`) and stored in ChromaDB. When Memtrix needs to recall something from the past, it performs a semantic search over all journals and retrieves the most relevant entries.
+Daily journals are automatically embedded using a local embedding model (`nomic-embed-text-v1.5` via `sentence-transformers`) and stored in ChromaDB. The model downloads once on first startup and runs entirely on-device. When Memtrix needs to recall something from the past, it performs a semantic search over all journals and retrieves the most relevant entries.
 
 ```
 User: "Remember that cake recipe I told you about?"
@@ -179,7 +179,7 @@ Slash commands:
 ### Prerequisites
 
 - Docker & Docker Compose
-- An [Ollama](https://ollama.ai) instance with a chat model and `nomic-embed-text` pulled
+- An [Ollama](https://ollama.ai) instance with a chat model pulled (or an OpenRouter API key)
 - [Element Desktop](https://element.io/download) (or any Matrix client)
 
 ### Setup
@@ -210,7 +210,6 @@ All configuration lives in `data/config.json`. Secrets (access tokens, API keys)
         "provider": "my-ollama",
         "model": "my-model",
         "channel": "matrix",
-        "embedding_model": "nomic-embed-text",
         "sessions": {},
         "verbose": false,
         "reasoning": false
@@ -257,7 +256,7 @@ Memtrix/
 │   ├── session.py                 # Per-room conversation persistence
 │   ├── commands.py                # Slash command registry (/clear, /verbose, /reasoning, /help)
 │   ├── secrets.py                 # Secret resolution from env vars + sanitization
-│   ├── memory_index.py            # ChromaDB + Ollama embeddings (RAG)
+│   ├── memory_index.py            # ChromaDB + local embeddings (RAG)
 │   ├── config.py                  # Config path constant
 │   ├── onboarding.py              # Interactive setup wizard (Rich TUI)
 │   ├── channels/
@@ -343,7 +342,7 @@ The onboarding wizard automatically discovers new providers and prompts for thei
 |-------|-----------|
 | Language | Python 3.13 |
 | LLM Backend | Ollama, OpenRouter |
-| Embeddings | Ollama (`nomic-embed-text`) |
+| Embeddings | nomic-embed-text-v1.5 (local, via sentence-transformers) |
 | Vector Store | ChromaDB (embedded, persistent) |
 | Communication | Matrix protocol (matrix-nio) |
 | Homeserver | Conduit |

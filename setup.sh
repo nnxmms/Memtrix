@@ -11,6 +11,7 @@ echo ""
 
 # Create data and workspace directories
 mkdir -p "$DATA_DIR"
+mkdir -p "$DATA_DIR/cache"
 mkdir -p "$WORKSPACE_DIR/memory"
 
 # Copy static files into ./data/ (skip if already exist)

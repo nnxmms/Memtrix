@@ -5,7 +5,6 @@ import re
 from datetime import date
 from typing import Any
 
-from src.memory_index import MemoryIndex
 from src.tools.base import BaseTool
 
 # Pattern for valid memory filenames
@@ -107,9 +106,5 @@ class WriteMemoryFileTool(BaseTool):
 
         # Clear the read marker for this file
         BaseTool._read_files.discard(filename)
-
-        # Index the updated content for RAG search
-        index: MemoryIndex = MemoryIndex.get_instance(workspace_dir=self._workspace_dir)
-        index.index_memory(filename=filename, content=content)
 
         return f"Successfully updated memory/{filename}."
