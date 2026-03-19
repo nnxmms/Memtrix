@@ -288,7 +288,15 @@ class Onboarding:
 
             params["homeserver"] = homeserver
             params["user_id"] = bot_user_id
-            params["access_token"] = bot_access_token
+            params["access_token"] = "$MATRIX_ACCESS_TOKEN"
+
+            # Tell the user to add the token to .env
+            _say(
+                message="[bold yellow]Important:[/bold yellow] Add the bot access token to your [bold].env[/bold] file "
+                "in the Memtrix project root:\n\n"
+                f"  [bold]MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN={bot_access_token}[/bold]\n\n"
+                "Memtrix will read it from there on startup. Never put tokens in config.json."
+            )
 
         elif channel_types[selection]:
             _say(message=f"I need a few details to set up [bold]{instance_name}[/bold].")

@@ -8,6 +8,7 @@ from typing import Any
 from src import __version__
 from src.config import CONFIG_PATH
 from src.memtrix import Memtrix
+from src.secrets import clear_secrets_from_env, resolve_secrets
 
 
 def main() -> None:
@@ -23,6 +24,12 @@ def main() -> None:
     # Load and validate config
     with open(file=CONFIG_PATH, mode="r") as f:
         config: dict[str, Any] = json.load(fp=f)
+
+    # Resolve $PLACEHOLDER secrets from environment variables
+    config: dict[str, Any] = resolve_secrets(config=config)
+
+    # Clear secrets from environment so they can't be leaked via `env` or /proc
+    clear_secrets_from_env()
 
     # Ensure onboarding has been completed
     required_sections: list[str] = ["providers", "models", "channels"]

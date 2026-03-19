@@ -12,6 +12,8 @@ services:
       - ALL
     tmpfs:
       - /tmp           # writable scratch space for Python internals
+    env_file:
+      - .env           # secrets (access tokens, API keys)
     volumes:
       - ./workspace:/home/memtrix/workspace   # persistent workspace (AGENT.md, MEMORY.md, memory/, …)
       - ./data:/home/memtrix/data             # persistent data (config.json, …)

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0
+
+- Move secrets from `config.json` to `.env` file with `$PLACEHOLDER` references.
+- Resolve secrets from `MEMTRIX_SECRET_*` environment variables at startup.
+- Clear secrets from process environment after reading to prevent leakage via `env`.
+- Sanitize subprocess environment in `run_command` tool to strip secret variables.
+- Onboarding prints bot token for manual `.env` setup instead of writing to config.
+
 ## 1.2.0
 
 - Receive files sent via Element — saved to `workspace/attachments/`.

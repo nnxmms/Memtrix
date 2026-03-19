@@ -4,6 +4,7 @@ import subprocess
 from typing import Any
 
 from src.tools.base import BaseTool
+from src.secrets import get_sanitized_env
 
 # Maximum output length to return
 MAX_OUTPUT_LENGTH: int = 4000
@@ -49,7 +50,8 @@ class RunCommandTool(BaseTool):
                 capture_output=True,
                 text=True,
                 timeout=COMMAND_TIMEOUT,
-                cwd=self._workspace_dir
+                cwd=self._workspace_dir,
+                env=get_sanitized_env()
             )
         except subprocess.TimeoutExpired:
             return f"Error: command timed out after {COMMAND_TIMEOUT} seconds."

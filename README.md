@@ -4,7 +4,7 @@
 
 **A self-hosted, privacy-first personal AI agent with persistent memory and agentic tool use.**
 
-Built with Python · Powered by Ollama · Communicates over Matrix · v1.2.0
+Built with Python · Powered by Ollama · Communicates over Matrix · v1.3.0
 
 ---
 
@@ -72,6 +72,7 @@ Memtrix ships with a set of built-in tools, automatically discovered at startup:
 | `web_search` | Searches the web via local SearXNG instance |
 | `fetch_url` | Fetches and extracts readable text from a URL |
 | `run_command` | Executes shell commands inside the sandboxed container |
+| `send_file` | Sends a file from the workspace to the user via Matrix |
 
 Tools follow a read-before-write pattern — write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt.
 
@@ -167,6 +168,7 @@ Each Matrix room gets its own independent conversation session, stored as a JSON
 Slash commands:
 - `/clear` — Start a fresh session in the current room
 - `/verbose on|off` — Toggle real-time tool execution notifications
+- `/reasoning on|off` — Toggle display of model reasoning/thinking
 - `/help` — List available commands
 
 ## Quick Start
@@ -197,7 +199,7 @@ Open Element, connect to `http://localhost:6167`, log in with the credentials fr
 
 ## Configuration
 
-All configuration lives in `data/config.json`:
+All configuration lives in `data/config.json`. Secrets (access tokens, API keys) are stored in a `.env` file at the project root and injected as environment variables — never in config.json.
 
 ```json
 {
@@ -207,7 +209,8 @@ All configuration lives in `data/config.json`:
         "channel": "matrix",
         "embedding_model": "nomic-embed-text",
         "sessions": {},
-        "verbose": false
+        "verbose": false,
+        "reasoning": false
     },
     "workspace-directory": "/home/memtrix/workspace",
     "providers": {
@@ -219,7 +222,8 @@ All configuration lives in `data/config.json`:
     "models": {
         "my-model": {
             "provider": "my-ollama",
-            "model": "llama3"
+            "model": "llama3",
+            "think": true
         }
     },
     "channels": {
@@ -227,11 +231,13 @@ All configuration lives in `data/config.json`:
             "type": "matrix",
             "homeserver": "http://conduit:6167",
             "user_id": "@memtrix:memtrix.local",
-            "access_token": "..."
+            "access_token": "$MATRIX_ACCESS_TOKEN"
         }
     }
 }
 ```
+
+Values starting with `$` are resolved from environment variables at startup (prefixed with `MEMTRIX_SECRET_`). For example, `$MATRIX_ACCESS_TOKEN` reads from `MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN` in `.env`.
 
 ## Project Structure
 
@@ -242,7 +248,8 @@ Memtrix/
 │   ├── memtrix.py                 # Core — wires channels, providers, sessions
 │   ├── orchestrator.py            # Agentic loop — LLM calls, tool execution
 │   ├── session.py                 # Per-room conversation persistence
-│   ├── commands.py                # Slash command registry (/clear, /verbose, /help)
+│   ├── commands.py                # Slash command registry (/clear, /verbose, /reasoning, /help)
+│   ├── secrets.py                 # Secret resolution from env vars + sanitization
 │   ├── memory_index.py            # ChromaDB + Ollama embeddings (RAG)
 │   ├── config.py                  # Config path constant
 │   ├── onboarding.py              # Interactive setup wizard (Rich TUI)
@@ -263,7 +270,8 @@ Memtrix/
 │   │   ├── search_memory_tool.py  # Semantic memory search
 │   │   ├── web_search_tool.py     # Web search via SearXNG
 │   │   ├── fetch_url_tool.py      # URL content extraction
-│   │   └── run_command_tool.py    # Shell command execution
+│   │   ├── run_command_tool.py    # Shell command execution
+│   │   └── send_file_tool.py      # Send files to user via Matrix
 │   └── static/
 │       ├── config.json            # Config template
 │       ├── conduit.toml           # Conduit homeserver config
@@ -277,6 +285,7 @@ Memtrix/
 ├── data/                          # Persistent data (config, sessions, vector index)
 ├── Dockerfile
 ├── docker-compose.yml
+├── .env                           # Secrets (access tokens, API keys — gitignored)
 ├── requirements.txt
 ├── setup.sh
 ├── onboard.sh
@@ -295,6 +304,8 @@ The Memtrix container is hardened by default:
 | No privilege escalation | `no-new-privileges: true` |
 | Minimal writable surface | Only `workspace/`, `data/`, and `/tmp` |
 | Tool sandboxing | `run_command` is confined to the container's restrictions |
+| Secret management | Tokens stored in `.env`, resolved at startup, cleared from process environment |
+| Subprocess isolation | `run_command` passes a sanitized env with all secrets stripped |
 | File access control | Core file and memory tools are limited to whitelisted paths |
 | Web access | All web traffic routes through local SearXNG — no direct outbound from the LLM |
 
