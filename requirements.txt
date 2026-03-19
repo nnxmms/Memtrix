@@ -3,5 +3,6 @@ beautifulsoup4
 chromadb
 matrix-nio
 ollama
+openai
 requests
 rich

@@ -4,19 +4,20 @@
 
 **A self-hosted, privacy-first personal AI agent with persistent memory and agentic tool use.**
 
-Built with Python · Powered by Ollama · Communicates over Matrix · v1.3.1
+Built with Python · Powered by Ollama & OpenRouter · Communicates over Matrix · v1.4.0
 
 ---
 
 </div>
 
-Memtrix is a lightweight personal AI assistant that runs entirely on your own infrastructure. It connects to any Ollama-compatible LLM, communicates through the [Matrix](https://matrix.org) protocol, and maintains long-term memory across conversations — all without touching a single cloud API.
+Memtrix is a lightweight personal AI assistant that runs entirely on your own infrastructure. It connects to any Ollama-compatible LLM or cloud models via [OpenRouter](https://openrouter.ai), communicates through the [Matrix](https://matrix.org) protocol, and maintains long-term memory across conversations.
 
 It's not a chatbot. It's an **agent** — it can search the web, browse pages, execute shell commands, manage its own memory, and evolve its personality over time based on your interactions.
 
 ## Highlights
 
 - **Fully self-hosted**: LLM, homeserver, search engine, vector database — everything runs locally
+- **Multi-provider**: Local models via Ollama or cloud models via OpenRouter
 - **Agentic tool system**: auto-discovered tools with an iterative reasoning loop
 - **Persistent memory**: daily journals with semantic search (RAG) powered by local embeddings
 - **Self-aware persona**: core identity files that Memtrix reads, understands, and updates itself
@@ -47,6 +48,7 @@ It's not a chatbot. It's an **agent** — it can search the web, browse pages, e
          │
          ▼
     Ollama (LLM + Embeddings)
+    OpenRouter (cloud LLMs)
 ```
 
 | Component | Role |
@@ -56,6 +58,7 @@ It's not a chatbot. It's an **agent** — it can search the web, browse pages, e
 | SearXNG | Privacy-respecting metasearch engine for web access |
 | ChromaDB | Embedded vector database for semantic memory search |
 | Ollama | Local LLM inference + embedding model (runs separately) |
+| OpenRouter | Cloud LLM gateway — access models from OpenAI, Anthropic, Google, etc. |
 
 ## Tools
 
@@ -217,6 +220,10 @@ All configuration lives in `data/config.json`. Secrets (access tokens, API keys)
         "my-ollama": {
             "type": "ollama",
             "base_url": "http://your-ollama-host:11434"
+        },
+        "my-openrouter": {
+            "type": "openrouter",
+            "api_key": "$OPENROUTER_API_KEY"
         }
     },
     "models": {
@@ -260,6 +267,7 @@ Memtrix/
 │   ├── providers/
 │   │   ├── base.py                # BaseProvider interface
 │   │   ├── ollama.py              # Ollama LLM provider
+│   │   ├── openrouter.py          # OpenRouter LLM provider
 │   │   └── utils.py               # Dynamic provider discovery
 │   ├── tools/
 │   │   ├── base.py                # BaseTool interface + read tracker
@@ -334,7 +342,7 @@ The onboarding wizard automatically discovers new providers and prompts for thei
 | Layer | Technology |
 |-------|-----------|
 | Language | Python 3.13 |
-| LLM Backend | Ollama |
+| LLM Backend | Ollama, OpenRouter |
 | Embeddings | Ollama (`nomic-embed-text`) |
 | Vector Store | ChromaDB (embedded, persistent) |
 | Communication | Matrix protocol (matrix-nio) |

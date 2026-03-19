@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0
+
+- Add OpenRouter provider for accessing cloud LLMs via the OpenRouter API.
+
 ## 1.3.1
 
 - Fix secret placeholders in `config.json` being overwritten with plaintext tokens on first session creation.
