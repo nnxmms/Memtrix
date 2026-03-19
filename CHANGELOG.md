@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.3
+
+- Write `.env` file to `data/.env.generated` during onboarding; `onboard.sh` auto-moves it to the project root.
+- Add default reasoing to `true` in config.json
+
 ## 1.4.2
 
 - Print a single copy-friendly `.env` template with descriptions at the end of onboarding instead of inline secret messages.

@@ -6,6 +6,7 @@
         "session": "",
         "sessions": {},
         "verbose": true,
+        "reasoning": true,
         "embedding_model": "nomic-embed-text"
     },
     "workspace-directory": "/home/memtrix/workspace",
