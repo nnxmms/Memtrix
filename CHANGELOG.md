@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.2
+
+- Print a single copy-friendly `.env` template with descriptions at the end of onboarding instead of inline secret messages.
+
 ## 1.4.1
 
 - Auto-detect secret fields during provider onboarding and store as `$PLACEHOLDER` references instead of plaintext.
