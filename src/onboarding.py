@@ -83,13 +83,30 @@ class Onboarding:
         # Collect required parameters for this provider
         _say(message=f"Almost there! I just need a few details to connect to [bold]{instance_name}[/bold].")
         params: dict[str, str] = {"type": selection}
+        env_secrets: list[tuple[str, str]] = []
         for requirement in providers[selection]:
             value: str = Prompt.ask(f" [cyan]>[/cyan] {requirement}").strip()
-            params[requirement] = value
+            # Detect secret fields and store as $PLACEHOLDER
+            if any(keyword in requirement.lower() for keyword in ("key", "token", "secret")):
+                placeholder: str = f"{selection.upper()}_{requirement.upper()}"
+                env_var: str = f"MEMTRIX_SECRET_{placeholder}"
+                params[requirement] = f"${placeholder}"
+                env_secrets.append((env_var, value))
+            else:
+                params[requirement] = value
 
         # Store provider instance in config
         self.config["providers"][instance_name] = params
         _say(message=f"[green]Provider [bold]{instance_name}[/bold] has been saved![/green]")
+
+        # Tell the user to add secrets to .env
+        if env_secrets:
+            lines: str = "\n".join(f"  [bold]{env_var}={value}[/bold]" for env_var, value in env_secrets)
+            _say(
+                message=f"[bold yellow]Important:[/bold yellow] Add the following to your [bold].env[/bold] file "
+                f"in the Memtrix project root:\n\n{lines}\n\n"
+                "Memtrix will read secrets from there on startup. Never put them in config.json."
+            )
 
         # Offer to add another provider
         if Confirm.ask(" [cyan]>[/cyan] Want to add another provider?", default=False):

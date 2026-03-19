@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+
+- Auto-detect secret fields during provider onboarding and store as `$PLACEHOLDER` references instead of plaintext.
+
 ## 1.4.0
 
 - Add OpenRouter provider for accessing cloud LLMs via the OpenRouter API.
