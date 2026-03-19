@@ -94,9 +94,14 @@ class OpenRouterProvider(BaseProvider):
         kwargs: dict[str, Any] = {"model": model, "messages": self._sanitize_history(history=history)}
         if tools:
             kwargs["tools"] = self._sanitize_tools(tools=tools)
+        if think:
+            kwargs["extra_body"] = {"include_reasoning": True}
 
         response: Any = self._client.chat.completions.create(**kwargs)
         message: Any = response.choices[0].message
+
+        # Extract reasoning content (OpenRouter returns it differently than Ollama)
+        thinking: str | None = getattr(message, "reasoning", None) or getattr(message, "reasoning_content", None)
 
         # Parse tool call arguments from JSON strings to dicts
         wrapped_tool_calls: list[_ToolCall] | None = None
@@ -114,5 +119,6 @@ class OpenRouterProvider(BaseProvider):
 
         return _Message(
             content=message.content,
-            tool_calls=wrapped_tool_calls
+            tool_calls=wrapped_tool_calls,
+            thinking=thinking
         )

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.1
+
+- Enable reasoning/thinking for OpenRouter models via `include_reasoning` parameter.
+- Extract reasoning content from OpenRouter responses (`reasoning` / `reasoning_content`).
+
 ## 1.5.0
 
 - Replace Ollama-based embeddings with local `nomic-embed-text-v1.5` via `sentence-transformers`.
