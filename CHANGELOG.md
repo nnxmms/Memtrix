@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.4
+
+- Fix OpenRouter tool-calling: sanitize message history (`type`, `id`, JSON-string arguments) and tool schemas (strip empty parameters) for strict OpenAI-compatible providers.
+
 ## 1.4.3
 
 - Write `.env` file to `data/.env.generated` during onboarding; `onboard.sh` auto-moves it to the project root.

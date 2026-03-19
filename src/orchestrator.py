@@ -118,15 +118,19 @@ class Orchestrator:
         """
         result: dict[str, Any] = {"role": "assistant", "content": message.content or ""}
         if message.tool_calls:
-            result["tool_calls"] = [
-                {
+            serialized_calls: list[dict[str, Any]] = []
+            for tc in message.tool_calls:
+                tc_dict: dict[str, Any] = {
+                    "type": "function",
                     "function": {
                         "name": tc.function.name,
                         "arguments": tc.function.arguments
                     }
                 }
-                for tc in message.tool_calls
-            ]
+                if getattr(tc, "id", None):
+                    tc_dict["id"] = tc.id
+                serialized_calls.append(tc_dict)
+            result["tool_calls"] = serialized_calls
         return result
 
     def run(self, user_message: str, session: Session) -> str:
@@ -186,7 +190,10 @@ class Orchestrator:
                 # Notify about the tool response
                 self._emit(message=f"→ Tool response received")
 
-                session.append(message={"role": "tool", "content": result})
+                tool_result: dict[str, str] = {"role": "tool", "content": result}
+                if getattr(tool_call, "id", None):
+                    tool_result["tool_call_id"] = tool_call.id
+                session.append(message=tool_result)
 
                 # Rebuild system prompt if a core file was updated
                 if tool_name == "write_core_file" and result.startswith("Successfully"):
