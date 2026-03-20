@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1
+
+- Fix `fetch_url` tool — increase timeout from 15s to 30s and use realistic browser headers (User-Agent, Accept, Accept-Language) to avoid being blocked by sites that reject non-browser requests.
+
 ## 1.6.0
 
 - New `read_pdf` tool — extract text from PDF files in the workspace.
