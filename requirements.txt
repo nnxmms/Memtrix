@@ -5,6 +5,7 @@ einops
 matrix-nio
 ollama
 openai
+pymupdf
 requests
 rich
 sentence-transformers

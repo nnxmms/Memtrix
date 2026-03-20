@@ -4,7 +4,7 @@
 
 **A self-hosted, privacy-first personal AI agent with persistent memory and agentic tool use.**
 
-Built with Python · Powered by Ollama & OpenRouter · Communicates over Matrix · v1.5.1
+Built with Python · Powered by Ollama & OpenRouter · Communicates over Matrix · v1.6.0
 
 ---
 
@@ -76,6 +76,7 @@ Memtrix ships with a set of built-in tools, automatically discovered at startup:
 | `fetch_url` | Fetches and extracts readable text from a URL |
 | `run_command` | Executes shell commands inside the sandboxed container |
 | `send_file` | Sends a file from the workspace to the user via Matrix |
+| `read_pdf` | Extracts text content from a PDF file in the workspace |
 
 Tools follow a read-before-write pattern — write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt.
 
@@ -278,7 +279,8 @@ Memtrix/
 │   │   ├── web_search_tool.py     # Web search via SearXNG
 │   │   ├── fetch_url_tool.py      # URL content extraction
 │   │   ├── run_command_tool.py    # Shell command execution
-│   │   └── send_file_tool.py      # Send files to user via Matrix
+│   │   ├── send_file_tool.py      # Send files to user via Matrix
+│   │   └── read_pdf_tool.py       # Extract text from PDF files
 │   └── static/
 │       ├── config.json            # Config template
 │       ├── conduit.toml           # Conduit homeserver config

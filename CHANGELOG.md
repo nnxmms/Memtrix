@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.0
+
+- New `read_pdf` tool — extract text from PDF files in the workspace.
+- Add `curl` and `wget` to the Docker container.
+
 ## 1.5.1
 
 - Enable reasoning/thinking for OpenRouter models via `include_reasoning` parameter.
