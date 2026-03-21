@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.2
+
+- Fix `sudo` setup on Linux — `setup.sh` and `onboard.sh` now `chown` data and workspace directories to UID/GID 1000 so the container's non-root user can read the configuration.
+- Secure `.env` file permissions (`chmod 600`) after onboarding.
+- Add Linux Docker permissions note to README setup section.
+
 ## 1.6.1
 
 - Fix `fetch_url` tool — increase timeout from 15s to 30s and use realistic browser headers (User-Agent, Accept, Accept-Language) to avoid being blocked by sites that reject non-browser requests.

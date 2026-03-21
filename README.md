@@ -4,7 +4,7 @@
 
 **A self-hosted, privacy-first personal AI agent with persistent memory and agentic tool use.**
 
-Built with Python · Powered by Ollama & OpenRouter · Communicates over Matrix · v1.6.1
+Built with Python · Powered by Ollama & OpenRouter · Communicates over Matrix · v1.6.2
 
 ---
 
@@ -185,6 +185,8 @@ Slash commands:
 
 ### Setup
 
+The following assumes your current user is allowed to execute Docker. Linux users — see the note below.
+
 ```bash
 # Clone the repo
 git clone https://github.com/your-user/memtrix.git && cd memtrix
@@ -198,6 +200,10 @@ git clone https://github.com/your-user/memtrix.git && cd memtrix
 # Start everything
 docker compose up -d
 ```
+
+> **Linux note:** If your user is not in the `docker` group you will need to run
+> the scripts with `sudo`. Both `setup.sh` and `onboard.sh` automatically fix
+> file ownership so the container's non-root user can read the configuration.
 
 Open Element, connect to `http://localhost:6167`, log in with the credentials from onboarding, and invite `@memtrix:memtrix.local` to a room.
 

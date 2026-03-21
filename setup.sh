@@ -38,6 +38,11 @@ done
 
 echo ""
 
+# Fix ownership for Linux users who run setup with sudo.
+# The container runs as memtrix (uid/gid 1000) and must be able to
+# read/write the data and workspace directories.
+chown -R 1000:1000 "$DATA_DIR" "$WORKSPACE_DIR" 2>/dev/null || true
+
 # Build the Docker image
 echo "Building Docker image..."
 docker compose build
