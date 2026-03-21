@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.0
+
+- Add Context Enrichment workflow — Memtrix now silently searches memory (and the web as fallback) when it encounters unfamiliar names, topics, or terms, then weaves the context into natural conversation.
+- Redesign README with badges, feature grid, collapsible sections, and modern layout.
+
 ## 1.6.3
 
 - Add first-startup note to README about embedding model download.
