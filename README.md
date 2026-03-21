@@ -24,6 +24,42 @@ It's not a chatbot. It's an **agent** — it can search the web, browse pages, e
 - **Per-room sessions**: each Matrix room maintains its own conversation context
 - **Security hardened**: non-root, read-only filesystem, all capabilities dropped
 
+## Quick Start
+
+### Prerequisites
+
+- Docker & Docker Compose
+- An [Ollama](https://ollama.ai) instance with a chat model pulled (or an OpenRouter API key)
+- [Element Desktop](https://element.io/download) (or any Matrix client)
+
+### Setup
+
+The following assumes your current user is allowed to execute Docker. Linux users — see the note below.
+
+```bash
+# Clone the repo
+git clone https://github.com/your-user/memtrix.git && cd memtrix
+
+# Run first-time setup (creates directories, builds image, starts Conduit)
+./setup.sh
+
+# Run the interactive onboarding wizard (configures LLM, model, channel)
+./onboard.sh
+
+# Start everything
+docker compose up -d
+```
+
+> **Linux note:** If your user is not in the `docker` group you will need to run
+> the scripts with `sudo`. Both `setup.sh` and `onboard.sh` automatically fix
+> file ownership so the container's non-root user can read the configuration.
+
+> **First startup:** On the first launch, Memtrix downloads the embedding model
+> (~100 MB). This can take a couple of minutes depending on your network speed.
+> Subsequent starts reuse the cached model from `data/models/`.
+
+Open Element, connect to `http://localhost:6167`, log in with the credentials from onboarding, and invite `@memtrix:memtrix.local` to a room.
+
 ## Architecture
 
 ```
@@ -174,42 +210,6 @@ Slash commands:
 - `/verbose on|off` — Toggle real-time tool execution notifications
 - `/reasoning on|off` — Toggle display of model reasoning/thinking
 - `/help` — List available commands
-
-## Quick Start
-
-### Prerequisites
-
-- Docker & Docker Compose
-- An [Ollama](https://ollama.ai) instance with a chat model pulled (or an OpenRouter API key)
-- [Element Desktop](https://element.io/download) (or any Matrix client)
-
-### Setup
-
-The following assumes your current user is allowed to execute Docker. Linux users — see the note below.
-
-```bash
-# Clone the repo
-git clone https://github.com/your-user/memtrix.git && cd memtrix
-
-# Run first-time setup (creates directories, builds image, starts Conduit)
-./setup.sh
-
-# Run the interactive onboarding wizard (configures LLM, model, channel)
-./onboard.sh
-
-# Start everything
-docker compose up -d
-```
-
-> **Linux note:** If your user is not in the `docker` group you will need to run
-> the scripts with `sudo`. Both `setup.sh` and `onboard.sh` automatically fix
-> file ownership so the container's non-root user can read the configuration.
-
-> **First startup:** On the first launch, Memtrix downloads the embedding model
-> (~100 MB). This can take a couple of minutes depending on your network speed.
-> Subsequent starts reuse the cached model from `data/models/`.
-
-Open Element, connect to `http://localhost:6167`, log in with the credentials from onboarding, and invite `@memtrix:memtrix.local` to a room.
 
 ## Configuration
 
