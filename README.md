@@ -1,71 +1,130 @@
 <div align="center">
 
-# Memtrix
+# 🧠 Memtrix
 
 **A self-hosted, privacy-first personal AI agent with persistent memory and agentic tool use.**
 
-Built with Python · Powered by Ollama & OpenRouter · Communicates over Matrix · v1.6.3
+[![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
+[![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
+[![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
+[![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
+[![Version](https://img.shields.io/badge/version-1.6.3-brightgreen)](#)
+[![License](https://img.shields.io/badge/license-Private-red)](#)
+
+<br>
+
+*Not a chatbot. An **agent** — it searches the web, executes commands, manages its own memory,<br>and evolves its personality over time based on your interactions.*
 
 ---
 
 </div>
 
-Memtrix is a lightweight personal AI assistant that runs entirely on your own infrastructure. It connects to any Ollama-compatible LLM or cloud models via [OpenRouter](https://openrouter.ai), communicates through the [Matrix](https://matrix.org) protocol, and maintains long-term memory across conversations.
+<br>
 
-It's not a chatbot. It's an **agent** — it can search the web, browse pages, execute shell commands, manage its own memory, and evolve its personality over time based on your interactions.
-
-## Highlights
-
-- **Fully self-hosted**: LLM, homeserver, search engine, vector database — everything runs locally
-- **Multi-provider**: Local models via Ollama or cloud models via OpenRouter
-- **Agentic tool system**: auto-discovered tools with an iterative reasoning loop
-- **Persistent memory**: daily journals with semantic search (RAG) powered by local embeddings
-- **Self-aware persona**: core identity files that Memtrix reads, understands, and updates itself
-- **Per-room sessions**: each Matrix room maintains its own conversation context
-- **Security hardened**: non-root, read-only filesystem, all capabilities dropped
-
-## Quick Start
+## ⚡ Quick Start
 
 ### Prerequisites
 
-- Docker & Docker Compose
-- An [Ollama](https://ollama.ai) instance with a chat model pulled (or an OpenRouter API key)
-- [Element Desktop](https://element.io/download) (or any Matrix client)
+| Requirement | Purpose |
+|:--|:--|
+| [Docker & Docker Compose](https://docs.docker.com/get-docker/) | Runs all services |
+| [Ollama](https://ollama.ai) **or** an [OpenRouter](https://openrouter.ai) API key | LLM inference |
+| [Element Desktop](https://element.io/download) (or any Matrix client) | Chat interface |
 
 ### Setup
 
-The following assumes your current user is allowed to execute Docker. Linux users — see the note below.
-
 ```bash
-# Clone the repo
 git clone https://github.com/your-user/memtrix.git && cd memtrix
 
-# Run first-time setup (creates directories, builds image, starts Conduit)
-./setup.sh
+./setup.sh       # Create directories, build image, start Conduit
+./onboard.sh     # Interactive wizard — configure LLM, model, channel
 
-# Run the interactive onboarding wizard (configures LLM, model, channel)
-./onboard.sh
-
-# Start everything
 docker compose up -d
 ```
 
-> **Linux note:** If your user is not in the `docker` group you will need to run
-> the scripts with `sudo`. Both `setup.sh` and `onboard.sh` automatically fix
-> file ownership so the container's non-root user can read the configuration.
+Open Element → connect to `http://localhost:6167` → log in → invite `@memtrix:memtrix.local` to a room.
 
-> **First startup:** On the first launch, Memtrix downloads the embedding model
-> (~100 MB). This can take a couple of minutes depending on your network speed.
-> Subsequent starts reuse the cached model from `data/models/`.
+> [!NOTE]
+> **Linux users:** If your user is not in the `docker` group, run scripts with `sudo`.
+> Both scripts automatically fix file ownership so the container can read the config.
 
-Open Element, connect to `http://localhost:6167`, log in with the credentials from onboarding, and invite `@memtrix:memtrix.local` to a room.
+> [!NOTE]
+> **First startup:** Memtrix downloads the embedding model (~100 MB) on first launch.
+> This can take a couple of minutes depending on your network. Subsequent starts reuse `data/models/`.
 
-## Architecture
+<br>
+
+---
+
+<br>
+
+## ✨ Highlights
+
+<table>
+<tr>
+<td width="50%">
+
+🏠 **Fully Self-Hosted**<br>
+<sub>LLM, homeserver, search engine, vector DB — everything runs on your hardware.</sub>
+
+</td>
+<td width="50%">
+
+🔌 **Multi-Provider**<br>
+<sub>Local models via Ollama or 200+ cloud models via OpenRouter.</sub>
+
+</td>
+</tr>
+<tr>
+<td>
+
+🛠️ **Agentic Tool System**<br>
+<sub>Auto-discovered tools with an iterative reasoning loop. Drop in new tools as .py files.</sub>
+
+</td>
+<td>
+
+🧠 **Persistent Memory**<br>
+<sub>Daily journals with semantic search (RAG) powered by on-device embeddings.</sub>
+
+</td>
+</tr>
+<tr>
+<td>
+
+👤 **Self-Aware Persona**<br>
+<sub>Identity files that Memtrix reads, understands, and updates itself over time.</sub>
+
+</td>
+<td>
+
+💬 **Per-Room Sessions**<br>
+<sub>Each Matrix room maintains its own conversation context and history.</sub>
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="center">
+
+🔒 **Security Hardened** — non-root, read-only filesystem, all capabilities dropped, secrets cleared from memory
+
+</td>
+</tr>
+</table>
+
+<br>
+
+---
+
+<br>
+
+## 🏗️ Architecture
 
 ```
                           ┌──────────────────┐
-                          │ Element Desktop  │
-                          │ (Matrix Client)  │
+                          │  Element Desktop │
+                          │  (Matrix Client) │
                           └────────┬─────────┘
                                    │
 ┌──────────────────────────────────┼──────────────────────┐
@@ -88,25 +147,31 @@ Open Element, connect to `http://localhost:6167`, log in with the credentials fr
 ```
 
 | Component | Role |
-|-----------|------|
-| Memtrix | Python agent — orchestrates LLM calls, tool execution, memory, sessions |
-| Conduit | Lightweight Matrix homeserver (local-only, no federation) |
-| SearXNG | Privacy-respecting metasearch engine for web access |
-| ChromaDB | Embedded vector database for semantic memory search |
-| Ollama | Local LLM inference (runs separately) |
-| OpenRouter | Cloud LLM gateway — access models from OpenAI, Anthropic, Google, etc. |
+|:--|:--|
+| **Memtrix** | Python agent — orchestrates LLM calls, tool execution, memory, sessions |
+| **Conduit** | Lightweight Matrix homeserver (local-only, no federation) |
+| **SearXNG** | Privacy-respecting metasearch engine for web access |
+| **ChromaDB** | Embedded vector database for semantic memory search |
+| **Ollama** | Local LLM inference (runs separately) |
+| **OpenRouter** | Cloud LLM gateway — OpenAI, Anthropic, Google, and more |
 
-## Tools
+<br>
 
-Memtrix ships with a set of built-in tools, automatically discovered at startup:
+---
+
+<br>
+
+## 🛠️ Tools
+
+Built-in tools are automatically discovered at startup:
 
 | Tool | Description |
-|------|-------------|
+|:--|:--|
 | `get_current_time` | Returns the current date and time |
 | `read_core_file` | Reads a core persona file (BEHAVIOR, SOUL, USER, MEMORY) |
 | `write_core_file` | Updates a core persona file (enforces read-before-write) |
 | `read_memory_file` | Reads a daily memory journal (`memory/yyyy-mm-dd.md`) |
-| `write_memory_file` | Updates a daily memory journal (auto-indexes for RAG) |
+| `write_memory_file` | Updates a daily memory journal |
 | `search_memory` | Semantic search across all daily memories via embeddings |
 | `web_search` | Searches the web via local SearXNG instance |
 | `fetch_url` | Fetches and extracts readable text from a URL |
@@ -114,9 +179,11 @@ Memtrix ships with a set of built-in tools, automatically discovered at startup:
 | `send_file` | Sends a file from the workspace to the user via Matrix |
 | `read_pdf` | Extracts text content from a PDF file in the workspace |
 
-Tools follow a read-before-write pattern — write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt.
+> Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt.
 
-### Adding a Tool
+<details>
+<summary><b>Adding a Custom Tool</b></summary>
+<br>
 
 Drop a new `.py` file in `src/tools/` that subclasses `BaseTool`:
 
@@ -144,17 +211,21 @@ class MyTool(BaseTool):
 
 It's automatically discovered and available to the LLM on the next restart.
 
-## Memory System
+</details>
+
+<br>
+
+---
+
+<br>
+
+## 🧠 Memory System
 
 Memtrix has a two-tier memory architecture:
 
-### Core Memory (`MEMORY.md`)
+**Core Memory** (`MEMORY.md`) — A curated, compact summary of the most important long-term knowledge. Key facts, recurring themes, lasting context. Memtrix actively maintains and prunes this file. Think of it as the **brain**.
 
-A curated, compact summary of the most important long-term knowledge — key facts, recurring themes, lasting context. Memtrix actively maintains and prunes this file. Think of it as the **brain**.
-
-### Daily Journals (`memory/yyyy-mm-dd.md`)
-
-Chronological, append-only logs of each day's conversations. Every journal follows a strict structure:
+**Daily Journals** (`memory/yyyy-mm-dd.md`) — Chronological, append-only logs of each day's conversations:
 
 ```markdown
 # 2026-03-18
@@ -177,7 +248,7 @@ Chronological, append-only logs of each day's conversations. Every journal follo
 
 ### Semantic Search (RAG)
 
-Daily journals are automatically embedded using a local embedding model (`nomic-embed-text-v1.5` via `sentence-transformers`) and stored in ChromaDB. The model downloads once on first startup and runs entirely on-device. When Memtrix needs to recall something from the past, it performs a semantic search over all journals and retrieves the most relevant entries.
+Daily journals are embedded using a local model ([`nomic-embed-text-v1.5`](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) via `sentence-transformers`) and stored in ChromaDB. The model runs entirely on-device — no external API calls.
 
 ```
 User: "Remember that cake recipe I told you about?"
@@ -187,33 +258,56 @@ User: "Remember that cake recipe I told you about?"
   → Returns the full context
 ```
 
-## Persona System
+<br>
 
-Memtrix's identity is defined by markdown files in the `workspace/` directory:
+---
+
+<br>
+
+## 👤 Persona System
+
+Memtrix's identity is defined by markdown files in `workspace/`:
 
 | File | Purpose |
-|------|---------|
+|:--|:--|
 | `AGENT.md` | System prompt template — wires everything together |
 | `BEHAVIOR.md` | Communication style, tone, and habits |
 | `SOUL.md` | Core values and personality |
 | `USER.md` | Everything Memtrix knows about you |
 | `MEMORY.md` | Distilled long-term memory |
 
-These files are injected into the system prompt via placeholders (`{{BEHAVIOR}}`, `{{SOUL}}`, etc.) and are **live-editable by Memtrix itself**. When you tell Memtrix to behave differently or share personal details, it updates the appropriate file — with the system prompt rebuilt immediately after.
+These files are injected into the system prompt via placeholders (`{{BEHAVIOR}}`, `{{SOUL}}`, etc.) and are **live-editable by Memtrix itself**. When you tell it to behave differently or share personal details, it updates the appropriate file — with the system prompt rebuilt immediately after.
 
-## Sessions
+<br>
 
-Each Matrix room gets its own independent conversation session, stored as a JSON file in `data/sessions/`. This means you can have multiple ongoing conversations with different contexts — like separate chat windows.
+---
 
-Slash commands:
-- `/clear` — Start a fresh session in the current room
-- `/verbose on|off` — Toggle real-time tool execution notifications
-- `/reasoning on|off` — Toggle display of model reasoning/thinking
-- `/help` — List available commands
+<br>
 
-## Configuration
+## 💬 Sessions & Commands
 
-All configuration lives in `data/config.json`. Secrets (access tokens, API keys) are stored in a `.env` file at the project root and injected as environment variables — never in config.json.
+Each Matrix room gets its own independent conversation session. Multiple rooms = multiple contexts.
+
+| Command | Action |
+|:--|:--|
+| `/clear` | Start a fresh session in the current room |
+| `/verbose on\|off` | Toggle real-time tool execution notifications |
+| `/reasoning on\|off` | Toggle display of model reasoning/thinking |
+| `/help` | List available commands |
+
+<br>
+
+---
+
+<br>
+
+## ⚙️ Configuration
+
+All configuration lives in `data/config.json`. Secrets are stored in `.env` and injected as environment variables — never in config.
+
+<details>
+<summary><b>Example config.json</b></summary>
+<br>
 
 ```json
 {
@@ -256,7 +350,42 @@ All configuration lives in `data/config.json`. Secrets (access tokens, API keys)
 
 Values starting with `$` are resolved from environment variables at startup (prefixed with `MEMTRIX_SECRET_`). For example, `$MATRIX_ACCESS_TOKEN` reads from `MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN` in `.env`.
 
-## Project Structure
+</details>
+
+<br>
+
+---
+
+<br>
+
+## 🔒 Security
+
+The container is hardened by default:
+
+| Measure | Detail |
+|:--|:--|
+| Non-root user | Runs as `memtrix` (UID 1000) |
+| Read-only filesystem | Immutable root via `read_only: true` |
+| No capabilities | `cap_drop: ALL` |
+| No privilege escalation | `no-new-privileges: true` |
+| Minimal writable surface | Only `workspace/`, `data/`, and `/tmp` |
+| Tool sandboxing | `run_command` is confined to the container |
+| Secret management | Tokens in `.env`, resolved at startup, cleared from process env |
+| Subprocess isolation | `run_command` passes a sanitized env with all secrets stripped |
+| File access control | Core file and memory tools are limited to whitelisted paths |
+| Web access | All traffic routes through local SearXNG — no direct outbound from the LLM |
+
+<br>
+
+---
+
+<br>
+
+## 📂 Project Structure
+
+<details>
+<summary><b>Expand file tree</b></summary>
+<br>
 
 ```
 Memtrix/
@@ -265,8 +394,8 @@ Memtrix/
 │   ├── memtrix.py                 # Core — wires channels, providers, sessions
 │   ├── orchestrator.py            # Agentic loop — LLM calls, tool execution
 │   ├── session.py                 # Per-room conversation persistence
-│   ├── commands.py                # Slash command registry (/clear, /verbose, /reasoning, /help)
-│   ├── secrets.py                 # Secret resolution from env vars + sanitization
+│   ├── commands.py                # Slash command registry
+│   ├── secrets.py                 # Secret resolution + sanitization
 │   ├── memory_index.py            # ChromaDB + local embeddings (RAG)
 │   ├── config.py                  # Config path constant
 │   ├── onboarding.py              # Interactive setup wizard (Rich TUI)
@@ -304,31 +433,26 @@ Memtrix/
 ├── data/                          # Persistent data (config, sessions, vector index)
 ├── Dockerfile
 ├── docker-compose.yml
-├── .env                           # Secrets (access tokens, API keys — gitignored)
+├── .env                           # Secrets (gitignored)
 ├── requirements.txt
 ├── setup.sh
 ├── onboard.sh
 └── run.sh
 ```
 
-## Security
+</details>
 
-The Memtrix container is hardened by default:
+<br>
 
-| Measure | Detail |
-|---------|--------|
-| Non-root user | Runs as `memtrix` (UID 1000) |
-| Read-only filesystem | Immutable root via `read_only: true` |
-| No capabilities | `cap_drop: ALL` |
-| No privilege escalation | `no-new-privileges: true` |
-| Minimal writable surface | Only `workspace/`, `data/`, and `/tmp` |
-| Tool sandboxing | `run_command` is confined to the container's restrictions |
-| Secret management | Tokens stored in `.env`, resolved at startup, cleared from process environment |
-| Subprocess isolation | `run_command` passes a sanitized env with all secrets stripped |
-| File access control | Core file and memory tools are limited to whitelisted paths |
-| Web access | All web traffic routes through local SearXNG — no direct outbound from the LLM |
+---
 
-## Adding a Provider
+<br>
+
+## 🔌 Adding a Provider
+
+<details>
+<summary><b>Provider template</b></summary>
+<br>
 
 Drop a new `.py` file in `src/providers/` that subclasses `BaseProvider`:
 
@@ -347,6 +471,16 @@ class MyProvider(BaseProvider):
 ```
 
 The onboarding wizard automatically discovers new providers and prompts for their constructor parameters.
+
+</details>
+
+<br>
+
+---
+
+<div align="center">
+<sub>Built with care. Runs on your hardware. Remembers what matters.</sub>
+</div>
 
 ## Tech Stack
 
