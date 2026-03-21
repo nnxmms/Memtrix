@@ -54,12 +54,12 @@ docker compose up -d conduit
 
 # Wait for Conduit to be ready
 echo "Waiting for Conduit to become available..."
-for i in $(seq 1 30); do
+for i in $(seq 1 60); do
     if curl -sf http://localhost:6167/_matrix/client/versions > /dev/null 2>&1; then
         echo "  Conduit is ready."
         break
     fi
-    if [[ $i -eq 30 ]]; then
+    if [[ $i -eq 60 ]]; then
         echo "  Error: Conduit did not start within 30 seconds."
         exit 1
     fi

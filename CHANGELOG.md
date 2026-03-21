@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.3
+
+- Add first-startup note to README about embedding model download.
+- Increase conduit startup windows to 60s in `setup.sh`
+
 ## 1.6.2
 
 - Fix `sudo` setup on Linux — `setup.sh` and `onboard.sh` now `chown` data and workspace directories to UID/GID 1000 so the container's non-root user can read the configuration.

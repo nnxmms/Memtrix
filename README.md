@@ -4,7 +4,7 @@
 
 **A self-hosted, privacy-first personal AI agent with persistent memory and agentic tool use.**
 
-Built with Python · Powered by Ollama & OpenRouter · Communicates over Matrix · v1.6.2
+Built with Python · Powered by Ollama & OpenRouter · Communicates over Matrix · v1.6.3
 
 ---
 
@@ -204,6 +204,10 @@ docker compose up -d
 > **Linux note:** If your user is not in the `docker` group you will need to run
 > the scripts with `sudo`. Both `setup.sh` and `onboard.sh` automatically fix
 > file ownership so the container's non-root user can read the configuration.
+
+> **First startup:** On the first launch, Memtrix downloads the embedding model
+> (~100 MB). This can take a couple of minutes depending on your network speed.
+> Subsequent starts reuse the cached model from `data/models/`.
 
 Open Element, connect to `http://localhost:6167`, log in with the credentials from onboarding, and invite `@memtrix:memtrix.local` to a room.
 
