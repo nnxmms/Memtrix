@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.8.6
+
+- **Fix session ID path traversal** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.7.0.md) finding #5) — validate `session_id` matches UUID v4 format before using in file paths.
+- **Fix `_read_files` cross-room bypass** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.7.0.md) finding #6) — read-before-write tracker is now keyed by `room_id`, preventing Room B from exploiting Room A's read authorization.
+- **Disable Conduit open registration** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.7.0.md) finding #7) — set `allow_registration = false` in `conduit.toml`.
+- **Generate random SearXNG secret** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.7.0.md) finding #8) — `setup.sh` now generates a unique `secret_key` per installation.
+
 ## 1.8.5
 
 - **Fix attachment filename path traversal** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.7.0.md) finding #4) — sanitize Matrix attachment filenames to basename-only via `os.path.basename()`, preventing `../../` path traversal in attacker-controlled `event.body`.

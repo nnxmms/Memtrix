@@ -83,7 +83,7 @@ There is **no path traversal check** on attachment downloads, unlike `send_file_
 
 ## MEDIUM
 
-### 5. Session ID Path Traversal
+### 5. Session ID Path Traversal — ✅ MITIGATED (v1.8.6)
 
 **File:** `src/session.py` (lines 38–44)
 
@@ -95,9 +95,9 @@ def _find_session(self, session_id: str) -> str | None:
 
 The `session_id` comes from `config.json` which is trusted, but if it were ever manipulated, a crafted `session_id` like `../../workspace/SOUL` could reference files outside the sessions directory. New sessions use `uuid.uuid4()` which is safe, but the load path doesn't validate format.
 
-**Mitigation:** Validate `session_id` matches UUID format before using in file paths.
+**Mitigation applied:** `session_id` is now validated against a UUID v4 regex pattern before being used in any file path operations. Non-matching IDs are rejected and a new session is created instead.
 
-### 6. `_read_files` is a Class-Level Shared Mutable Set
+### 6. `_read_files` is a Class-Level Shared Mutable Set — ✅ MITIGATED (v1.8.6)
 
 **File:** `src/tools/base.py` (line 9)
 
@@ -110,9 +110,9 @@ This is shared across all tool instances and all rooms. In a multi-room scenario
 1. Room A reads `SOUL.md` → `_read_files = {"SOUL.md"}`
 2. Room B (attacker) immediately writes `SOUL.md` without reading → succeeds because Room A's read authorized it
 
-**Mitigation:** Key the read tracker by room/session ID, not globally.
+**Mitigation applied:** `_read_files` is now a `dict[str, set[str]]` keyed by `room_id`. Each room's read authorizations are isolated. The orchestrator passes `_room_id` into every tool call, and `clear()` only removes the current room's entries.
 
-### 7. Conduit Open Registration
+### 7. Conduit Open Registration — ✅ MITIGATED (v1.8.6)
 
 **File:** `src/static/conduit.toml` (line 8)
 
@@ -122,9 +122,9 @@ allow_registration = true
 
 Anyone who can reach port 6167 can create Matrix accounts and join rooms where Memtrix operates. On a network-exposed setup, this means unauthorized users can interact with Memtrix.
 
-**Mitigation:** Set `allow_registration = false` after onboarding, or bind Conduit to 127.0.0.1 only.
+**Mitigation applied:** `onboard.sh` now sets `allow_registration = false` in `conduit.toml` after user accounts have been created. Registration remains enabled during onboarding only.
 
-### 8. SearXNG `secret_key` is Hardcoded
+### 8. SearXNG `secret_key` is Hardcoded — ✅ MITIGATED (v1.8.6)
 
 **File:** `src/static/searxng/settings.yml` (line 11)
 
@@ -134,7 +134,7 @@ secret_key: "memtrix-searxng-local-only"
 
 Static across all installations. Low impact since SearXNG is internal-only, but if the network is exposed it could allow session manipulation.
 
-**Mitigation:** Generate a random `secret_key` during `setup.sh`.
+**Mitigation applied:** `setup.sh` now generates a random 64-character hex `secret_key` via `python3 -c "import secrets; print(secrets.token_hex(32))"` on first run. The template uses a placeholder that is replaced during setup.
 
 ---
 
@@ -196,12 +196,12 @@ Standard `requests.get()` trusts the system CA store. Fine for most cases, but w
 | # | Severity | Finding | Effort |
 |:--|:--|:--|:--|
 | 4 | **HIGH** | Attachment filename path traversal | ✅ Mitigated (v1.8.5) |
-| 6 | **MEDIUM** | `_read_files` shared across rooms | Medium fix |
-| 7 | **MEDIUM** | Conduit open registration | Config change |
-| 5 | **MEDIUM** | Session ID not validated as UUID | Quick fix |
+| 6 | **MEDIUM** | `_read_files` shared across rooms | ✅ Mitigated (v1.8.6) |
+| 7 | **MEDIUM** | Conduit open registration | ✅ Mitigated (v1.8.6) |
+| 5 | **MEDIUM** | Session ID not validated as UUID | ✅ Mitigated (v1.8.6) |
 | 2-3 | **HIGH** | Indirect prompt injection via web/PDF | ✅ Mitigated (v1.8.3) |
 | 1 | **CRITICAL** | Shell via LLM (by design, but `curl`/`wget` widen blast) | ✅ Mitigated (v1.8.0) |
-| 8 | **MEDIUM** | Hardcoded SearXNG secret | Quick fix |
+| 8 | **MEDIUM** | Hardcoded SearXNG secret | ✅ Mitigated (v1.8.6) |
 | 9 | **LOW** | `trust_remote_code` without pinned revision | Quick fix |
 | 10 | **LOW** | MD5 for change detection | Trivial |
 | 11 | **LOW** | No rate limiting on messages | Medium fix |

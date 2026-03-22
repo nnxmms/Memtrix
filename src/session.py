@@ -2,9 +2,16 @@
 
 import json
 import os
+import re
 import uuid
 from datetime import date
 from typing import Any
+
+# UUID v4 format validation
+_UUID_PATTERN: re.Pattern[str] = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
 
 
 class Session:
@@ -19,7 +26,9 @@ class Session:
         os.makedirs(self._sessions_dir, exist_ok=True)
 
         # Session id — use existing or create new
-        existing_path: str | None = self._find_session(session_id=session_id) if session_id else None
+        existing_path: str | None = None
+        if session_id and _UUID_PATTERN.match(session_id):
+            existing_path = self._find_session(session_id=session_id)
 
         if existing_path:
             self._session_id: str = session_id

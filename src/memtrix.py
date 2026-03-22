@@ -161,7 +161,7 @@ class Memtrix:
 
         # Get the session for this room and run the orchestrator
         session: Session = self._get_session(room_id=room_id)
-        return self._orchestrator.run(user_message=user_input, session=session)
+        return self._orchestrator.run(user_message=user_input, session=session, room_id=room_id)
 
     def run(self) -> None:
         """

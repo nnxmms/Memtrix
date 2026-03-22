@@ -48,7 +48,8 @@ class ReadCoreFileTool(BaseTool):
             content: str = f.read()
 
         # Mark this file as read for write authorization
-        BaseTool._read_files.add(filename)
+        room_id: str = kwargs.get("_room_id", "")
+        BaseTool._read_files.setdefault(room_id, set[str]()).add(filename)
 
         return content
 
@@ -91,7 +92,8 @@ class WriteCoreFileTool(BaseTool):
             return f"Error: '{filename}' is not a core file. Allowed: {', '.join(sorted(ALLOWED_FILES))}"
 
         # Enforce read-before-write
-        if filename not in BaseTool._read_files:
+        room_id: str = kwargs.get("_room_id", "")
+        if filename not in BaseTool._read_files.get(room_id, set()):
             return f"Error: You must call read_core_file for '{filename}' before writing to it."
 
         path: str = os.path.join(self._workspace_dir, filename)
@@ -99,6 +101,7 @@ class WriteCoreFileTool(BaseTool):
             f.write(content)
 
         # Clear the read marker for this file
-        BaseTool._read_files.discard(filename)
+        room_files: set[str] = BaseTool._read_files.get(room_id, set())
+        room_files.discard(filename)
 
         return f"Successfully updated {filename}."

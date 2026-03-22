@@ -52,7 +52,8 @@ class ReadMemoryFileTool(BaseTool):
                 content: str = f.read()
 
         # Mark this file as read for write authorization
-        BaseTool._read_files.add(filename)
+        room_id: str = kwargs.get("_room_id", "")
+        BaseTool._read_files.setdefault(room_id, set()).add(filename)
 
         return content if content else "(empty — this is a new memory file)"
 
@@ -97,7 +98,8 @@ class WriteMemoryFileTool(BaseTool):
             return f"Error: '{filename}' does not match the required pattern yyyy-mm-dd.md"
 
         # Enforce read-before-write
-        if filename not in BaseTool._read_files:
+        room_id: str = kwargs.get("_room_id", "")
+        if filename not in BaseTool._read_files.get(room_id, set()):
             return f"Error: You must call read_memory_file for '{filename}' before writing to it."
 
         path: str = os.path.join(self._memory_dir, filename)
@@ -105,6 +107,7 @@ class WriteMemoryFileTool(BaseTool):
             f.write(content)
 
         # Clear the read marker for this file
-        BaseTool._read_files.discard(filename)
+        room_files: set[str] = BaseTool._read_files.get(room_id, set())
+        room_files.discard(filename)
 
         return f"Successfully updated memory/{filename}."

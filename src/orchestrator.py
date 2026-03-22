@@ -133,12 +133,12 @@ class Orchestrator:
             result["tool_calls"] = serialized_calls
         return result
 
-    def run(self, user_message: str, session: Session) -> str:
+    def run(self, user_message: str, session: Session, room_id: str = "") -> str:
         """
         This function processes a user message through the agentic loop and returns the final response.
         """
-        # Reset read-before-write tracker for core file tools
-        BaseTool._read_files.clear()
+        # Reset read-before-write tracker for this room
+        BaseTool._read_files.pop(room_id, None)
 
         # Inject system prompt at the start of a fresh session
         if not session.history:
@@ -181,6 +181,7 @@ class Orchestrator:
                 # Execute the tool or report an error
                 if tool_name in self._tools:
                     try:
+                        tool_args["_room_id"] = room_id
                         result: str = self._tools[tool_name].execute(**tool_args)
                     except Exception as e:
                         result: str = f"Error: {e}"

@@ -43,6 +43,15 @@ echo ""
 # read/write the data and workspace directories.
 chown -R 1000:1000 "$DATA_DIR" "$WORKSPACE_DIR" 2>/dev/null || true
 
+# Generate a random SearXNG secret_key if still set to the placeholder
+SEARXNG_SETTINGS="$STATIC_DIR/searxng/settings.yml"
+if grep -q 'REPLACE_ME_DURING_SETUP' "$SEARXNG_SETTINGS" 2>/dev/null; then
+    SEARXNG_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+    sed -i.bak "s/REPLACE_ME_DURING_SETUP/$SEARXNG_SECRET/" "$SEARXNG_SETTINGS"
+    rm -f "${SEARXNG_SETTINGS}.bak"
+    echo "  Generated SearXNG secret_key."
+fi
+
 # Build the Docker image
 echo "Building Docker image..."
 docker compose build

@@ -5,8 +5,9 @@ from typing import Any
 
 class BaseTool:
 
-    # Shared tracker for read-before-write enforcement on core files
-    _read_files: set[str] = set()
+    # Per-room tracker for read-before-write enforcement on core files
+    # Keyed by room_id to prevent cross-room authorization bypass
+    _read_files: dict[str, set[str]] = {}
 
     def __init__(self, name: str, description: str, parameters: dict[str, Any]) -> None:
         """
