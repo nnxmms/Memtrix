@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.3
+
+- **Mitigate indirect prompt injection** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.7.0.md) findings #2, #3) — `fetch_url`, `web_search`, and `read_file` (for attachments) now prefix results with an untrusted-content disclaimer instructing the LLM to ignore any embedded instructions.
+
 ## 1.8.2
 
 - Add `git_clone` tool — clone public git repositories (GitHub, GitLab, etc.) into the workspace via HTTPS.
@@ -10,7 +14,7 @@
 
 ## 1.8.0
 
-- **Remove `run_command` tool** — eliminates arbitrary shell execution, closing the primary prompt injection → RCE attack vector.
+- **Remove `run_command` tool** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.7.0.md) finding #1) — eliminates arbitrary shell execution, closing the primary prompt injection → RCE attack vector.
 - Remove `curl` and `wget` from the Docker image — no outbound network tools available inside the container.
 - New `read_file` tool — read files from the workspace (text and PDF supported via automatic extraction; core files and memory files are blocked).
 - New `create_file` tool — create or overwrite text files (core files and memory files are blocked).
