@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.8.0
+
+- **Remove `run_command` tool** — eliminates arbitrary shell execution, closing the primary prompt injection → RCE attack vector.
+- Remove `curl` and `wget` from the Docker image — no outbound network tools available inside the container.
+- New `read_file` tool — read files from the workspace (text and PDF supported via automatic extraction; core files and memory files are blocked).
+- New `create_file` tool — create or overwrite text files (core files and memory files are blocked).
+- New `delete_file` tool — permanently delete files (core files and memory files are protected).
+- New `create_directory` tool — create directories in the workspace.
+- New `delete_directory` tool — permanently delete directories (memory/ and attachments/ are protected).
+- Merge `read_pdf` into `read_file` — PDF extraction happens automatically based on file extension.
+- All new tools enforce path traversal protection via `os.path.realpath()`.
+- Update AGENT.md with comprehensive file management instructions.
+
 ## 1.7.0
 
 - Add Context Enrichment workflow — Memtrix now silently searches memory (and the web as fallback) when it encounters unfamiliar names, topics, or terms, then weaves the context into natural conversation.

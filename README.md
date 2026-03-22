@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-1.7.0-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-1.8.0-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 <br>
@@ -175,9 +175,12 @@ Built-in tools are automatically discovered at startup:
 | `search_memory` | Semantic search across all daily memories via embeddings |
 | `web_search` | Searches the web via local SearXNG instance |
 | `fetch_url` | Fetches and extracts readable text from a URL |
-| `run_command` | Executes shell commands inside the sandboxed container |
+| `read_file` | Reads a file from the workspace (text and PDF supported) |
+| `create_file` | Creates or overwrites a text file in the workspace |
+| `delete_file` | Permanently deletes a file from the workspace |
+| `create_directory` | Creates a directory in the workspace |
+| `delete_directory` | Permanently deletes a directory and its contents |
 | `send_file` | Sends a file from the workspace to the user via Matrix |
-| `read_pdf` | Extracts text content from a PDF file in the workspace |
 
 > Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt.
 
@@ -369,10 +372,10 @@ The container is hardened by default:
 | No capabilities | `cap_drop: ALL` |
 | No privilege escalation | `no-new-privileges: true` |
 | Minimal writable surface | Only `workspace/`, `data/`, and `/tmp` |
-| Tool sandboxing | `run_command` is confined to the container |
+| No shell access | No `run_command` tool — the LLM cannot execute arbitrary commands |
 | Secret management | Tokens in `.env`, resolved at startup, cleared from process env |
-| Subprocess isolation | `run_command` passes a sanitized env with all secrets stripped |
-| File access control | Core file and memory tools are limited to whitelisted paths |
+| File access control | Core files and memory files are protected by all file/directory tools |
+| Path traversal protection | All file tools validate paths via `os.path.realpath()` |
 | Web access | All traffic routes through local SearXNG — no direct outbound from the LLM |
 
 <br>
@@ -390,50 +393,54 @@ The container is hardened by default:
 ```
 Memtrix/
 ├── src/
-│   ├── main.py                    # Entry point
-│   ├── memtrix.py                 # Core — wires channels, providers, sessions
-│   ├── orchestrator.py            # Agentic loop — LLM calls, tool execution
-│   ├── session.py                 # Per-room conversation persistence
-│   ├── commands.py                # Slash command registry
-│   ├── secrets.py                 # Secret resolution + sanitization
-│   ├── memory_index.py            # ChromaDB + local embeddings (RAG)
-│   ├── config.py                  # Config path constant
-│   ├── onboarding.py              # Interactive setup wizard (Rich TUI)
+│   ├── main.py                       # Entry point
+│   ├── memtrix.py                    # Core — wires channels, providers, sessions
+│   ├── orchestrator.py               # Agentic loop — LLM calls, tool execution
+│   ├── session.py                    # Per-room conversation persistence
+│   ├── commands.py                   # Slash command registry
+│   ├── secrets.py                    # Secret resolution + sanitization
+│   ├── memory_index.py               # ChromaDB + local embeddings (RAG)
+│   ├── config.py                     # Config path constant
+│   ├── onboarding.py                 # Interactive setup wizard (Rich TUI)
 │   ├── channels/
-│   │   ├── base.py                # BaseChannel interface
-│   │   ├── cli.py                 # CLI channel (stdin/stdout)
-│   │   └── matrix.py              # Matrix channel (nio + async bridge)
+│   │   ├── base.py                   # BaseChannel interface
+│   │   ├── cli.py                    # CLI channel (stdin/stdout)
+│   │   └── matrix.py                 # Matrix channel (nio + async bridge)
 │   ├── providers/
-│   │   ├── base.py                # BaseProvider interface
-│   │   ├── ollama.py              # Ollama LLM provider
-│   │   ├── openrouter.py          # OpenRouter LLM provider
-│   │   └── utils.py               # Dynamic provider discovery
+│   │   ├── base.py                   # BaseProvider interface
+│   │   ├── ollama.py                 # Ollama LLM provider
+│   │   ├── openrouter.py             # OpenRouter LLM provider
+│   │   └── utils.py                  # Dynamic provider discovery
 │   ├── tools/
-│   │   ├── base.py                # BaseTool interface + read tracker
-│   │   ├── utils.py               # Dynamic tool discovery
-│   │   ├── time_tool.py           # Current time
-│   │   ├── core_file_tools.py     # Read/write persona files
-│   │   ├── memory_file_tools.py   # Read/write daily journals
-│   │   ├── search_memory_tool.py  # Semantic memory search
-│   │   ├── web_search_tool.py     # Web search via SearXNG
-│   │   ├── fetch_url_tool.py      # URL content extraction
-│   │   ├── run_command_tool.py    # Shell command execution
-│   │   ├── send_file_tool.py      # Send files to user via Matrix
-│   │   └── read_pdf_tool.py       # Extract text from PDF files
+│   │   ├── base.py                   # BaseTool interface + read tracker
+│   │   ├── utils.py                  # Dynamic tool discovery
+│   │   ├── time_tool.py              # Current time
+│   │   ├── core_file_tools.py        # Read/write persona files
+│   │   ├── memory_file_tools.py      # Read/write daily journals
+│   │   ├── search_memory_tool.py     # Semantic memory search
+│   │   ├── web_search_tool.py        # Web search via SearXNG
+│   │   ├── fetch_url_tool.py         # URL content extraction
+│   │   ├── read_file_tool.py         # Read files (text + PDF extraction)
+│   │   ├── create_file_tool.py       # Create/overwrite text files
+│   │   ├── delete_file_tool.py       # Delete files
+│   │   ├── create_directory_tool.py  # Create directories
+│   │   ├── delete_directory_tool.py  # Delete directories
+│   │   ├── send_file_tool.py         # Send files to user via Matrix
+│   │   └── read_pdf_tool.py          # Extract text from PDF files
 │   └── static/
-│       ├── config.json            # Config template
-│       ├── conduit.toml           # Conduit homeserver config
-│       ├── searxng/               # SearXNG settings
-│       ├── AGENT.md               # System prompt template
-│       ├── BEHAVIOR.md            # Behavior defaults
-│       ├── SOUL.md                # Soul template
-│       ├── USER.md                # User profile template
-│       └── MEMORY.md              # Memory template
-├── workspace/                     # Live persona files (mounted into container)
-├── data/                          # Persistent data (config, sessions, vector index)
+│       ├── config.json               # Config template
+│       ├── conduit.toml              # Conduit homeserver config
+│       ├── searxng/                  # SearXNG settings
+│       ├── AGENT.md                  # System prompt template
+│       ├── BEHAVIOR.md               # Behavior defaults
+│       ├── SOUL.md                   # Soul template
+│       ├── USER.md                   # User profile template
+│       └── MEMORY.md                 # Memory template
+├── workspace/                        # Live persona files (mounted into container)
+├── data/                             # Persistent data (config, sessions, vector index)
 ├── Dockerfile
 ├── docker-compose.yml
-├── .env                           # Secrets (gitignored)
+├── .env                              # Secrets (gitignored)
 ├── requirements.txt
 ├── setup.sh
 ├── onboard.sh

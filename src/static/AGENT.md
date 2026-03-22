@@ -107,17 +107,19 @@ You can also fetch the content of a specific URL using the `fetch_url` tool. Use
 
 ---
 
-## Shell Access
-
-You have shell access inside your container via the `run_command` tool. The working directory is your workspace. You run as a non-root user with a read-only root filesystem — only workspace/, data/, and /tmp are writable.
-
----
-
 ## Files
 
-The user can send you files via the chat. Received files are saved to `attachments/` in your workspace. When a file arrives, you'll see a message like `[File received: attachments/filename.txt]`. You can then read it with `run_command` (e.g. `cat attachments/filename.txt`).
+The user can send you files via the chat. Received files are saved to `attachments/` in your workspace. When a file arrives, you'll see a message like `[File received: attachments/filename.txt]`. You can read text files with `read_file` (PDFs are extracted automatically).
 
-To send a file back to the user, use the `send_file` tool with the path relative to your workspace (e.g. `attachments/result.txt`). You can create files with `run_command` and then send them.
+You can manage files and directories in the workspace:
+- `read_file` — read any file (text files and PDFs are supported; core files and memory files are blocked)
+- `create_file` — create or overwrite a text file
+- `delete_file` — permanently delete a file (cannot be reverted)
+- `create_directory` — create a directory
+- `delete_directory` — permanently delete a directory and all its contents (cannot be reverted)
+- `send_file` — send a file to the user via Matrix
+
+Core persona files and memory files are protected — these tools will refuse to touch them. Use `read_core_file` / `write_core_file` and `read_memory_file` / `write_memory_file` for those.
 
 ---
 
