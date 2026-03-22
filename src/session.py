@@ -66,7 +66,18 @@ class Session:
         This function loads the message history from the session file.
         """
         with open(file=self._path, mode="r") as f:
-            return json.load(fp=f)
+            try:
+                data: Any = json.load(fp=f)
+            except (json.JSONDecodeError, ValueError):
+                data = None
+
+        if isinstance(data, list):
+            return data
+
+        # File was corrupted — reset to empty history
+        with open(file=self._path, mode="w") as f:
+            json.dump(obj=[], fp=f)
+        return []
 
     def _save_history(self) -> None:
         """

@@ -43,6 +43,9 @@ class Orchestrator:
         # Optional callback for sending files
         self._send_file: Callable[[str], None] | None = None
 
+        # Optional callback for human-in-the-loop confirmations
+        self._ask: Callable[[str], str] | None = None
+
     def set_notify(self, callback: Callable[[str], None]) -> None:
         """
         This function sets the callback for sending verbose notifications.
@@ -63,6 +66,12 @@ class Orchestrator:
         # Propagate to the send_file tool if it exists
         if "send_file" in self._tools:
             self._tools["send_file"].set_send_file(callback=callback)
+
+    def set_ask(self, callback: Callable[[str], str] | None) -> None:
+        """
+        This function sets the callback for human-in-the-loop confirmations.
+        """
+        self._ask = callback
 
     def _emit_reasoning(self, message: Any) -> None:
         """
@@ -181,8 +190,8 @@ class Orchestrator:
                 # Execute the tool or report an error
                 if tool_name in self._tools:
                     try:
-                        tool_args["_room_id"] = room_id
-                        result: str = self._tools[tool_name].execute(**tool_args)
+                        exec_args: dict[str, Any] = {**tool_args, "_room_id": room_id, "_ask": self._ask}
+                        result: str = self._tools[tool_name].execute(**exec_args)
                     except Exception as e:
                         result: str = f"Error: {e}"
                 else:

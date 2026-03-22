@@ -4,6 +4,7 @@ import os
 from typing import Any
 
 from src.tools.base import BaseTool
+from src.tools.utils import confirm_with_user
 
 # Files that must be managed via dedicated tools
 BLOCKED_FILES: set[str] = {"AGENT.md", "BEHAVIOR.md", "MEMORY.md", "SOUL.md", "USER.md"}
@@ -64,6 +65,11 @@ class CreateFileTool(BaseTool):
         relpath: str = os.path.relpath(filepath, self._workspace_dir)
         if relpath.startswith("memory" + os.sep) or relpath.startswith("memory/"):
             return "Error: memory files must be written via write_memory_file."
+
+        # Confirm overwrite if file already exists
+        if os.path.isfile(path=filepath):
+            if not confirm_with_user(kwargs, message=f"⚠️ Memtrix wants to overwrite an existing file:\n\n  File: {path}\n\nAllow this? (yes/no)"):
+                return "File overwrite denied by user."
 
         # Create parent directories if needed
         parent: str = os.path.dirname(filepath)

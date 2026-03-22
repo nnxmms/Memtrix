@@ -6,6 +6,7 @@ from typing import Any
 from bs4 import BeautifulSoup
 
 from src.tools.base import BaseTool
+from src.tools.utils import validate_url_not_internal
 
 # Maximum characters to return from a fetched page
 MAX_CONTENT_LENGTH: int = 4000
@@ -47,6 +48,11 @@ class FetchURLTool(BaseTool):
         # Only allow http/https
         if not url.startswith(("http://", "https://")):
             return "Error: only http:// and https:// URLs are supported."
+
+        # Block internal/private network addresses (SSRF protection)
+        ssrf_error: str | None = validate_url_not_internal(url)
+        if ssrf_error:
+            return ssrf_error
 
         try:
             response: requests.Response = requests.get(

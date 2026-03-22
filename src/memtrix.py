@@ -130,7 +130,7 @@ class Memtrix:
 
         return "Session cleared."
 
-    def _handle(self, user_input: str, room_id: str, notify: Callable[[str], None], send_file: Callable[[str], None] | None = None) -> str:
+    def _handle(self, user_input: str, room_id: str, notify: Callable[[str], None], send_file: Callable[[str], None] | None = None, ask: Callable[[str], str] | None = None) -> str:
         """
         This function handles a user message and returns the response.
         The notify callback sends real-time status messages to the channel.
@@ -158,6 +158,9 @@ class Memtrix:
 
         # Set up send_file callback
         self._orchestrator.set_send_file(callback=send_file)
+
+        # Set up ask callback for human-in-the-loop confirmations
+        self._orchestrator.set_ask(callback=ask)
 
         # Get the session for this room and run the orchestrator
         session: Session = self._get_session(room_id=room_id)

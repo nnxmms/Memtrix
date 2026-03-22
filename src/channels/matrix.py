@@ -41,6 +41,12 @@ class MatrixChannel:
         # Timestamp after which we process messages
         self._start_time: float = 0.0
 
+        # Pending ask queues for human-in-the-loop confirmations (keyed by room_id)
+        self._pending_asks: dict[str, asyncio.Queue[str]] = {}
+
+        # Background handler tasks (prevent GC)
+        self._tasks: set[asyncio.Task] = set()
+
     async def _set_display_name(self) -> None:
         """
         This function sets the bot's display name via the Matrix REST API.
@@ -80,6 +86,16 @@ class MatrixChannel:
         headers: dict[str, str] = {"Authorization": f"Bearer {self._access_token}"}
 
         filepath: str = os.path.join(self._attachments_dir, filename)
+
+        # Handle filename collision — don't silently overwrite existing files
+        if os.path.exists(path=filepath):
+            base, ext = os.path.splitext(filename)
+            counter: int = 1
+            while os.path.exists(path=filepath):
+                filename: str = f"{base}_{counter}{ext}"
+                filepath: str = os.path.join(self._attachments_dir, filename)
+                counter += 1
+
         async with aiohttp.ClientSession() as session:
             async with session.get(url=url, headers=headers) as resp:
                 if resp.status == 200:
@@ -151,8 +167,9 @@ class MatrixChannel:
         if not filepath:
             return
 
-        # Build a text message telling the agent about the file
-        user_message: str = f"[File received: attachments/{filename}]"
+        # Build a text message telling the agent about the file (use actual saved filename)
+        saved_filename: str = os.path.basename(filepath)
+        user_message: str = f"[File received: attachments/{saved_filename}]"
 
         loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
 
@@ -174,12 +191,38 @@ class MatrixChannel:
             )
             future.result(timeout=30)
 
-        reply: str = await asyncio.to_thread(self._handler, user_message, room.room_id, notify, send_file)
-        await self._client.room_send(
-            room_id=room.room_id,
-            message_type="m.room.message",
-            content={"msgtype": "m.text", "body": reply}
-        )
+        def ask(msg: str) -> str:
+            queue: asyncio.Queue[str] = asyncio.Queue()
+            self._pending_asks[room.room_id] = queue
+            try:
+                send_future = asyncio.run_coroutine_threadsafe(
+                    self._client.room_send(
+                        room_id=room.room_id,
+                        message_type="m.room.message",
+                        content={"msgtype": "m.notice", "body": msg}
+                    ),
+                    loop
+                )
+                send_future.result(timeout=10)
+                get_future = asyncio.run_coroutine_threadsafe(queue.get(), loop)
+                return get_future.result(timeout=120)
+            finally:
+                self._pending_asks.pop(room.room_id, None)
+
+        async def _process() -> None:
+            try:
+                reply: str = await asyncio.to_thread(self._handler, user_message, room.room_id, notify, send_file, ask)
+                await self._client.room_send(
+                    room_id=room.room_id,
+                    message_type="m.room.message",
+                    content={"msgtype": "m.text", "body": reply}
+                )
+            except Exception as e:
+                print(f"Error processing file message: {e}")
+
+        task: asyncio.Task = asyncio.create_task(_process())
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
 
     async def _on_message(self, room: MatrixRoom, event: RoomMessageText) -> None:
         """
@@ -191,6 +234,11 @@ class MatrixChannel:
 
         # Ignore messages from before the bot started
         if event.server_timestamp < self._start_time:
+            return
+
+        # Route response to pending human-in-the-loop question
+        if room.room_id in self._pending_asks:
+            await self._pending_asks[room.room_id].put(item=event.body)
             return
 
         # Build a notify callback that sends messages to this room in real-time
@@ -220,13 +268,42 @@ class MatrixChannel:
             )
             future.result(timeout=30)
 
-        # Process the message with real-time notifications
-        reply: str = await asyncio.to_thread(self._handler, event.body, room.room_id, notify, send_file)
-        await self._client.room_send(
-            room_id=room.room_id,
-            message_type="m.room.message",
-            content={"msgtype": "m.text", "body": reply}
-        )
+        def ask(msg: str) -> str:
+            """
+            Send a question to the room and wait for the user's response.
+            """
+            queue: asyncio.Queue[str] = asyncio.Queue()
+            self._pending_asks[room.room_id] = queue
+            try:
+                send_future = asyncio.run_coroutine_threadsafe(
+                    self._client.room_send(
+                        room_id=room.room_id,
+                        message_type="m.room.message",
+                        content={"msgtype": "m.notice", "body": msg}
+                    ),
+                    loop
+                )
+                send_future.result(timeout=10)
+                get_future = asyncio.run_coroutine_threadsafe(queue.get(), loop)
+                return get_future.result(timeout=120)
+            finally:
+                self._pending_asks.pop(room.room_id, None)
+
+        # Process the message as a background task so sync_forever can continue
+        async def _process() -> None:
+            try:
+                reply: str = await asyncio.to_thread(self._handler, event.body, room.room_id, notify, send_file, ask)
+                await self._client.room_send(
+                    room_id=room.room_id,
+                    message_type="m.room.message",
+                    content={"msgtype": "m.text", "body": reply}
+                )
+            except Exception as e:
+                print(f"Error processing message: {e}")
+
+        task: asyncio.Task = asyncio.create_task(_process())
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
 
     async def _on_sync(self, response: SyncResponse) -> None:
         """

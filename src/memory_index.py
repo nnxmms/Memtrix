@@ -178,7 +178,10 @@ class MemoryIndex:
         def _sync_loop() -> None:
             while True:
                 time.sleep(SYNC_INTERVAL)
-                self.sync_changed()
+                try:
+                    self.sync_changed()
+                except Exception as e:
+                    print(f"Memory sync error: {e}")
 
         thread: threading.Thread = threading.Thread(target=_sync_loop, daemon=True)
         thread.start()

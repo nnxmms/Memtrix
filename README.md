@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-1.8.6-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-1.9.0-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 <br>
@@ -366,20 +366,61 @@ Values starting with `$` are resolved from environment variables at startup (pre
 
 ## 🔒 Security
 
-The container is hardened by default:
+Memtrix is designed with defense-in-depth — multiple independent layers that each limit what the system (and the LLM) can do, even if one layer is bypassed.
 
-| Measure | Detail |
-|:--|:--|
-| Non-root user | Runs as `memtrix` (UID 1000) |
-| Read-only filesystem | Immutable root via `read_only: true` |
-| No capabilities | `cap_drop: ALL` |
-| No privilege escalation | `no-new-privileges: true` |
-| Minimal writable surface | Only `workspace/`, `data/`, and `/tmp` |
-| No shell access | No `run_command` tool — the LLM cannot execute arbitrary commands |
-| Secret management | Tokens in `.env`, resolved at startup, cleared from process env |
-| File access control | Core files and memory files are protected by all file/directory tools |
-| Path traversal protection | All file tools validate paths via `os.path.realpath()` |
-| Web access | All traffic routes through local SearXNG — no direct outbound from the LLM |
+### Container Isolation
+
+The Docker container runs locked down by default:
+
+- **Non-root user** — runs as `memtrix` (UID 1000), never root
+- **Read-only filesystem** — immutable root via `read_only: true`, only `workspace/`, `data/`, and `/tmp` are writable
+- **All capabilities dropped** — `cap_drop: ALL` with `no-new-privileges: true`
+- **No shell tools in image** — `curl`, `wget`, and other network utilities are not installed
+- **Internal-only networking** — Memtrix, Conduit, and SearXNG communicate on a private Docker network with no published ports for the bot itself
+
+### No Arbitrary Code Execution
+
+The LLM has **no shell access**. There is no `run_command` tool — every action the agent can take is through a purpose-built tool with its own validation. Tools are auto-discovered at startup but each one enforces its own constraints at the code level.
+
+### SSRF Protection
+
+All outbound tools (`fetch_url`, `download_file`, `git_clone`) validate URLs against:
+
+- A **hostname blocklist** of internal Docker service names (`conduit`, `searxng`, `localhost`, etc.)
+- **DNS resolution** — hostnames are resolved and the resulting IPs are checked against private, loopback, link-local, and reserved ranges
+
+This prevents the LLM from using tools to reach internal services or the host network.
+
+### Human-in-the-Loop Confirmation
+
+Sensitive operations require explicit user approval before executing:
+
+- **File downloads** — the user sees the URL and destination path and must confirm with yes/no
+- **File overwrites** — overwriting an existing file requires user approval
+
+The confirmation prompt is delivered through the same channel (Matrix or CLI) and blocks until the user responds.
+
+### File System Protection
+
+All file and directory tools enforce:
+
+- **Path traversal prevention** — every path is validated with `os.path.realpath()` to stay within the workspace
+- **Core file protection** — system files (`AGENT.md`, `SOUL.md`, etc.) are only accessible through dedicated core file tools with a strict allowlist
+- **Memory directory protection** — `memory/` is off-limits to general file tools; only the memory tools can access it
+- **Read-before-write enforcement** — per-room tracking ensures the LLM reads a file before it can modify it
+
+### Prompt Injection Mitigation
+
+Content from external sources is clearly marked so the LLM can distinguish trusted instructions from untrusted data:
+
+- **Web search results**, **fetched URLs**, **downloaded files**, and **user-uploaded attachments** are all prefixed with an untrusted-content disclaimer
+- Attachment filenames are sanitized with `os.path.basename()` and auto-incremented on collision to prevent overwrites
+
+### Secret Management
+
+- Secrets (access tokens, API keys) live in `.env` and are injected at container startup
+- Secrets are resolved once at boot and cleared from the process environment
+- SearXNG gets a randomly generated secret key during setup — no hardcoded defaults in production
 
 <br>
 

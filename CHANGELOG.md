@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.9.0
+
+- **SSRF protection** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.8.6.md) findings #1, #2, #5) — `fetch_url`, `download_file`, and `git_clone` now block requests to internal Docker services (conduit, searxng) and private/reserved IP ranges (10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x, link-local, etc.).
+- **Attachment filename collision fix** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.8.6.md) finding #3) — duplicate attachment filenames now get an auto-incremented suffix instead of silently overwriting.
+- **Human-in-the-loop confirmations** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.8.6.md) findings #4, #9) — `download_file` now asks the user for approval before downloading. `create_file` asks before overwriting existing files. The user can answer yes/no; any other response re-prompts.
+- **Sanitize filename in agent message** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.8.6.md) finding #6) — the `[File received: ...]` message now uses the sanitized, actually-saved filename instead of the raw `event.body`.
+- **Memory sync error handling** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.8.6.md) finding #8) — the background memory sync thread now catches and logs exceptions instead of silently dying.
+
 ## 1.8.6
 
 - **Fix session ID path traversal** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.7.0.md) finding #5) — validate `session_id` matches UUID v4 format before using in file paths.

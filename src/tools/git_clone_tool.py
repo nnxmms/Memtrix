@@ -6,6 +6,7 @@ import subprocess
 from typing import Any
 
 from src.tools.base import BaseTool
+from src.tools.utils import validate_url_not_internal
 
 # Directories that must not be used as clone targets
 BLOCKED_DIRS: set[str] = {"memory", "attachments"}
@@ -55,6 +56,11 @@ class GitCloneTool(BaseTool):
         # Validate URL format to prevent command injection
         if not _URL_PATTERN.match(url):
             return "Error: invalid repository URL. Only HTTPS URLs are supported (e.g. https://github.com/user/repo.git)."
+
+        # Block internal/private network addresses (SSRF protection)
+        ssrf_error: str | None = validate_url_not_internal(url)
+        if ssrf_error:
+            return ssrf_error
 
         # Build target path
         if directory:

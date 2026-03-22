@@ -6,6 +6,7 @@ import requests
 from typing import Any
 
 from src.tools.base import BaseTool
+from src.tools.utils import confirm_with_user, validate_url_not_internal
 
 # Maximum file size: 50 MB
 MAX_FILE_SIZE: int = 50 * 1024 * 1024
@@ -68,6 +69,11 @@ class DownloadFileTool(BaseTool):
         if not _URL_PATTERN.match(url):
             return "Error: invalid URL format."
 
+        # Block internal/private network addresses (SSRF protection)
+        ssrf_error: str | None = validate_url_not_internal(url)
+        if ssrf_error:
+            return ssrf_error
+
         # Derive filename from URL if not provided
         if not filename:
             filename: str = url.rstrip("/").rsplit(sep="/", maxsplit=1)[-1]
@@ -93,6 +99,10 @@ class DownloadFileTool(BaseTool):
 
         if os.path.exists(path=filepath):
             return f"Error: '{filename}' already exists in downloads/. Use a different filename."
+
+        # Human-in-the-loop: ask user for download confirmation
+        if not confirm_with_user(kwargs, message=f"⚠️ Memtrix wants to download a file:\n\n  URL: {url}\n  Save as: downloads/{filename}\n\nAllow this download? (yes/no)"):
+            return "Download denied by user."
 
         try:
             response: requests.Response = requests.get(
