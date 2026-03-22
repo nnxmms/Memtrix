@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.4
+
+- Add `download_file` tool — download files from URLs and save them to `downloads/` in the workspace. Supports any file type, streams with 50 MB size limit, URL validation.
+- Mark `downloads/` as untrusted in `read_file` — downloaded files are prefixed with an untrusted-content disclaimer (same as attachments).
+- Protect `downloads/` from deletion in `delete_directory`.
+
 ## 1.8.3
 
 - **Mitigate indirect prompt injection** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.7.0.md) findings #2, #3) — `fetch_url`, `web_search`, and `read_file` (for attachments) now prefix results with an untrusted-content disclaimer instructing the LLM to ignore any embedded instructions.

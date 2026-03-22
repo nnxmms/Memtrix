@@ -7,7 +7,7 @@ from typing import Any
 from src.tools.base import BaseTool
 
 # Directories that must not be deleted
-BLOCKED_DIRS: set[str] = {"memory", "attachments"}
+BLOCKED_DIRS: set[str] = {"memory", "attachments", "downloads"}
 
 
 class DeleteDirectoryTool(BaseTool):
@@ -19,7 +19,7 @@ class DeleteDirectoryTool(BaseTool):
         self._workspace_dir: str = workspace_dir
         super().__init__(
             name="delete_directory",
-            description="Delete a directory and all its contents from the workspace. Cannot delete protected directories (memory/, attachments/). WARNING: this action cannot be reverted.",
+            description="Delete a directory and all its contents from the workspace. Cannot delete protected directories (memory/, attachments/, downloads/). WARNING: this action cannot be reverted.",
             parameters={
                 "type": "object",
                 "properties": {
