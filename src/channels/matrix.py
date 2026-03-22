@@ -30,7 +30,7 @@ class MatrixChannel:
         # Attachments directory
         self._attachments_dir: str = attachments_dir
         if self._attachments_dir:
-            os.makedirs(self._attachments_dir, exist_ok=True)
+            os.makedirs(name=self._attachments_dir, exist_ok=True)
 
         # Handler callback
         self._handler: Callable[[str, str, Callable[[str], None], Callable[[str], None]], str] | None = None
@@ -57,7 +57,7 @@ class MatrixChannel:
         This function joins a room via the Matrix REST API.
         Uses raw HTTP because nio's join() sends a body Conduit rejects.
         """
-        url: str = f"{self._homeserver}/_matrix/client/v3/join/{quote(room_id)}"
+        url: str = f"{self._homeserver}/_matrix/client/v3/join/{quote(string=room_id)}"
         headers: dict[str, str] = {"Authorization": f"Bearer {self._access_token}"}
         async with aiohttp.ClientSession() as session:
             async with session.post(url=url, headers=headers, json={}) as resp:
@@ -68,8 +68,11 @@ class MatrixChannel:
         This function downloads a file from a Matrix mxc:// URL and saves it to the attachments directory.
         Returns the local file path.
         """
+        # Sanitize filename to prevent path traversal (event.body is attacker-controlled)
+        filename = os.path.basename(filename) or "attachment"
+
         # Parse mxc://server/media_id
-        parts: str = mxc_url.replace("mxc://", "").split("/", 1)
+        parts: str = mxc_url.replace("mxc://", "").split(sep="/", maxsplit=1)
         server_name: str = parts[0]
         media_id: str = parts[1] if len(parts) > 1 else ""
 
@@ -90,13 +93,13 @@ class MatrixChannel:
         This function uploads a file to Matrix and sends it to a room.
         """
         filename: str = os.path.basename(filepath)
-        filesize: int = os.path.getsize(filepath)
+        filesize: int = os.path.getsize(filename=filepath)
 
         # Upload via REST API
         with open(file=filepath, mode="rb") as f:
             file_data: bytes = f.read()
 
-        url: str = f"{self._homeserver}/_matrix/media/v3/upload?filename={quote(filename)}"
+        url: str = f"{self._homeserver}/_matrix/media/v3/upload?filename={quote(string=filename)}"
         headers: dict[str, str] = {
             "Authorization": f"Bearer {self._access_token}",
             "Content-Type": "application/octet-stream"

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.5
+
+- **Fix attachment filename path traversal** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.7.0.md) finding #4) — sanitize Matrix attachment filenames to basename-only via `os.path.basename()`, preventing `../../` path traversal in attacker-controlled `event.body`.
+
 ## 1.8.4
 
 - Add `download_file` tool — download files from URLs and save them to `downloads/` in the workspace. Supports any file type, streams with 50 MB size limit, URL validation.
