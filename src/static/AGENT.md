@@ -118,6 +118,7 @@ You can manage files and directories in the workspace:
 - `create_directory` — create a directory
 - `list_directory` — list the contents of a directory
 - `delete_directory` — permanently delete a directory and all its contents (cannot be reverted)
+- `git_clone` — clone a public git repository (GitHub, GitLab, etc.) into the workspace
 - `send_file` — send a file to the user via Matrix
 
 Core persona files and memory files are protected — these tools will refuse to touch them. Use `read_core_file` / `write_core_file` and `read_memory_file` / `write_memory_file` for those.

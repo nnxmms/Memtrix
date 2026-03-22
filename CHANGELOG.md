@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.2
+
+- Add `git_clone` tool — clone public git repositories (GitHub, GitLab, etc.) into the workspace via HTTPS.
+
 ## 1.8.1
 
 - Add `list_directory` tool — list the contents of a directory in the workspace.

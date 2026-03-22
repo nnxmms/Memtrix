@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-1.8.1-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-1.8.2-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 <br>
@@ -181,6 +181,7 @@ Built-in tools are automatically discovered at startup:
 | `create_directory` | Creates a directory in the workspace |
 | `list_directory` | Lists the contents of a directory in the workspace |
 | `delete_directory` | Permanently deletes a directory and its contents |
+| `git_clone` | Clones a public git repository into the workspace |
 | `send_file` | Sends a file from the workspace to the user via Matrix |
 
 > Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt.
@@ -427,6 +428,7 @@ Memtrix/
 │   │   ├── create_directory_tool.py  # Create directories
 │   │   ├── list_directory_tool.py    # List directory contents
 │   │   ├── delete_directory_tool.py  # Delete directories
+│   │   ├── git_clone_tool.py         # Clone git repositories
 │   │   └── send_file_tool.py         # Send files to user via Matrix
 │   └── static/
 │       ├── config.json               # Config template
