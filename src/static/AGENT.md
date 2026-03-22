@@ -116,6 +116,7 @@ You can manage files and directories in the workspace:
 - `create_file` — create or overwrite a text file
 - `delete_file` — permanently delete a file (cannot be reverted)
 - `create_directory` — create a directory
+- `list_directory` — list the contents of a directory
 - `delete_directory` — permanently delete a directory and all its contents (cannot be reverted)
 - `send_file` — send a file to the user via Matrix
 

@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-1.8.0-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-1.8.1-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 <br>
@@ -179,6 +179,7 @@ Built-in tools are automatically discovered at startup:
 | `create_file` | Creates or overwrites a text file in the workspace |
 | `delete_file` | Permanently deletes a file from the workspace |
 | `create_directory` | Creates a directory in the workspace |
+| `list_directory` | Lists the contents of a directory in the workspace |
 | `delete_directory` | Permanently deletes a directory and its contents |
 | `send_file` | Sends a file from the workspace to the user via Matrix |
 
@@ -424,9 +425,9 @@ Memtrix/
 │   │   ├── create_file_tool.py       # Create/overwrite text files
 │   │   ├── delete_file_tool.py       # Delete files
 │   │   ├── create_directory_tool.py  # Create directories
+│   │   ├── list_directory_tool.py    # List directory contents
 │   │   ├── delete_directory_tool.py  # Delete directories
-│   │   ├── send_file_tool.py         # Send files to user via Matrix
-│   │   └── read_pdf_tool.py          # Extract text from PDF files
+│   │   └── send_file_tool.py         # Send files to user via Matrix
 │   └── static/
 │       ├── config.json               # Config template
 │       ├── conduit.toml              # Conduit homeserver config

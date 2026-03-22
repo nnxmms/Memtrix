@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.1
+
+- Add `list_directory` tool — list the contents of a directory in the workspace.
+
 ## 1.8.0
 
 - **Remove `run_command` tool** — eliminates arbitrary shell execution, closing the primary prompt injection → RCE attack vector.
