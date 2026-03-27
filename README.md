@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-2.4.1-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-2.4.2-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 <br>
@@ -277,6 +277,78 @@ Memtrix's identity is defined by markdown files in `workspace/`:
 | `MEMORY.md` | Distilled long-term memory |
 
 These files are injected into the system prompt via placeholders (`{{BEHAVIOR}}`, `{{SOUL}}`, etc.) and are **live-editable by Memtrix itself**. When you tell it to behave differently or share personal details, it updates the appropriate file — with the system prompt rebuilt immediately after.
+
+<br>
+
+## 🤖 Sub-Agents
+
+Memtrix can create specialist sub-agents — fully independent agents with their own Matrix identity, workspace, memory, and persona. Each sub-agent runs as a background thread with its own orchestrator and conversation sessions.
+
+### What Sub-Agents Get
+
+| Feature | Details |
+|:--|:--|
+| **Matrix user** | A separate bot account (e.g. `@dennis:memtrix.local`) the user can invite to any room |
+| **Isolated workspace** | Own directory under `agents/<name>/` with core files, memory, attachments, downloads |
+| **Own memory** | Separate daily journals and ChromaDB vector index for semantic search |
+| **Inherited behavior** | Copies the main agent's `BEHAVIOR.md` and symlinks `USER.md` (shared across all agents) |
+| **Customized persona** | `SOUL.md` and `AGENT.md` are tailored to the sub-agent's name and expertise |
+| **Full tool access** | All tools except agent management (`create_agent`, `list_agents`, `delete_agent`) |
+
+### Inter-Agent Communication
+
+Agents can consult each other using the `ask_agent` tool. The main agent can ask sub-agents, sub-agents can ask the main agent, and sub-agents can ask other sub-agents.
+
+- Messages use `[Channel: Internal, Sender: <name>]` headers
+- Each agent pair gets a dedicated internal session (separate from user-facing history)
+- Depth is limited to 2 hops to prevent infinite recursion
+- Target agents are locked during queries (5s timeout) to prevent deadlocks
+- Notifications and human-in-the-loop confirmations are disabled during internal calls
+
+### Example Workflow
+
+**1. Ask Memtrix to create a specialist:**
+
+> **You:** Create me a cooking expert. Call him Dennis.
+>
+> **Memtrix:** ⚠️ Create a new sub-agent?
+>
+> &nbsp;&nbsp;Name: Dennis
+> &nbsp;&nbsp;Expertise: Cooking and recipe specialist — recipes, techniques, ingredient substitutions, meal planning
+>
+> &nbsp;&nbsp;Allow? (yes/no)
+>
+> **You:** yes
+>
+> **Memtrix:** Dennis is ready! His Matrix user is `@dennis:memtrix.local`. Invite him to a room to start chatting.
+
+**2. Chat with the sub-agent directly:**
+
+Invite `@dennis:memtrix.local` to a Matrix room and chat like you would with Memtrix:
+
+> **You:** What's a good substitute for buttermilk?
+>
+> **Dennis:** Mix 1 tablespoon of lemon juice or white vinegar into 1 cup of regular milk. Let it sit for 5 minutes. Works in any baking recipe that calls for buttermilk.
+
+Dennis has his own memory — he'll remember your preferences and past conversations.
+
+**3. Let agents consult each other:**
+
+Back in your room with Memtrix:
+
+> **You:** I'm planning a dinner party for Saturday. Ask Dennis for a menu suggestion.
+>
+> **Memtrix:** Dennis suggests a three-course menu: roasted tomato soup to start, herb-crusted salmon with roasted vegetables as the main, and a lemon tart for dessert. He says the salmon pairs well with a Sauvignon Blanc if you want a wine recommendation.
+
+Memtrix used `ask_agent` behind the scenes to consult Dennis, then wove the answer into its own response.
+
+**4. Sub-agents can ask the main agent too:**
+
+In your room with Dennis:
+
+> **You:** What did I have planned for this weekend again?
+>
+> **Dennis:** *(uses `ask_agent` to check with Memtrix, who has the shared memory)* You mentioned a dinner party on Saturday. Want me to help plan the cooking timeline?
 
 <br>
 

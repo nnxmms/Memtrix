@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.2
+
+- Simplified sub-agent Matrix usernames — sub-agents are now registered as `@<name>:memtrix.local` instead of `@memtrix-<name>:memtrix.local`.
+
 ## 2.4.1
 
 - **Fix human-in-the-loop bypass during inter-agent calls** ([audit 2026-03-27](audits/2026-03-27-security-audit-v2.4.0.md) finding #1) — `confirm_with_user()` now returns `False` (deny) when no human callback is available. Prevents auto-approval of destructive operations (downloads, overwrites, agent creation) during inter-agent calls.

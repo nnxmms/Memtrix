@@ -269,8 +269,7 @@ class AgentManager:
 
         # Register Matrix user
         homeserver: str = self._get_homeserver()
-        main_username: str = self._config["main-agent"].get("name", "Memtrix").lower().replace(" ", "-")
-        username: str = f"{main_username}-{slug}"
+        username: str = slug
         password: str = self._generate_password()
         user_id: str = f"@{username}:{SERVER_NAME}"
 
