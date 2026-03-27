@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.5.4
+
+- Automatic date for daily memory tools — `read_memory_file` and `write_memory_file` no longer accept a `filename` parameter. The date is derived server-side via `date.today()`, preventing the LLM from specifying incorrect dates.
+
 ## 2.5.3
 
 - Clear inter-agent sessions on `/clear` — when a user clears an agent's session, all internal sessions where that agent was the caller are also dropped. Next `ask_agent` call starts a fresh conversation with no stale context.

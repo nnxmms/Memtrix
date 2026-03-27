@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-2.5.3-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-2.5.4-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 <br>
@@ -168,8 +168,8 @@ Built-in tools are automatically discovered at startup:
 | `get_current_time` | Returns the current date and time |
 | `read_core_file` | Reads a core persona file (BEHAVIOR, SOUL, USER, MEMORY) |
 | `write_core_file` | Updates a core persona file (enforces read-before-write) |
-| `read_memory_file` | Reads a daily memory journal (`memory/yyyy-mm-dd.md`) |
-| `write_memory_file` | Updates a daily memory journal |
+| `read_memory_file` | Reads today's daily memory journal |
+| `write_memory_file` | Updates today's daily memory journal |
 | `search_memory` | Semantic search across all daily memories via embeddings |
 | `web_search` | Searches the web via local SearXNG instance |
 | `fetch_url` | Fetches and extracts readable text from a URL |
@@ -259,8 +259,8 @@ Daily journals are embedded using a local model ([`nomic-embed-text-v1.5`](https
 User: "Remember that cake recipe I told you about?"
   → search_memory("cake recipe")
   → Finds 2026-03-12.md (distance: 0.23)
-  → read_memory_file("2026-03-12.md")
-  → Returns the full context
+  → read_memory_file()
+  → Returns the full context from today’s memory
 ```
 
 <br>

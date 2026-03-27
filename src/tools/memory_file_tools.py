@@ -1,48 +1,40 @@
 #!/usr/bin/python3
 
 import os
-import re
 from datetime import date
 from typing import Any
 
 from src.tools.base import BaseTool
 
-# Pattern for valid memory filenames
-DATE_PATTERN: re.Pattern = re.compile(pattern=r"^\d{4}-\d{2}-\d{2}\.md$")
+
+def _today_filename() -> str:
+    """Returns today's memory filename in yyyy-mm-dd.md format."""
+    return f"{date.today().isoformat()}.md"
 
 
 class ReadMemoryFileTool(BaseTool):
 
     def __init__(self, workspace_dir: str) -> None:
         """
-        This is the ReadMemoryFileTool which reads a daily memory file.
+        This is the ReadMemoryFileTool which reads today's daily memory file.
         """
         self._memory_dir: str = os.path.join(workspace_dir, "memory")
         os.makedirs(name=self._memory_dir, exist_ok=True)
         super().__init__(
             name="read_memory_file",
-            description="Read a daily memory file from the memory/ directory. The filename must follow the pattern yyyy-mm-dd.md. If the file does not exist yet, returns empty content. Must be called before writing.",
+            description="Read today's daily memory file. Always call this before writing.",
             parameters={
                 "type": "object",
-                "properties": {
-                    "filename": {
-                        "type": "string",
-                        "description": "The memory file to read, e.g. 2026-03-18.md. Use get_current_time to find today's date if needed."
-                    }
-                },
-                "required": ["filename"]
+                "properties": {},
+                "required": []
             }
         )
 
     def execute(self, **kwargs: Any) -> str:
         """
-        This function reads a daily memory file and marks it as read.
+        This function reads today's daily memory file and marks it as read.
         """
-        filename: str = kwargs.get("filename", "")
-
-        if not DATE_PATTERN.match(string=filename):
-            return f"Error: '{filename}' does not match the required pattern yyyy-mm-dd.md"
-
+        filename: str = _today_filename()
         path: str = os.path.join(self._memory_dir, filename)
 
         if not os.path.isfile(path):
@@ -62,45 +54,38 @@ class WriteMemoryFileTool(BaseTool):
 
     def __init__(self, workspace_dir: str) -> None:
         """
-        This is the WriteMemoryFileTool which writes the complete content of a daily memory file.
-        Requires that read_memory_file was called first for the same file.
+        This is the WriteMemoryFileTool which writes the complete content of today's daily memory file.
+        Requires that read_memory_file was called first.
         """
         self._workspace_dir: str = workspace_dir
         self._memory_dir: str = os.path.join(workspace_dir, "memory")
         os.makedirs(name=self._memory_dir, exist_ok=True)
         super().__init__(
             name="write_memory_file",
-            description="Write the complete updated content to a daily memory file. You MUST call read_memory_file first for the same file. Provide the FULL file content, not a diff.",
+            description="Write the complete updated content to today's daily memory file. You MUST call read_memory_file first. Provide the FULL file content, not a diff.",
             parameters={
                 "type": "object",
                 "properties": {
-                    "filename": {
-                        "type": "string",
-                        "description": "The memory file to write, e.g. 2026-03-18.md."
-                    },
                     "content": {
                         "type": "string",
-                        "description": "The complete new content for the memory file."
+                        "description": "The complete new content for today's memory file."
                     }
                 },
-                "required": ["filename", "content"]
+                "required": ["content"]
             }
         )
 
     def execute(self, **kwargs: Any) -> str:
         """
-        This function writes a daily memory file only if it was previously read.
+        This function writes today's daily memory file only if it was previously read.
         """
-        filename: str = kwargs.get("filename", "")
         content: str = kwargs.get("content", "")
-
-        if not DATE_PATTERN.match(string=filename):
-            return f"Error: '{filename}' does not match the required pattern yyyy-mm-dd.md"
+        filename: str = _today_filename()
 
         # Enforce read-before-write
         room_id: str = kwargs.get("_room_id", "")
         if filename not in BaseTool._read_files.get(room_id, set()):
-            return f"Error: You must call read_memory_file for '{filename}' before writing to it."
+            return "Error: You must call read_memory_file before writing."
 
         path: str = os.path.join(self._memory_dir, filename)
         with open(file=path, mode="w") as f:
