@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.4.0
+
+- **Inter-agent communication** — agents can now consult each other using the `ask_agent` tool. Main agent can ask sub-agents, sub-agents can ask the main agent or other sub-agents. Responses flow back naturally into the calling agent's reasoning.
+- New tool: `ask_agent` — sends a question to another agent by name and returns their response. Available to all agents (main and sub-agents).
+- **Deadlock prevention** — per-agent `threading.Lock` with non-blocking 5-second timeout. If the target agent is busy, the caller gets an immediate "busy" response instead of hanging.
+- **Depth limiting** — inter-agent calls have a maximum depth of 2 to prevent infinite recursion. Depth is tracked via the orchestrator and incremented on each hop.
+- **Dedicated internal sessions** — inter-agent conversations use isolated sessions (keyed by caller/target pair) so they don't pollute user-facing chat history.
+- Messages between agents use `[Channel: Internal, Sender: <name>]` headers, consistent with the existing channel header system.
+- AGENT.md updated with Agent Communication section explaining `ask_agent` usage.
+
 ## 2.3.0
 
 - **Custom agent name** — onboarding now asks the user to name the main agent (default: Memtrix). The chosen name is used for the Matrix username, display name, system prompt identity, sub-agent naming conventions, and SOUL templates.

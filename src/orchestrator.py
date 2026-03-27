@@ -190,7 +190,12 @@ class Orchestrator:
                 # Execute the tool or report an error
                 if tool_name in self._tools:
                     try:
-                        exec_args: dict[str, Any] = {**tool_args, "_room_id": room_id, "_ask": self._ask}
+                        exec_args: dict[str, Any] = {
+                            **tool_args,
+                            "_room_id": room_id,
+                            "_ask": self._ask,
+                            "_agent_depth": getattr(self, "_agent_depth", 0)
+                        }
                         result: str = self._tools[tool_name].execute(**exec_args)
                     except Exception as e:
                         result: str = f"Error: {e}"

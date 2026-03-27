@@ -57,6 +57,9 @@ _MEMORY_TEMPLATE: str = "// Long term memories go here"
 
 class AgentManager:
 
+    # Maximum depth for inter-agent calls (prevents infinite recursion)
+    MAX_AGENT_DEPTH: int = 2
+
     def __init__(self, config: dict[str, Any], main_handler_factory: Callable, bot_user_ids: set[str] | None = None) -> None:
         """
         This is the AgentManager class which manages sub-agent lifecycle.
@@ -73,11 +76,24 @@ class AgentManager:
         # Per-agent sessions (keyed by "agent_name:room_id")
         self._sessions: dict[str, Session] = {}
 
-        # Per-agent orchestrators (keyed by agent name)
+        # Per-agent orchestrators (keyed by agent slug)
         self._orchestrators: dict[str, Orchestrator] = {}
+
+        # Per-agent locks for thread-safe orchestrator access (keyed by agent slug)
+        self._locks: dict[str, threading.Lock] = {}
 
         # Per-agent commands (keyed by agent name)
         self._commands: dict[str, Any] = {}
+
+        # Inter-agent sessions (keyed by "caller_slug:target_slug")
+        self._internal_sessions: dict[str, Session] = {}
+
+    def register_main_orchestrator(self, orchestrator: Orchestrator) -> None:
+        """
+        This function registers the main agent's orchestrator so sub-agents can query it.
+        """
+        self._orchestrators["main"] = orchestrator
+        self._locks["main"] = threading.Lock()
 
     def _save_config(self) -> None:
         """
@@ -331,6 +347,96 @@ class AgentManager:
                 return key
         return None
 
+    def _resolve_target(self, name: str) -> str | None:
+        """
+        This function resolves a target agent name to an orchestrator key.
+        Supports 'main', the main agent's configured name, sub-agent display names, and slugs.
+        """
+        main_name: str = self._config["main-agent"].get("name", "Memtrix")
+        if name.lower() in ("main", main_name.lower()):
+            return "main"
+        return self._resolve_agent_slug(name=name)
+
+    def query_agent(self, caller_name: str, target_name: str, message: str, depth: int = 0) -> str:
+        """
+        This function sends a message from one agent to another and returns the response.
+        Uses a dedicated internal session and respects depth limits and locks.
+        """
+        # Depth check
+        if depth >= self.MAX_AGENT_DEPTH:
+            return "Error: maximum agent consultation depth reached."
+
+        # Resolve target
+        target_key: str | None = self._resolve_target(name=target_name)
+        if not target_key or target_key not in self._orchestrators:
+            return f"Error: agent '{target_name}' not found or not running."
+
+        # Resolve caller display name
+        caller_display: str = self._get_display_name(key=caller_name)
+
+        # Prevent self-calls
+        caller_key: str | None = self._resolve_target(name=caller_name)
+        if caller_key == target_key:
+            return "Error: an agent cannot ask itself."
+
+        # Try to acquire the target's lock (non-blocking to prevent deadlocks)
+        lock: threading.Lock = self._locks.get(target_key, threading.Lock())
+        if not lock.acquire(timeout=5):
+            target_display: str = self._get_display_name(key=target_key)
+            return f"Error: {target_display} is currently busy. Try again later."
+
+        try:
+            orchestrator: Orchestrator = self._orchestrators[target_key]
+
+            # Get or create a dedicated inter-agent session
+            session_key: str = f"internal:{caller_key}:{target_key}"
+            if session_key not in self._internal_sessions:
+                data_dir: str = os.path.dirname(CONFIG_PATH)
+                sessions_dir: str = os.path.join(data_dir, "sessions", "internal")
+                self._internal_sessions[session_key] = Session(sessions_dir=sessions_dir)
+
+            session: Session = self._internal_sessions[session_key]
+
+            # Build the prefixed message with internal channel header
+            prefixed: str = f"[Channel: Internal, Sender: {caller_display}]\n{message}"
+
+            # Temporarily inject the depth into the orchestrator's tool kwargs
+            # by setting a thread-local-like attribute on the orchestrator
+            prev_depth: int = getattr(orchestrator, "_agent_depth", 0)
+            orchestrator._agent_depth = depth + 1
+
+            try:
+                # Disable notifications for internal calls (no Matrix messages)
+                prev_notify = orchestrator._notify
+                prev_notify_reasoning = orchestrator._notify_reasoning
+                orchestrator.set_notify(callback=None)
+                orchestrator.set_notify_reasoning(callback=None)
+
+                response: str = orchestrator.run(
+                    user_message=prefixed,
+                    session=session,
+                    room_id=session_key
+                )
+            finally:
+                orchestrator._agent_depth = prev_depth
+                orchestrator._notify = prev_notify
+                orchestrator._notify_reasoning = prev_notify_reasoning
+
+            return response
+        finally:
+            lock.release()
+
+    def _get_display_name(self, key: str) -> str:
+        """
+        This function returns the display name for an agent key.
+        """
+        if key == "main":
+            return self._config["main-agent"].get("name", "Memtrix")
+        agents: dict[str, Any] = self._config.get("agents", {})
+        if key in agents:
+            return agents[key].get("display_name", key)
+        return key
+
     def delete_agent(self, name: str) -> str:
         """
         This function deletes a sub-agent: removes config, workspace, and stops the agent.
@@ -412,6 +518,14 @@ class AgentManager:
             exclude={"create_agent_tool.py", "list_agents_tool.py", "delete_agent_tool.py"}
         )
 
+        # Wire ask_agent tool with agent manager and caller identity
+        display_name: str = agent_config.get("display_name", name)
+        for tool in tools:
+            if hasattr(tool, "set_agent_manager"):
+                tool.set_agent_manager(manager=self)
+            if hasattr(tool, "set_caller_name"):
+                tool.set_caller_name(name=display_name)
+
         # Initialize memory index for this agent (registers in the instances cache)
         index: MemoryIndex = MemoryIndex.get_instance(workspace_dir=workspace_dir, collection_name=f"agent_{name}")
         index.start_periodic_sync()
@@ -425,6 +539,7 @@ class AgentManager:
             think=think
         )
         self._orchestrators[name] = orchestrator
+        self._locks[name] = threading.Lock()
 
         # Sessions directory for this agent
         data_dir: str = os.path.dirname(CONFIG_PATH)

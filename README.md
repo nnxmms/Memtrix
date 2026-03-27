@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-2.3.0-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-2.4.0-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 <br>
@@ -185,6 +185,7 @@ Built-in tools are automatically discovered at startup:
 | `create_agent` | Creates a new specialist sub-agent with its own Matrix identity and workspace |
 | `list_agents` | Lists all registered sub-agents and their status |
 | `delete_agent` | Permanently deletes a sub-agent and all its data |
+| `ask_agent` | Asks another agent a question and returns their response |
 
 > Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt.
 
@@ -449,7 +450,8 @@ Memtrix/
 │   │   ├── send_file_tool.py         # Send files to user via Matrix
 │   │   ├── create_agent_tool.py      # Create specialist sub-agents
 │   │   ├── list_agents_tool.py       # List registered sub-agents
-│   │   └── delete_agent_tool.py      # Delete sub-agents
+│   │   ├── delete_agent_tool.py      # Delete sub-agents
+│   │   └── ask_agent_tool.py         # Inter-agent communication
 │   └── static/
 │       ├── config.json               # Config template
 │       ├── conduit.toml              # Conduit homeserver config

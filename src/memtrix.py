@@ -95,9 +95,14 @@ class Memtrix:
 
         # Create agent manager and wire it into the agent tools
         self._agent_manager = AgentManager(config=self._config, main_handler_factory=None, bot_user_ids=self._bot_user_ids)
+        self._agent_manager.register_main_orchestrator(orchestrator=self._orchestrator)
+
+        main_name: str = self._config["main-agent"].get("name", "Memtrix")
         for tool in tools:
             if hasattr(tool, "set_agent_manager"):
                 tool.set_agent_manager(manager=self._agent_manager)
+            if hasattr(tool, "set_caller_name"):
+                tool.set_caller_name(name=main_name)
 
         # Load existing sessions from config
         sessions_map: dict[str, str] = self._config.get("main-agent", {}).get("sessions", {})
