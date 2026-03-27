@@ -34,6 +34,10 @@
 
 ### Setup
 
+> [!NOTE]
+> **First startup:** Memtrix downloads the embedding model (~100 MB) on first launch.
+> This can take a couple of minutes depending on your network. Subsequent starts reuse `data/models/`.
+
 ```bash
 git clone https://github.com/your-user/memtrix.git && cd memtrix
 
@@ -48,14 +52,6 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
 > [!NOTE]
 > **Linux users:** If your user is not in the `docker` group, run scripts with `sudo`.
 > Both scripts automatically fix file ownership so the container can read the config.
-
-> [!NOTE]
-> **First startup:** Memtrix downloads the embedding model (~100 MB) on first launch.
-> This can take a couple of minutes depending on your network. Subsequent starts reuse `data/models/`.
-
-<br>
-
----
 
 <br>
 
@@ -115,11 +111,7 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
 
 <br>
 
----
-
-<br>
-
-## 🏗️ Architecture
+## 🔧 Architecture
 
 ```
                           ┌──────────────────┐
@@ -154,10 +146,6 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
 | **ChromaDB** | Embedded vector database for semantic memory search |
 | **Ollama** | Local LLM inference (runs separately) |
 | **OpenRouter** | Cloud LLM gateway — OpenAI, Anthropic, Google, and more |
-
-<br>
-
----
 
 <br>
 
@@ -221,10 +209,6 @@ It's automatically discovered and available to the LLM on the next restart.
 
 <br>
 
----
-
-<br>
-
 ## 🧠 Memory System
 
 Memtrix has a two-tier memory architecture:
@@ -266,10 +250,6 @@ User: "Remember that cake recipe I told you about?"
 
 <br>
 
----
-
-<br>
-
 ## 👤 Persona System
 
 Memtrix's identity is defined by markdown files in `workspace/`:
@@ -286,10 +266,6 @@ These files are injected into the system prompt via placeholders (`{{BEHAVIOR}}`
 
 <br>
 
----
-
-<br>
-
 ## 💬 Sessions & Commands
 
 Each Matrix room gets its own independent conversation session. Multiple rooms = multiple contexts.
@@ -300,10 +276,6 @@ Each Matrix room gets its own independent conversation session. Multiple rooms =
 | `/verbose on\|off` | Toggle real-time tool execution notifications |
 | `/reasoning on\|off` | Toggle display of model reasoning/thinking |
 | `/help` | List available commands |
-
-<br>
-
----
 
 <br>
 
@@ -357,10 +329,6 @@ All configuration lives in `data/config.json`. Secrets are stored in `.env` and 
 Values starting with `$` are resolved from environment variables at startup (prefixed with `MEMTRIX_SECRET_`). For example, `$MATRIX_ACCESS_TOKEN` reads from `MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN` in `.env`.
 
 </details>
-
-<br>
-
----
 
 <br>
 
@@ -424,15 +392,7 @@ Content from external sources is clearly marked so the LLM can distinguish trust
 
 <br>
 
----
-
-<br>
-
 ## 📂 Project Structure
-
-<details>
-<summary><b>Expand file tree</b></summary>
-<br>
 
 ```
 Memtrix/
@@ -493,19 +453,9 @@ Memtrix/
 └── run.sh
 ```
 
-</details>
-
-<br>
-
----
-
 <br>
 
 ## 🔌 Adding a Provider
-
-<details>
-<summary><b>Provider template</b></summary>
-<br>
 
 Drop a new `.py` file in `src/providers/` that subclasses `BaseProvider`:
 
@@ -525,15 +475,7 @@ class MyProvider(BaseProvider):
 
 The onboarding wizard automatically discovers new providers and prompts for their constructor parameters.
 
-</details>
-
 <br>
-
----
-
-<div align="center">
-<sub>Built with care. Runs on your hardware. Remembers what matters.</sub>
-</div>
 
 ## Tech Stack
 
