@@ -24,6 +24,18 @@ SYNC_INTERVAL: int = 300
 
 class LocalEmbeddingFunction:
 
+    _instance: "LocalEmbeddingFunction | None" = None
+
+    @classmethod
+    def get_instance(cls, model_dir: str) -> "LocalEmbeddingFunction":
+        """
+        This function returns the singleton LocalEmbeddingFunction instance.
+        The model is loaded once and reused across all MemoryIndex instances.
+        """
+        if cls._instance is None:
+            cls._instance = cls(model_dir=model_dir)
+        return cls._instance
+
     def __init__(self, model_dir: str) -> None:
         """
         This is the LocalEmbeddingFunction which generates embeddings using a local model.
@@ -32,10 +44,22 @@ class LocalEmbeddingFunction:
         os.environ["HF_HOME"] = model_dir
         os.environ["TRANSFORMERS_CACHE"] = model_dir
 
+        # Use local cache only when model is already downloaded — avoids slow
+        # HuggingFace Hub network calls on every startup
+        model_cached: bool = any(
+            entry.startswith("models--")
+            for entry in os.listdir(model_dir)
+            if os.path.isdir(os.path.join(model_dir, entry))
+        ) if os.path.isdir(model_dir) else False
+
+        if model_cached:
+            logger.info("Loading embedding model from local cache")
+
         self._model: SentenceTransformer = SentenceTransformer(
             model_name_or_path=EMBEDDING_MODEL,
             cache_folder=model_dir,
             trust_remote_code=True,
+            local_files_only=model_cached,
             truncate_dim=EMBEDDING_DIM
         )
         logger.info("Embedding model loaded (%s, dim=%d)", EMBEDDING_MODEL, EMBEDDING_DIM)
@@ -86,8 +110,8 @@ class MemoryIndex:
         data_dir: str = os.path.dirname(CONFIG_PATH)
         model_dir: str = os.path.join(data_dir, "models")
 
-        # Local embedding function (shared via class-level cache)
-        self._embedding_fn: LocalEmbeddingFunction = LocalEmbeddingFunction(
+        # Local embedding function (singleton — loaded once, shared across all agents)
+        self._embedding_fn: LocalEmbeddingFunction = LocalEmbeddingFunction.get_instance(
             model_dir=model_dir
         )
 

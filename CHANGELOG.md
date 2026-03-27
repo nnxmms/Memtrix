@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.2
+
+- Per-agent verbose and reasoning — `/verbose` and `/reasoning` commands now apply to the agent they're used in. Sub-agents no longer toggle the main agent's settings. Each agent persists its own state to its own config section.
+- Singleton embedding model — the SentenceTransformer model is now loaded once and shared across all `MemoryIndex` instances. Previously it was loaded separately for the main agent and every sub-agent.
+- Local-only model loading — when the embedding model is already cached, `local_files_only=True` skips all HuggingFace Hub network calls. Startup with 4 sub-agents went from ~5 minutes to ~2 seconds.
+
 ## 2.5.1
 
 - Structured logging — replaced all `print()` calls with Python's `logging` module. Logs include timestamps, log levels, and module names. Noisy third-party loggers (httpx, chromadb, sentence_transformers, nio) are suppressed to WARNING. Logging is configured centrally in `main.py` and flows to stdout for `docker compose logs`.

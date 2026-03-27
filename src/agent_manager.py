@@ -555,7 +555,7 @@ class AgentManager:
 
         # Import Commands locally to avoid circular imports
         from src.commands import Commands
-        agent_commands: Commands = Commands(config=self._config)
+        agent_commands: Commands = Commands(agent_config=agent_config, config_path=["agents", name])
         self._commands[name] = agent_commands
 
         # Build handler for this agent

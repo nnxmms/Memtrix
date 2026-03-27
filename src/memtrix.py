@@ -40,7 +40,7 @@ class Memtrix:
         self._orchestrator: Orchestrator | None = None
 
         # Slash commands
-        self._commands: Commands = Commands(config=config)
+        self._commands: Commands = Commands(agent_config=config["main-agent"], config_path=["main-agent"])
 
         # Agent manager for sub-agents
         self._agent_manager: AgentManager | None = None

@@ -8,21 +8,26 @@ from src.config import CONFIG_PATH, CONFIG_LOCK
 
 class Commands:
 
-    def __init__(self, config: dict[str, Any]) -> None:
+    def __init__(self, agent_config: dict[str, Any], config_path: list[str]) -> None:
         """
         This is the Commands class which handles slash-commands.
+        agent_config is the agent's own config section (e.g. config["main-agent"] or config["agents"]["dave"]).
+        config_path is the key path to that section in config.json (e.g. ["main-agent"] or ["agents", "dave"]).
         """
         # Registry of command handlers
         self._commands: dict[str, Callable[[list[str]], str]] = {}
 
+        # Key path to the agent's config section for persistence
+        self._config_path: list[str] = config_path
+
         # Register built-in commands
         self._register_builtins()
 
-        # Load verbose state from config
-        self.verbose: bool = config.get("main-agent", {}).get("verbose", False)
+        # Load verbose state from agent config
+        self.verbose: bool = agent_config.get("verbose", False)
 
-        # Load reasoning state from config
-        self.reasoning: bool = config.get("main-agent", {}).get("reasoning", False)
+        # Load reasoning state from agent config
+        self.reasoning: bool = agent_config.get("reasoning", False)
 
     def _register_builtins(self) -> None:
         """
@@ -64,12 +69,15 @@ class Commands:
 
     def _save_setting(self, key: str, value: Any) -> None:
         """
-        This function persists a main-agent setting to config.
+        This function persists a setting to the agent's config section.
         """
         with CONFIG_LOCK:
             with open(file=CONFIG_PATH, mode="r") as f:
                 config: dict[str, Any] = json.load(fp=f)
-            config["main-agent"][key] = value
+            section: dict[str, Any] = config
+            for part in self._config_path:
+                section = section[part]
+            section[key] = value
             with open(file=CONFIG_PATH, mode="w") as f:
                 json.dump(obj=config, fp=f, indent=4)
 
