@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.0.0
+
+- **Sub-agents** — Memtrix can now create specialist sub-agents on the user's behalf. Each sub-agent is a fully independent agent with its own Matrix user, workspace, core files, memory, vector index, and conversation sessions.
+- New tools: `create_agent`, `list_agents`, `delete_agent` — the main agent uses these to manage sub-agents. Both creation and deletion require human-in-the-loop approval.
+- **Isolated workspaces** — sub-agent workspaces live in `agents/<name>/`, a separate volume mount from the main agent's `workspace/`. Path traversal protection naturally enforces isolation.
+- **Per-agent memory index** — each sub-agent gets its own ChromaDB collection and vector index.
+- `MemoryIndex` now supports named collections for multi-agent use.
+- `AgentManager` class — handles sub-agent lifecycle: Matrix user registration, workspace scaffolding, orchestrator creation, background thread management, config persistence.
+- Sub-agents auto-start on boot from the agents registry in config.
+- Updated AGENT.md system prompt with sub-agent management instructions.
+- Docker: added `./agents:/home/memtrix/agents` volume mount.
+- Dockerfile: pre-creates `/home/memtrix/agents` directory.
+- Config template: added `"agents": {}` section.
+- `setup.sh`: creates `agents/` directory and sets ownership.
+
 ## 1.9.0
 
 - **SSRF protection** ([audit 2026-03-22](audits/2026-03-22-security-audit-v1.8.6.md) findings #1, #2, #5) — `fetch_url`, `download_file`, and `git_clone` now block requests to internal Docker services (conduit, searxng) and private/reserved IP ranges (10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x, link-local, etc.).

@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-1.9.0-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-2.0.0-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 <br>
@@ -101,9 +101,16 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
 </td>
 </tr>
 <tr>
-<td colspan="2" align="center">
+<td>
 
-🔒 **Security Hardened** — non-root, read-only filesystem, all capabilities dropped, secrets cleared from memory
+🤖 **Sub-Agents**<br>
+<sub>Create specialist agents with their own identity, memory, and Matrix presence.</sub>
+
+</td>
+<td>
+
+🔒 **Security Hardened**<br>
+<sub>Non-root, read-only filesystem, all capabilities dropped, isolated workspaces.</sub>
 
 </td>
 </tr>
@@ -127,9 +134,12 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
 │  │  (Agent)  │    │ (Matrix Server) │    │ (Search)  │  │
 │  └─────┬─────┘    └─────────────────┘    └─────▲─────┘  │
 │        │                                       │        │
-│        ├───────────────────────────────────────┘        │
+│        ├───> Sub-Agents (background threads)    │        │
+│        │     Each with own Matrix user          │        │
+│        │                                        │        │
+│        ├────────────────────────────────────────┘        │
 │        │                                                │
-│        ├──► ChromaDB (vector memory, embedded)          │
+│        ├──► ChromaDB (vector memory, per-agent)         │
 │        │                                                │
 └────────┼────────────────────────────────────────────────┘
          │
@@ -140,7 +150,7 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
 
 | Component | Role |
 |:--|:--|
-| **Memtrix** | Python agent — orchestrates LLM calls, tool execution, memory, sessions |
+| **Memtrix** | Python agent — orchestrates LLM calls, tool execution, memory, sessions, sub-agents |
 | **Conduit** | Lightweight Matrix homeserver (local-only, no federation) |
 | **SearXNG** | Privacy-respecting metasearch engine for web access |
 | **ChromaDB** | Embedded vector database for semantic memory search |
@@ -172,6 +182,9 @@ Built-in tools are automatically discovered at startup:
 | `git_clone` | Clones a public git repository into the workspace |
 | `download_file` | Downloads a file from a URL into the workspace |
 | `send_file` | Sends a file from the workspace to the user via Matrix |
+| `create_agent` | Creates a new specialist sub-agent with its own Matrix identity and workspace |
+| `list_agents` | Lists all registered sub-agents and their status |
+| `delete_agent` | Permanently deletes a sub-agent and all its data |
 
 > Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt.
 
@@ -400,6 +413,7 @@ Memtrix/
 │   ├── main.py                       # Entry point
 │   ├── memtrix.py                    # Core — wires channels, providers, sessions
 │   ├── orchestrator.py               # Agentic loop — LLM calls, tool execution
+│   ├── agent_manager.py              # Sub-agent lifecycle management
 │   ├── session.py                    # Per-room conversation persistence
 │   ├── commands.py                   # Slash command registry
 │   ├── secrets.py                    # Secret resolution + sanitization
@@ -432,7 +446,10 @@ Memtrix/
 │   │   ├── delete_directory_tool.py  # Delete directories
 │   │   ├── git_clone_tool.py         # Clone git repositories
 │   │   ├── download_file_tool.py     # Download files from URLs
-│   │   └── send_file_tool.py         # Send files to user via Matrix
+│   │   ├── send_file_tool.py         # Send files to user via Matrix
+│   │   ├── create_agent_tool.py      # Create specialist sub-agents
+│   │   ├── list_agents_tool.py       # List registered sub-agents
+│   │   └── delete_agent_tool.py      # Delete sub-agents
 │   └── static/
 │       ├── config.json               # Config template
 │       ├── conduit.toml              # Conduit homeserver config
@@ -443,6 +460,7 @@ Memtrix/
 │       ├── USER.md                   # User profile template
 │       └── MEMORY.md                 # Memory template
 ├── workspace/                        # Live persona files (mounted into container)
+├── agents/                           # Sub-agent workspaces (isolated per agent)
 ├── data/                             # Persistent data (config, sessions, vector index)
 ├── Dockerfile
 ├── docker-compose.yml

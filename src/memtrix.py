@@ -6,6 +6,7 @@ import os
 from types import ModuleType
 from typing import Any, Callable
 
+from src.agent_manager import AgentManager
 from src.channels.cli import CLIChannel
 from src.channels.matrix import MatrixChannel
 from src.commands import Commands
@@ -37,6 +38,9 @@ class Memtrix:
 
         # Slash commands
         self._commands: Commands = Commands(config=config)
+
+        # Agent manager for sub-agents
+        self._agent_manager: AgentManager | None = None
 
         # Per-room sessions keyed by room id
         self._sessions: dict[str, Session] = {}
@@ -85,6 +89,12 @@ class Memtrix:
             workspace_dir=workspace_dir,
             think=think
         )
+
+        # Create agent manager and wire it into the agent tools
+        self._agent_manager = AgentManager(config=self._config, main_handler_factory=None)
+        for tool in tools:
+            if hasattr(tool, "set_agent_manager"):
+                tool.set_agent_manager(manager=self._agent_manager)
 
         # Load existing sessions from config
         sessions_map: dict[str, str] = self._config.get("main-agent", {}).get("sessions", {})
@@ -172,6 +182,10 @@ class Memtrix:
         """
         # Load the configured provider and orchestrator
         self._load_provider()
+
+        # Boot all registered sub-agents
+        if self._agent_manager:
+            self._agent_manager.boot_all()
 
         # Resolve channel from config
         channel_instance: str = self._config["main-agent"]["channel"]

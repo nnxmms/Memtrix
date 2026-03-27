@@ -5,5 +5,6 @@ database_path = "/var/lib/matrix-conduit"
 port = 6167
 address = "0.0.0.0"
 allow_registration = true
+registration_token = "62408bf00e61b43db3068ddcede99717e658e009e109ffee435d8c0fbeb86df1"
 allow_federation = false
 trusted_servers = ["matrix.org"]

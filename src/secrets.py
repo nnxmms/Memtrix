@@ -34,6 +34,10 @@ def get_sanitized_env() -> dict[str, str]:
     return {k: v for k, v in os.environ.items() if not k.startswith(SECRET_PREFIX)}
 
 
+# Optional secret keys that resolve to empty string if not set
+OPTIONAL_SECRETS: set[str] = {"REGISTRATION_TOKEN"}
+
+
 def _resolve_recursive(obj: Any) -> Any:
     """
     This function recursively resolves $PLACEHOLDER references in config values.
@@ -43,9 +47,12 @@ def _resolve_recursive(obj: Any) -> Any:
     if isinstance(obj, list):
         return [_resolve_recursive(obj=item) for item in obj]
     if isinstance(obj, str) and obj.startswith("$"):
-        env_key: str = SECRET_PREFIX + obj[1:]
+        placeholder: str = obj[1:]
+        env_key: str = SECRET_PREFIX + placeholder
         value: str | None = os.environ.get(env_key)
         if value is None:
+            if placeholder in OPTIONAL_SECRETS:
+                return ""
             raise RuntimeError(f"Missing secret: environment variable '{env_key}' is not set.")
         return value
     return obj

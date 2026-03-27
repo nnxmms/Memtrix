@@ -16,7 +16,8 @@ services:
       - .env           # secrets (access tokens, API keys)
     volumes:
       - ./workspace:/home/memtrix/workspace   # persistent workspace (AGENT.md, MEMORY.md, memory/, …)
-      - ./data:/home/memtrix/data             # persistent data (config.json, …)
+      - ./agents:/home/memtrix/agents           # sub-agent workspaces (isolated per agent)
+      - ./data:/home/memtrix/data               # persistent data (config.json, …)
       - ./data/cache:/home/memtrix/.cache     # writable cache for ChromaDB / HuggingFace
     restart: unless-stopped
     depends_on:

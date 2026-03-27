@@ -8,5 +8,5 @@ search:
 server:
   bind_address: "0.0.0.0"
   port: 8080
-  secret_key: "REPLACE_ME_DURING_SETUP"
+  secret_key: "2217668895c03a62d60570a2c5c4c3af59368fdcec7c3ec3bdd45317fd3aec24"
   limiter: false

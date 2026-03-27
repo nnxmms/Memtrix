@@ -62,18 +62,19 @@ class LocalEmbeddingFunction:
 
 class MemoryIndex:
 
-    _instance: "MemoryIndex | None" = None
+    _instances: dict[str, "MemoryIndex"] = {}
 
     @classmethod
-    def get_instance(cls, workspace_dir: str) -> "MemoryIndex":
+    def get_instance(cls, workspace_dir: str, collection_name: str = "daily_memories") -> "MemoryIndex":
         """
-        This function returns the singleton MemoryIndex instance.
+        This function returns the MemoryIndex instance for a given workspace directory.
+        Creates a new instance if one doesn't exist yet.
         """
-        if cls._instance is None:
-            cls._instance = cls(workspace_dir=workspace_dir)
-        return cls._instance
+        if workspace_dir not in cls._instances:
+            cls._instances[workspace_dir] = cls(workspace_dir=workspace_dir, collection_name=collection_name)
+        return cls._instances[workspace_dir]
 
-    def __init__(self, workspace_dir: str) -> None:
+    def __init__(self, workspace_dir: str, collection_name: str = "daily_memories") -> None:
         """
         This is the MemoryIndex class which manages vector search over daily memory files.
         """
@@ -81,13 +82,16 @@ class MemoryIndex:
         data_dir: str = os.path.dirname(CONFIG_PATH)
         model_dir: str = os.path.join(data_dir, "models")
 
-        # Local embedding function
+        # Local embedding function (shared via class-level cache)
         self._embedding_fn: LocalEmbeddingFunction = LocalEmbeddingFunction(
             model_dir=model_dir
         )
 
-        # ChromaDB persistent client
-        persist_dir: str = os.path.join(data_dir, "memory_index")
+        # ChromaDB persistent client — sub-agents get a subdirectory
+        if collection_name == "daily_memories":
+            persist_dir: str = os.path.join(data_dir, "memory_index")
+        else:
+            persist_dir: str = os.path.join(data_dir, "memory_index", collection_name)
         self._client: chromadb.ClientAPI = chromadb.PersistentClient(
             path=persist_dir,
             settings=chromadb.Settings(
@@ -96,7 +100,7 @@ class MemoryIndex:
             )
         )
         self._collection: chromadb.Collection = self._client.get_or_create_collection(
-            name="daily_memories",
+            name=collection_name,
             embedding_function=self._embedding_fn
         )
 

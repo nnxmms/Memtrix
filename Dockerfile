@@ -20,6 +20,7 @@ COPY --chown=memtrix:memtrix src/ src/
 
 # Pre-create runtime directories so mounted volumes are owned correctly
 RUN mkdir -p /home/memtrix/workspace \
+ && mkdir -p /home/memtrix/agents \
  && mkdir -p /home/memtrix/data \
  && chown -R memtrix:memtrix /home/memtrix
 

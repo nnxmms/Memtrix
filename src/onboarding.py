@@ -151,20 +151,44 @@ class Onboarding:
     def _register_matrix_user(self, homeserver: str, username: str, password: str) -> dict[str, Any]:
         """
         This function registers a user on the Matrix homeserver via the Client-Server API.
+        Supports Conduit's registration_token for token-protected registration.
         """
         url: str = f"{homeserver.rstrip('/')}/_matrix/client/v3/register"
-        response: requests.Response = requests.post(
-            url=url,
-            json={
-                "username": username,
-                "password": password,
-                "auth": {"type": "m.login.dummy"},
-                "inhibit_login": False
-            },
-            timeout=30
-        )
+        body: dict[str, Any] = {
+            "username": username,
+            "password": password,
+            "auth": {"type": "m.login.dummy"},
+            "inhibit_login": False
+        }
+
+        # If a registration token is configured, include it in the auth flow
+        reg_token: str = self._get_registration_token()
+        if reg_token:
+            body["auth"] = {
+                "type": "m.login.registration_token",
+                "token": reg_token
+            }
+
+        response: requests.Response = requests.post(url=url, json=body, timeout=30)
         response.raise_for_status()
         return response.json()
+
+    def _get_registration_token(self) -> str:
+        """
+        This function reads the registration token from the Conduit config file.
+        """
+        conduit_toml_path: str = os.path.join(os.path.dirname(__file__), "static", "conduit.toml")
+        if os.path.isfile(conduit_toml_path):
+            with open(file=conduit_toml_path, mode="r") as f:
+                for line in f:
+                    if line.strip().startswith("registration_token"):
+                        # Parse: registration_token = "value"
+                        parts = line.split("=", maxsplit=1)
+                        if len(parts) == 2:
+                            token: str = parts[1].strip().strip('"').strip("'")
+                            if token:
+                                return token
+        return ""
 
     def _set_display_name(self, homeserver: str, user_id: str, access_token: str, display_name: str) -> None:
         """

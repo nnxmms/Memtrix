@@ -8,6 +8,8 @@
         "verbose": true,
         "reasoning": true
     },
+    "agents": {},
+    "registration_token": "$REGISTRATION_TOKEN",
     "workspace-directory": "/home/memtrix/workspace",
     "providers": {},
     "models": {},
