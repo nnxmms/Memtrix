@@ -3,7 +3,7 @@
 import json
 from typing import Any, Callable
 
-from src.config import CONFIG_PATH
+from src.config import CONFIG_PATH, CONFIG_LOCK
 
 
 class Commands:
@@ -66,11 +66,12 @@ class Commands:
         """
         This function persists a main-agent setting to config.
         """
-        with open(file=CONFIG_PATH, mode="r") as f:
-            config: dict[str, Any] = json.load(fp=f)
-        config["main-agent"][key] = value
-        with open(file=CONFIG_PATH, mode="w") as f:
-            json.dump(obj=config, fp=f, indent=4)
+        with CONFIG_LOCK:
+            with open(file=CONFIG_PATH, mode="r") as f:
+                config: dict[str, Any] = json.load(fp=f)
+            config["main-agent"][key] = value
+            with open(file=CONFIG_PATH, mode="w") as f:
+                json.dump(obj=config, fp=f, indent=4)
 
     def _cmd_verbose(self, args: list[str]) -> str:
         """

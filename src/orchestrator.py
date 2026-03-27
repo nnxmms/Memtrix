@@ -34,61 +34,6 @@ class Orchestrator:
         self._workspace_dir: str = workspace_dir
         self._system_prompt: str = self._build_system_prompt(workspace_dir=workspace_dir)
 
-        # Optional callback for verbose/status messages
-        self._notify: Callable[[str], None] | None = None
-
-        # Optional callback for reasoning display
-        self._notify_reasoning: Callable[[str], None] | None = None
-
-        # Optional callback for sending files
-        self._send_file: Callable[[str], None] | None = None
-
-        # Optional callback for human-in-the-loop confirmations
-        self._ask: Callable[[str], str] | None = None
-
-    def set_notify(self, callback: Callable[[str], None]) -> None:
-        """
-        This function sets the callback for sending verbose notifications.
-        """
-        self._notify = callback
-
-    def set_notify_reasoning(self, callback: Callable[[str], None] | None) -> None:
-        """
-        This function sets the callback for sending reasoning notifications.
-        """
-        self._notify_reasoning = callback
-
-    def set_send_file(self, callback: Callable[[str], None] | None) -> None:
-        """
-        This function sets the callback for sending files to the channel.
-        """
-        self._send_file = callback
-        # Propagate to the send_file tool if it exists
-        if "send_file" in self._tools:
-            self._tools["send_file"].set_send_file(callback=callback)
-
-    def set_ask(self, callback: Callable[[str], str] | None) -> None:
-        """
-        This function sets the callback for human-in-the-loop confirmations.
-        """
-        self._ask = callback
-
-    def _emit_reasoning(self, message: Any) -> None:
-        """
-        This function emits the model's reasoning content if available and callback is set.
-        """
-        if self._notify_reasoning:
-            thinking: str = getattr(message, "thinking", None) or ""
-            if thinking.strip():
-                self._notify_reasoning(f"💭 {thinking.strip()}")
-
-    def _emit(self, message: str) -> None:
-        """
-        This function sends a verbose notification if a callback is set.
-        """
-        if self._notify:
-            self._notify(message)
-
     def _build_system_prompt(self, workspace_dir: str) -> str:
         """
         This function builds the system prompt by reading AGENT.md and injecting
@@ -142,12 +87,22 @@ class Orchestrator:
             result["tool_calls"] = serialized_calls
         return result
 
-    def run(self, user_message: str, session: Session, room_id: str = "") -> str:
+    def run(self, user_message: str, session: Session, room_id: str = "",
+            notify: Callable[[str], None] | None = None,
+            notify_reasoning: Callable[[str], None] | None = None,
+            send_file: Callable[[str], None] | None = None,
+            ask: Callable[[str], str] | None = None,
+            agent_depth: int = 0) -> str:
         """
         This function processes a user message through the agentic loop and returns the final response.
+        All callbacks are per-call parameters — the orchestrator holds no mutable per-request state.
         """
         # Reset read-before-write tracker for this room
         BaseTool._read_files.pop(room_id, None)
+
+        # Propagate send_file callback to the send_file tool for this request
+        if "send_file" in self._tools:
+            self._tools["send_file"].set_send_file(callback=send_file)
 
         # Inject system prompt at the start of a fresh session
         if not session.history:
@@ -167,7 +122,10 @@ class Orchestrator:
             )
 
             # Emit reasoning if available
-            self._emit_reasoning(message=message)
+            if notify_reasoning:
+                thinking: str = getattr(message, "thinking", None) or ""
+                if thinking.strip():
+                    notify_reasoning(f"💭 {thinking.strip()}")
 
             # If no tool calls, save and return the final text response
             if not message.tool_calls:
@@ -185,7 +143,8 @@ class Orchestrator:
 
                 # Notify about the tool call
                 args_summary: str = ", ".join(f"{k}={v}" for k, v in tool_args.items() if k != "content")
-                self._emit(message=f"→ Tool call: {tool_name}({args_summary})")
+                if notify:
+                    notify(f"→ Tool call: {tool_name}({args_summary})")
 
                 # Execute the tool or report an error
                 if tool_name in self._tools:
@@ -193,8 +152,8 @@ class Orchestrator:
                         exec_args: dict[str, Any] = {
                             **tool_args,
                             "_room_id": room_id,
-                            "_ask": self._ask,
-                            "_agent_depth": getattr(self, "_agent_depth", 0)
+                            "_ask": ask,
+                            "_agent_depth": agent_depth
                         }
                         result: str = self._tools[tool_name].execute(**exec_args)
                     except Exception as e:
@@ -203,7 +162,8 @@ class Orchestrator:
                     result: str = f"Error: unknown tool '{tool_name}'"
 
                 # Notify about the tool response
-                self._emit(message=f"→ Tool response received")
+                if notify:
+                    notify(f"→ Tool response received")
 
                 tool_result: dict[str, str] = {"role": "tool", "content": result}
                 if getattr(tool_call, "id", None):
@@ -217,7 +177,10 @@ class Orchestrator:
         # Exhausted iterations — ask for a final answer without tools
         session.append(message={"role": "user", "content": "Please provide your final answer now."})
         message = self._provider.completions(model=self._model, history=session.history, think=self._think)
-        self._emit_reasoning(message=message)
+        if notify_reasoning:
+            thinking: str = getattr(message, "thinking", None) or ""
+            if thinking.strip():
+                notify_reasoning(f"💭 {thinking.strip()}")
         response: str = self._strip_thinking(text=message.content or "")
         session.append(message={"role": "assistant", "content": response})
         return response

@@ -10,7 +10,7 @@ from src.agent_manager import AgentManager
 from src.channels.cli import CLIChannel
 from src.channels.matrix import MatrixChannel
 from src.commands import Commands
-from src.config import CONFIG_PATH
+from src.config import CONFIG_PATH, CONFIG_LOCK
 from src.memory_index import MemoryIndex
 from src.orchestrator import Orchestrator
 from src.providers.base import BaseProvider
@@ -130,11 +130,12 @@ class Memtrix:
         """
         This function persists the sessions mapping to config without overwriting secret placeholders.
         """
-        with open(file=CONFIG_PATH, mode="r") as f:
-            disk_config: dict[str, Any] = json.load(fp=f)
-        disk_config["main-agent"]["sessions"] = self._config["main-agent"]["sessions"]
-        with open(file=CONFIG_PATH, mode="w") as f:
-            json.dump(obj=disk_config, fp=f, indent=4)
+        with CONFIG_LOCK:
+            with open(file=CONFIG_PATH, mode="r") as f:
+                disk_config: dict[str, Any] = json.load(fp=f)
+            disk_config["main-agent"]["sessions"] = self._config["main-agent"]["sessions"]
+            with open(file=CONFIG_PATH, mode="w") as f:
+                json.dump(obj=disk_config, fp=f, indent=4)
 
     def _get_session(self, room_id: str) -> Session:
         """
@@ -182,27 +183,21 @@ class Memtrix:
         if self._commands.is_command(message=raw_body):
             return self._commands.execute(message=raw_body)
 
-        # Set up notify callback if verbose mode is on
-        if self._commands.verbose:
-            self._orchestrator.set_notify(callback=notify)
-        else:
-            self._orchestrator.set_notify(callback=None)
-
-        # Set up reasoning callback if reasoning display is on
-        if self._commands.reasoning:
-            self._orchestrator.set_notify_reasoning(callback=notify)
-        else:
-            self._orchestrator.set_notify_reasoning(callback=None)
-
-        # Set up send_file callback
-        self._orchestrator.set_send_file(callback=send_file)
-
-        # Set up ask callback for human-in-the-loop confirmations
-        self._orchestrator.set_ask(callback=ask)
+        # Resolve per-call callbacks based on current command state
+        notify_cb: Callable[[str], None] | None = notify if self._commands.verbose else None
+        reasoning_cb: Callable[[str], None] | None = notify if self._commands.reasoning else None
 
         # Get the session for this room and run the orchestrator
         session: Session = self._get_session(room_id=room_id)
-        return self._orchestrator.run(user_message=user_input, session=session, room_id=room_id)
+        return self._orchestrator.run(
+            user_message=user_input,
+            session=session,
+            room_id=room_id,
+            notify=notify_cb,
+            notify_reasoning=reasoning_cb,
+            send_file=send_file,
+            ask=ask
+        )
 
     def run(self) -> None:
         """

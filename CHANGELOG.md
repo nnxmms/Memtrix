@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.4.1
+
+- **Fix human-in-the-loop bypass during inter-agent calls** ([audit 2026-03-27](audits/2026-03-27-security-audit-v2.4.0.md) finding #1) — `confirm_with_user()` now returns `False` (deny) when no human callback is available. Prevents auto-approval of destructive operations (downloads, overwrites, agent creation) during inter-agent calls.
+- **Fix orchestrator race condition** ([audit 2026-03-27](audits/2026-03-27-security-audit-v2.4.0.md) finding #3) — `Orchestrator.run()` now accepts all callbacks (`notify`, `notify_reasoning`, `send_file`, `ask`, `agent_depth`) as parameters instead of mutable instance state. Eliminates race conditions when the same orchestrator is accessed concurrently from regular messages and inter-agent queries.
+- **Fix config file write corruption** ([audit 2026-03-27](audits/2026-03-27-security-audit-v2.4.0.md) finding #4) — all config read-modify-write operations now use a shared `threading.Lock` (`CONFIG_LOCK`) to prevent concurrent writes from corrupting `config.json`.
+- **Fix `_ask` callback leak to wrong room** ([audit 2026-03-27](audits/2026-03-27-security-audit-v2.4.0.md) finding #7) — resolved by the stateless orchestrator refactor. `_ask` is no longer instance state, so it cannot leak to the wrong room during inter-agent calls.
+- **Fix resource leak on agent deletion** ([audit 2026-03-27](audits/2026-03-27-security-audit-v2.4.0.md) finding #8) — `delete_agent()` now cleans up per-agent locks, commands, and internal sessions in addition to threads and orchestrators.
+- **Fix internal session accumulation** ([audit 2026-03-27](audits/2026-03-27-security-audit-v2.4.0.md) finding #9) — inter-agent sessions are automatically trimmed to 50 messages (preserving the system prompt) to prevent unbounded memory growth.
+
 ## 2.4.0
 
 - **Inter-agent communication** — agents can now consult each other using the `ask_agent` tool. Main agent can ask sub-agents, sub-agents can ask the main agent or other sub-agents. Responses flow back naturally into the calling agent's reasoning.

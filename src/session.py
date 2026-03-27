@@ -100,6 +100,23 @@ class Session:
         self._history.append(message)
         self._save_history()
 
+    def trim(self, max_messages: int = 50) -> None:
+        """
+        This function trims the session history to stay within a maximum message count.
+        Keeps the system prompt (first message if role=system) plus the most recent messages.
+        """
+        if len(self._history) <= max_messages:
+            return
+
+        # Preserve system prompt if present
+        if self._history and self._history[0].get("role") == "system":
+            system: list[dict[str, Any]] = [self._history[0]]
+            self._history = system + self._history[-(max_messages - 1):]
+        else:
+            self._history = self._history[-max_messages:]
+
+        self._save_history()
+
     def extend(self, messages: list[dict[str, Any]]) -> None:
         """
         This function adds multiple messages to the history and saves it.

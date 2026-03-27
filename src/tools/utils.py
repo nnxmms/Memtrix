@@ -82,11 +82,12 @@ def validate_url_not_internal(url: str) -> str | None:
 def confirm_with_user(kwargs: dict, message: str) -> bool:
     """
     Asks the user for yes/no confirmation via the human-in-the-loop callback.
-    Returns True if approved. Returns True if no callback is available (fallback).
+    Returns False (deny) if no callback is available — prevents auto-approval
+    during inter-agent calls where no human is in the loop.
     """
     ask: Any | None = kwargs.get("_ask")
     if not ask:
-        return True
+        return False
 
     prompt: str = message
     while True:

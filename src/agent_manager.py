@@ -15,7 +15,7 @@ from typing import Any, Callable
 import requests
 
 from src.channels.matrix import MatrixChannel
-from src.config import CONFIG_PATH
+from src.config import CONFIG_PATH, CONFIG_LOCK
 from src.memory_index import MemoryIndex
 from src.orchestrator import Orchestrator
 from src.providers.base import BaseProvider
@@ -99,11 +99,12 @@ class AgentManager:
         """
         This function persists the agents section to config without overwriting secret placeholders.
         """
-        with open(file=CONFIG_PATH, mode="r") as f:
-            disk_config: dict[str, Any] = json.load(fp=f)
-        disk_config["agents"] = self._config.get("agents", {})
-        with open(file=CONFIG_PATH, mode="w") as f:
-            json.dump(obj=disk_config, fp=f, indent=4)
+        with CONFIG_LOCK:
+            with open(file=CONFIG_PATH, mode="r") as f:
+                disk_config: dict[str, Any] = json.load(fp=f)
+            disk_config["agents"] = self._config.get("agents", {})
+            with open(file=CONFIG_PATH, mode="w") as f:
+                json.dump(obj=disk_config, fp=f, indent=4)
 
     def _generate_password(self, length: int = 24) -> str:
         """
@@ -400,27 +401,21 @@ class AgentManager:
             # Build the prefixed message with internal channel header
             prefixed: str = f"[Channel: Internal, Sender: {caller_display}]\n{message}"
 
-            # Temporarily inject the depth into the orchestrator's tool kwargs
-            # by setting a thread-local-like attribute on the orchestrator
-            prev_depth: int = getattr(orchestrator, "_agent_depth", 0)
-            orchestrator._agent_depth = depth + 1
+            # Run with no callbacks (no notifications, no file sending, no human-in-the-loop)
+            # and incremented depth to enforce the recursion limit
+            response: str = orchestrator.run(
+                user_message=prefixed,
+                session=session,
+                room_id=session_key,
+                notify=None,
+                notify_reasoning=None,
+                send_file=None,
+                ask=None,
+                agent_depth=depth + 1
+            )
 
-            try:
-                # Disable notifications for internal calls (no Matrix messages)
-                prev_notify = orchestrator._notify
-                prev_notify_reasoning = orchestrator._notify_reasoning
-                orchestrator.set_notify(callback=None)
-                orchestrator.set_notify_reasoning(callback=None)
-
-                response: str = orchestrator.run(
-                    user_message=prefixed,
-                    session=session,
-                    room_id=session_key
-                )
-            finally:
-                orchestrator._agent_depth = prev_depth
-                orchestrator._notify = prev_notify
-                orchestrator._notify_reasoning = prev_notify_reasoning
+            # Prune internal session to prevent unbounded growth
+            session.trim(max_messages=50)
 
             return response
         finally:
@@ -452,6 +447,13 @@ class AgentManager:
         # Stop the agent thread (it's a daemon, will die with main)
         self._threads.pop(slug, None)
         self._orchestrators.pop(slug, None)
+        self._locks.pop(slug, None)
+        self._commands.pop(slug, None)
+
+        # Clean up internal sessions involving this agent
+        stale_keys: list[str] = [k for k in self._internal_sessions if f":{slug}:" in k or k.endswith(f":{slug}")]
+        for k in stale_keys:
+            del self._internal_sessions[k]
 
         # Remove the user ID from the shared bot filter set
         agent_user_id: str = agent_config.get("matrix_user_id", "")
@@ -569,19 +571,9 @@ class AgentManager:
             if agent_commands.is_command(message=raw_body):
                 return agent_commands.execute(message=raw_body)
 
-            # Set up callbacks
-            if agent_commands.verbose:
-                orchestrator.set_notify(callback=notify)
-            else:
-                orchestrator.set_notify(callback=None)
-
-            if agent_commands.reasoning:
-                orchestrator.set_notify_reasoning(callback=notify)
-            else:
-                orchestrator.set_notify_reasoning(callback=None)
-
-            orchestrator.set_send_file(callback=send_file)
-            orchestrator.set_ask(callback=ask)
+            # Resolve per-call callbacks based on current command state
+            notify_cb: Callable | None = notify if agent_commands.verbose else None
+            reasoning_cb: Callable | None = notify if agent_commands.reasoning else None
 
             # Get or create session
             if session_key not in self._sessions:
@@ -593,7 +585,15 @@ class AgentManager:
                 self._save_config()
 
             session: Session = self._sessions[session_key]
-            return orchestrator.run(user_message=user_input, session=session, room_id=room_id)
+            return orchestrator.run(
+                user_message=user_input,
+                session=session,
+                room_id=room_id,
+                notify=notify_cb,
+                notify_reasoning=reasoning_cb,
+                send_file=send_file,
+                ask=ask
+            )
 
         # Create Matrix channel for this agent
         homeserver: str = self._get_homeserver()
