@@ -17,9 +17,10 @@ from urllib.parse import urlparse
 from src.tools.base import BaseTool
 
 
-def discover_tools(workspace_dir: str) -> list[BaseTool]:
+def discover_tools(workspace_dir: str, exclude: set[str] | None = None) -> list[BaseTool]:
     """
     This function discovers and instantiates all tools in the tools directory.
+    Optionally excludes tool files by filename.
     """
     tools: list[BaseTool] = []
 
@@ -28,6 +29,8 @@ def discover_tools(workspace_dir: str) -> list[BaseTool]:
 
     # Excluded files that are not tool implementations
     excluded: set[str] = {"__init__.py", "base.py", "utils.py"}
+    if exclude:
+        excluded: set[str] = excluded | exclude
 
     for filename in sorted(os.listdir(tools_dir)):
         if not filename.endswith(".py") or filename in excluded:

@@ -6,6 +6,7 @@ import os
 import re
 import secrets
 import shutil
+from src.tools.base import BaseTool
 import string
 import threading
 from types import ModuleType
@@ -51,8 +52,6 @@ _BEHAVIOR_TEMPLATE: str = """- Keep it focused. Stay within your area of experti
 - Ask clarifying questions when the user's request is ambiguous in your domain.
 """
 
-_USER_TEMPLATE: str = "// Information about the user you are talking to go here"
-
 _MEMORY_TEMPLATE: str = "// Long term memories go here"
 
 
@@ -92,7 +91,7 @@ class AgentManager:
         This function generates a random password for Matrix user registration.
         """
         alphabet: str = string.ascii_letters + string.digits
-        return "".join(secrets.choice(alphabet) for _ in range(length))
+        return "".join(secrets.choice(seq=alphabet) for _ in range(length))
 
     def _register_matrix_user(self, homeserver: str, username: str, password: str) -> dict[str, Any]:
         """
@@ -167,24 +166,33 @@ class AgentManager:
         Returns the workspace directory path.
         """
         workspace_dir: str = os.path.join(AGENTS_DIR, name)
-        os.makedirs(workspace_dir, exist_ok=True)
-        os.makedirs(os.path.join(workspace_dir, "memory"), exist_ok=True)
-        os.makedirs(os.path.join(workspace_dir, "attachments"), exist_ok=True)
-        os.makedirs(os.path.join(workspace_dir, "downloads"), exist_ok=True)
+        os.makedirs(name=workspace_dir, exist_ok=True)
+        os.makedirs(name=os.path.join(workspace_dir, "memory"), exist_ok=True)
+        os.makedirs(name=os.path.join(workspace_dir, "attachments"), exist_ok=True)
+        os.makedirs(name=os.path.join(workspace_dir, "downloads"), exist_ok=True)
 
         # Copy AGENT.md from static templates
         src_agent_md: str = os.path.join(os.path.dirname(__file__), "static", "AGENT.md")
         dst_agent_md: str = os.path.join(workspace_dir, "AGENT.md")
-        if os.path.isfile(src_agent_md):
+        if os.path.isfile(path=src_agent_md):
             shutil.copy2(src=src_agent_md, dst=dst_agent_md)
 
             # Replace "Memtrix" with the agent's display name in AGENT.md
             with open(file=dst_agent_md, mode="r") as f:
                 content: str = f.read()
-            content = content.replace(
+            content: str = content.replace(
                 "You are **Memtrix**, a personal AI assistant.",
                 f"You are **{display_name}**, a specialist sub-agent of Memtrix.\n\nYour expertise: **{description}**"
             )
+
+            # Remove the Sub-Agents section — sub-agents cannot manage other agents
+            content: str = re.sub(
+                r"\n---\n\n## Sub-Agents\n.*?(?=\n---\n)",
+                "",
+                content,
+                flags=re.DOTALL
+            )
+
             with open(file=dst_agent_md, mode="w") as f:
                 f.write(content)
 
@@ -192,11 +200,17 @@ class AgentManager:
         with open(file=os.path.join(workspace_dir, "SOUL.md"), mode="w") as f:
             f.write(_SOUL_TEMPLATE.format(display_name=display_name, description=description))
 
-        with open(file=os.path.join(workspace_dir, "BEHAVIOR.md"), mode="w") as f:
-            f.write(_BEHAVIOR_TEMPLATE)
+        # Copy BEHAVIOR.md from main agent's workspace (inherits user's customizations)
+        main_behavior: str = os.path.join(self._config["workspace-directory"], "BEHAVIOR.md")
+        if os.path.isfile(path=main_behavior):
+            shutil.copy2(src=main_behavior, dst=os.path.join(workspace_dir, "BEHAVIOR.md"))
+        else:
+            with open(file=os.path.join(workspace_dir, "BEHAVIOR.md"), mode="w") as f:
+                f.write(_BEHAVIOR_TEMPLATE)
 
-        with open(file=os.path.join(workspace_dir, "USER.md"), mode="w") as f:
-            f.write(_USER_TEMPLATE)
+        # Symlink USER.md to the main agent's copy (shared across all agents)
+        main_user: str = os.path.join(self._config["workspace-directory"], "USER.md")
+        os.symlink(src=main_user, dst=os.path.join(workspace_dir, "USER.md"))
 
         with open(file=os.path.join(workspace_dir, "MEMORY.md"), mode="w") as f:
             f.write(_MEMORY_TEMPLATE)
@@ -219,11 +233,11 @@ class AgentManager:
 
         # Default display name
         if not display_name:
-            display_name = f"Memtrix {name.replace('-', ' ').title()}"
+            display_name: str = f"Memtrix {name.replace('-', ' ').title()}"
 
         # Default model — same as main agent
         if not model:
-            model = self._config["main-agent"]["model"]
+            model: str = self._config["main-agent"]["model"]
 
         # Validate model exists
         if model not in self._config.get("models", {}):
@@ -242,7 +256,7 @@ class AgentManager:
                 password=password
             )
             access_token: str = result.get("access_token", "")
-            user_id = result.get("user_id", user_id)
+            user_id: str = result.get("user_id", user_id)
         except requests.exceptions.HTTPError as e:
             return f"Error: failed to register Matrix user — {e.response.text if e.response else e}"
 
@@ -314,12 +328,12 @@ class AgentManager:
         # Remove memory index
         data_dir: str = os.path.dirname(CONFIG_PATH)
         index_dir: str = os.path.join(data_dir, "memory_index", name)
-        if os.path.isdir(index_dir):
+        if os.path.isdir(s=index_dir):
             shutil.rmtree(path=index_dir)
 
         # Remove sessions
         sessions_dir: str = os.path.join(data_dir, "sessions", name)
-        if os.path.isdir(sessions_dir):
+        if os.path.isdir(s=sessions_dir):
             shutil.rmtree(path=sessions_dir)
 
         # Remove from config
@@ -361,8 +375,11 @@ class AgentManager:
         # Resolve workspace
         workspace_dir: str = agent_config["workspace"]
 
-        # Discover tools scoped to this agent's workspace
-        tools = discover_tools(workspace_dir=workspace_dir)
+        # Discover tools scoped to this agent's workspace (exclude agent management tools)
+        tools: list[BaseTool] = discover_tools(
+            workspace_dir=workspace_dir,
+            exclude={"create_agent_tool.py", "list_agents_tool.py", "delete_agent_tool.py"}
+        )
 
         # Initialize memory index for this agent (registers in the instances cache)
         index: MemoryIndex = MemoryIndex.get_instance(workspace_dir=workspace_dir, collection_name=f"agent_{name}")
@@ -392,7 +409,7 @@ class AgentManager:
             # Handle /clear
             session_key: str = f"{name}:{room_id}"
             if user_input.strip().lower() == "/clear":
-                session = Session(sessions_dir=sessions_dir)
+                session: Session = Session(sessions_dir=sessions_dir)
                 self._sessions[session_key] = session
                 agent_config.setdefault("sessions", {})
                 agent_config["sessions"][room_id] = session.session_id
@@ -420,13 +437,13 @@ class AgentManager:
             # Get or create session
             if session_key not in self._sessions:
                 existing_session_id: str | None = agent_config.get("sessions", {}).get(room_id)
-                session = Session(sessions_dir=sessions_dir, session_id=existing_session_id)
+                session: Session = Session(sessions_dir=sessions_dir, session_id=existing_session_id)
                 self._sessions[session_key] = session
                 agent_config.setdefault("sessions", {})
                 agent_config["sessions"][room_id] = session.session_id
                 self._save_config()
 
-            session = self._sessions[session_key]
+            session: Session = self._sessions[session_key]
             return orchestrator.run(user_message=user_input, session=session, room_id=room_id)
 
         # Create Matrix channel for this agent

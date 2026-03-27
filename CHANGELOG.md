@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.0
+
+- **Shared USER.md** — sub-agents now symlink to the main agent's `USER.md` instead of getting their own copy. All agents read and write the same file, so user info stays consistent everywhere.
+- Sub-agents no longer receive agent management tools (`create_agent`, `list_agents`, `delete_agent`).
+- Sub-agents inherit the main agent's live `BEHAVIOR.md` instead of a static template.
+- The `## Sub-Agents` section is stripped from scaffolded `AGENT.md` for sub-agents.
+
 ## 2.0.1
 
 - Fix sub-agent creation failing with "unauthorized" — registration token was missing from `.env` on existing installs.
