@@ -1,6 +1,7 @@
 # Memtrix
 data/
 workspace/
+agents/
 .env
 
 # Apple

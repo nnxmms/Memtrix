@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.1
+
+- Fix sub-agent creation failing with "unauthorized" — registration token was missing from `.env` on existing installs.
+- `onboard.sh` now ensures the Conduit registration token is written to `.env` after onboarding.
+- Conduit registration is now token-protected instead of being toggled on/off — `onboard.sh` no longer disables registration after setup.
+
 ## 2.0.0
 
 - **Sub-agents** — Memtrix can now create specialist sub-agents on the user's behalf. Each sub-agent is a fully independent agent with its own Matrix user, workspace, core files, memory, vector index, and conversation sessions.
