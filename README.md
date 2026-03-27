@@ -134,10 +134,10 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
 │  │  (Agent)  │    │ (Matrix Server) │    │ (Search)  │  │
 │  └─────┬─────┘    └─────────────────┘    └─────▲─────┘  │
 │        │                                       │        │
-│        ├───> Sub-Agents (background threads)    │        │
-│        │     Each with own Matrix user          │        │
-│        │                                        │        │
-│        ├────────────────────────────────────────┘        │
+│        ├───> Sub-Agents (background threads)   │        │
+│        │     Each with own Matrix user         │        │
+│        │                                       │        │
+│        ├───────────────────────────────────────┘        │
 │        │                                                │
 │        ├──► ChromaDB (vector memory, per-agent)         │
 │        │                                                │
