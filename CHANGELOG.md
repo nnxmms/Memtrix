@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2.1
+
+- Updated default `BEHAVIOR.md` template — streamlined behavioral guidelines for new agents.
+
 ## 2.2.0
 
 - **Channel-aware messages** — every message now includes a `[Channel: <name>, Sender: <name>]` header so agents know the communication platform and who is speaking. Applies to Matrix and CLI channels.
