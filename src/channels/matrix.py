@@ -14,7 +14,7 @@ from nio import AsyncClient, MatrixRoom, RoomMessageText, RoomMessageFile, RoomM
 
 class MatrixChannel:
 
-    def __init__(self, homeserver: str, user_id: str, access_token: str, display_name: str = "Memtrix", attachments_dir: str = "") -> None:
+    def __init__(self, homeserver: str, user_id: str, access_token: str, display_name: str = "Memtrix", attachments_dir: str = "", bot_user_ids: set[str] | None = None) -> None:
         """
         This is the MatrixChannel class which provides a Matrix bot interface.
         """
@@ -26,6 +26,9 @@ class MatrixChannel:
         self._user_id: str = user_id
         self._access_token: str = access_token
         self._display_name: str = display_name
+
+        # All known bot user IDs (used to ignore messages from other agents)
+        self._bot_user_ids: set[str] = bot_user_ids or set()
 
         # Attachments directory
         self._attachments_dir: str = attachments_dir
@@ -143,12 +146,29 @@ class MatrixChannel:
             }
         )
 
+    def _sanitize_sender(self, name: str) -> str:
+        """
+        This function sanitizes a sender display name to prevent prompt injection.
+        Strips brackets and limits length.
+        """
+        return name.replace("[", "").replace("]", "").strip()[:50]
+
+    def _get_sender_label(self, room: MatrixRoom, event: Any) -> str:
+        """
+        This function returns the display name for a message sender.
+        Uses the room-level display name if available, otherwise the user ID.
+        """
+        display_name: str = room.user_name(event.sender) or event.sender
+        return self._sanitize_sender(name=display_name)
+
     async def _on_file(self, room: MatrixRoom, event: Any) -> None:
         """
         This function handles incoming file messages (m.file, m.image, m.audio, m.video).
         Downloads the file and passes a text message to the handler.
         """
         if event.sender == self._user_id:
+            return
+        if event.sender in self._bot_user_ids:
             return
         if event.server_timestamp < self._start_time:
             return
@@ -169,7 +189,8 @@ class MatrixChannel:
 
         # Build a text message telling the agent about the file (use actual saved filename)
         saved_filename: str = os.path.basename(filepath)
-        user_message: str = f"[File received: attachments/{saved_filename}]"
+        sender_label: str = self._get_sender_label(room=room, event=event)
+        user_message: str = f"[Channel: Matrix, Sender: {sender_label}]\n[File received: attachments/{saved_filename}]"
 
         loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
 
@@ -232,6 +253,10 @@ class MatrixChannel:
         if event.sender == self._user_id:
             return
 
+        # Ignore messages from other Memtrix agents (prevents loops)
+        if event.sender in self._bot_user_ids:
+            return
+
         # Ignore messages from before the bot started
         if event.server_timestamp < self._start_time:
             return
@@ -289,10 +314,14 @@ class MatrixChannel:
             finally:
                 self._pending_asks.pop(room.room_id, None)
 
+        # Add channel and sender header to the message
+        sender_label: str = self._get_sender_label(room=room, event=event)
+        prefixed_message: str = f"[Channel: Matrix, Sender: {sender_label}]\n{event.body}"
+
         # Process the message as a background task so sync_forever can continue
         async def _process() -> None:
             try:
-                reply: str = await asyncio.to_thread(self._handler, event.body, room.room_id, notify, send_file, ask)
+                reply: str = await asyncio.to_thread(self._handler, prefixed_message, room.room_id, notify, send_file, ask)
                 await self._client.room_send(
                     room_id=room.room_id,
                     message_type="m.room.message",

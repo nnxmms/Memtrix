@@ -45,6 +45,9 @@ class Memtrix:
         # Per-room sessions keyed by room id
         self._sessions: dict[str, Session] = {}
 
+        # Shared mutable set of all bot user IDs (main + sub-agents)
+        self._bot_user_ids: set[str] = set()
+
         # Sessions directory
         self._sessions_dir: str = os.path.join(os.path.dirname(CONFIG_PATH), "sessions")
 
@@ -91,7 +94,7 @@ class Memtrix:
         )
 
         # Create agent manager and wire it into the agent tools
-        self._agent_manager = AgentManager(config=self._config, main_handler_factory=None)
+        self._agent_manager = AgentManager(config=self._config, main_handler_factory=None, bot_user_ids=self._bot_user_ids)
         for tool in tools:
             if hasattr(tool, "set_agent_manager"):
                 tool.set_agent_manager(manager=self._agent_manager)
@@ -100,6 +103,23 @@ class Memtrix:
         sessions_map: dict[str, str] = self._config.get("main-agent", {}).get("sessions", {})
         for room_id, session_id in sessions_map.items():
             self._sessions[room_id] = Session(sessions_dir=self._sessions_dir, session_id=session_id)
+
+    def _seed_bot_user_ids(self) -> None:
+        """
+        This function populates the shared bot user IDs set from config.
+        Called once at startup before channels are created.
+        """
+        # Main agent
+        channel_name: str = self._config["main-agent"]["channel"]
+        main_user_id: str = self._config["channels"][channel_name].get("user_id", "")
+        if main_user_id:
+            self._bot_user_ids.add(main_user_id)
+
+        # Sub-agents
+        for agent_config in self._config.get("agents", {}).values():
+            agent_user_id: str = agent_config.get("matrix_user_id", "")
+            if agent_user_id:
+                self._bot_user_ids.add(agent_user_id)
 
     def _save_sessions(self) -> None:
         """
@@ -146,13 +166,16 @@ class Memtrix:
         The notify callback sends real-time status messages to the channel.
         The send_file callback sends a file to the channel.
         """
+        # Extract the raw body (strip channel header if present)
+        raw_body: str = user_input.split(sep="\n", maxsplit=1)[1] if user_input.startswith("[Channel:") else user_input
+
         # Handle /clear — needs access to sessions and room_id
-        if user_input.strip().lower() == "/clear":
+        if raw_body.strip().lower() == "/clear":
             return self._clear_session(room_id=room_id)
 
         # Check for slash commands
-        if self._commands.is_command(message=user_input):
-            return self._commands.execute(message=user_input)
+        if self._commands.is_command(message=raw_body):
+            return self._commands.execute(message=raw_body)
 
         # Set up notify callback if verbose mode is on
         if self._commands.verbose:
@@ -183,6 +206,9 @@ class Memtrix:
         # Load the configured provider and orchestrator
         self._load_provider()
 
+        # Seed bot user IDs from config before starting any channels
+        self._seed_bot_user_ids()
+
         # Boot all registered sub-agents
         if self._agent_manager:
             self._agent_manager.boot_all()
@@ -202,7 +228,8 @@ class Memtrix:
                 user_id=channel_config["user_id"],
                 access_token=channel_config["access_token"],
                 display_name=channel_config.get("display_name", "Memtrix ⚡"),
-                attachments_dir=attachments_dir
+                attachments_dir=attachments_dir,
+                bot_user_ids=self._bot_user_ids
             )
             channel.run(handler=self._handle)
         else:

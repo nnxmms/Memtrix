@@ -43,5 +43,6 @@ class CLIChannel(BaseChannel):
                 return input("  > ").strip()
 
             # Notify prints status messages inline
-            reply: str = handler(user_input, "cli", lambda msg: print(f"  {msg}"), None, ask)
+            prefixed: str = f"[Channel: CLI, Sender: User]\n{user_input}"
+            reply: str = handler(prefixed, "cli", lambda msg: print(f"  {msg}"), None, ask)
             self.send_message(message=reply)

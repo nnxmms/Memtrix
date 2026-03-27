@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.2.0
+
+- **Channel-aware messages** — every message now includes a `[Channel: <name>, Sender: <name>]` header so agents know the communication platform and who is speaking. Applies to Matrix and CLI channels.
+- **Bot loop prevention** — `MatrixChannel` now accepts a shared set of known bot user IDs and silently drops messages from other Memtrix agents. Prevents infinite response loops when multiple agents share a room. The set is updated in real-time when agents are created or deleted.
+- **System prompt update** — new `## Communication Channel` section in `AGENT.md` explains the header format, telling the agent to never fabricate headers in responses.
+- Sender display names are sanitized (brackets stripped, 50-char limit) to prevent prompt injection via Matrix profile names.
+- Slash commands (`/clear`, `/verbose`, etc.) work correctly with the header — the raw body is extracted before command matching.
+
 ## 2.1.0
 
 - **Shared USER.md** — sub-agents now symlink to the main agent's `USER.md` instead of getting their own copy. All agents read and write the same file, so user info stays consistent everywhere.

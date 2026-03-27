@@ -57,12 +57,15 @@ _MEMORY_TEMPLATE: str = "// Long term memories go here"
 
 class AgentManager:
 
-    def __init__(self, config: dict[str, Any], main_handler_factory: Callable) -> None:
+    def __init__(self, config: dict[str, Any], main_handler_factory: Callable, bot_user_ids: set[str] | None = None) -> None:
         """
         This is the AgentManager class which manages sub-agent lifecycle.
         """
         self._config: dict[str, Any] = config
         self._main_handler_factory: Callable = main_handler_factory
+
+        # Shared mutable set of all Memtrix agent user IDs (updated on create/delete)
+        self._bot_user_ids: set[str] = bot_user_ids if bot_user_ids is not None else set()
 
         # Running sub-agent threads (keyed by agent name)
         self._threads: dict[str, threading.Thread] = {}
@@ -294,6 +297,9 @@ class AgentManager:
         agents[name] = agent_config
         self._save_config()
 
+        # Register the new user ID in the shared bot filter set
+        self._bot_user_ids.add(user_id)
+
         # Start the agent
         self._start_agent(name=name, agent_config=agent_config)
 
@@ -319,6 +325,10 @@ class AgentManager:
         # Stop the agent thread (it's a daemon, will die with main)
         self._threads.pop(name, None)
         self._orchestrators.pop(name, None)
+
+        # Remove the user ID from the shared bot filter set
+        agent_user_id: str = agent_config.get("matrix_user_id", "")
+        self._bot_user_ids.discard(agent_user_id)
 
         # Remove workspace
         workspace_dir: str = os.path.join(AGENTS_DIR, name)
@@ -406,9 +416,12 @@ class AgentManager:
 
         # Build handler for this agent
         def agent_handle(user_input: str, room_id: str, notify: Callable, send_file: Callable | None = None, ask: Callable | None = None) -> str:
+            # Extract the raw body (strip channel header if present)
+            raw_body: str = user_input.split("\n", maxsplit=1)[1] if user_input.startswith("[Channel:") else user_input
+
             # Handle /clear
             session_key: str = f"{name}:{room_id}"
-            if user_input.strip().lower() == "/clear":
+            if raw_body.strip().lower() == "/clear":
                 session: Session = Session(sessions_dir=sessions_dir)
                 self._sessions[session_key] = session
                 agent_config.setdefault("sessions", {})
@@ -417,8 +430,8 @@ class AgentManager:
                 return "Session cleared."
 
             # Handle slash commands
-            if agent_commands.is_command(message=user_input):
-                return agent_commands.execute(message=user_input)
+            if agent_commands.is_command(message=raw_body):
+                return agent_commands.execute(message=raw_body)
 
             # Set up callbacks
             if agent_commands.verbose:
@@ -456,7 +469,8 @@ class AgentManager:
             user_id=agent_config["matrix_user_id"],
             access_token=agent_config["matrix_access_token"],
             display_name=f"{display_name} ⚡",
-            attachments_dir=attachments_dir
+            attachments_dir=attachments_dir,
+            bot_user_ids=self._bot_user_ids
         )
 
         # Run on a daemon thread so it doesn't block the main agent

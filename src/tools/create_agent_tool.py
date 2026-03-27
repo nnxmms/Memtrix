@@ -34,7 +34,7 @@ class CreateAgentTool(BaseTool):
                     },
                     "display_name": {
                         "type": "string",
-                        "description": "Optional human-friendly display name. Defaults to 'Memtrix <Name>'. E.g. 'Memtrix Baker'"
+                        "description": "Optional human-friendly display name. Defaults to '<Name>'. E.g. 'Baker'"
                     },
                     "model": {
                         "type": "string",
