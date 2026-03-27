@@ -146,6 +146,22 @@ class MatrixChannel:
             }
         )
 
+    async def _react_to_event(self, room_id: str, event_id: str, key: str) -> None:
+        """
+        This function sends an emoji reaction to a message via the Matrix API.
+        """
+        await self._client.room_send(
+            room_id=room_id,
+            message_type="m.reaction",
+            content={
+                "m.relates_to": {
+                    "rel_type": "m.annotation",
+                    "event_id": event_id,
+                    "key": key
+                }
+            }
+        )
+
     def _sanitize_sender(self, name: str) -> str:
         """
         This function sanitizes a sender display name to prevent prompt injection.
@@ -230,9 +246,16 @@ class MatrixChannel:
             finally:
                 self._pending_asks.pop(room.room_id, None)
 
+        def react(emoji: str) -> None:
+            future = asyncio.run_coroutine_threadsafe(
+                self._react_to_event(room_id=room.room_id, event_id=event.event_id, key=emoji),
+                loop
+            )
+            future.result(timeout=10)
+
         async def _process() -> None:
             try:
-                reply: str = await asyncio.to_thread(self._handler, user_message, room.room_id, notify, send_file, ask)
+                reply: str = await asyncio.to_thread(self._handler, user_message, room.room_id, notify, send_file, ask, react)
                 await self._client.room_send(
                     room_id=room.room_id,
                     message_type="m.room.message",
@@ -314,6 +337,16 @@ class MatrixChannel:
             finally:
                 self._pending_asks.pop(room.room_id, None)
 
+        def react(emoji: str) -> None:
+            """
+            React to the current message with an emoji.
+            """
+            future = asyncio.run_coroutine_threadsafe(
+                self._react_to_event(room_id=room.room_id, event_id=event.event_id, key=emoji),
+                loop
+            )
+            future.result(timeout=10)
+
         # Add channel and sender header to the message
         sender_label: str = self._get_sender_label(room=room, event=event)
         prefixed_message: str = f"[Channel: Matrix, Sender: {sender_label}]\n{event.body}"
@@ -321,7 +354,7 @@ class MatrixChannel:
         # Process the message as a background task so sync_forever can continue
         async def _process() -> None:
             try:
-                reply: str = await asyncio.to_thread(self._handler, prefixed_message, room.room_id, notify, send_file, ask)
+                reply: str = await asyncio.to_thread(self._handler, prefixed_message, room.room_id, notify, send_file, ask, react)
                 await self._client.room_send(
                     room_id=room.room_id,
                     message_type="m.room.message",

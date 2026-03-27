@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-2.4.2-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-2.5.0-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 <br>
@@ -182,6 +182,7 @@ Built-in tools are automatically discovered at startup:
 | `git_clone` | Clones a public git repository into the workspace |
 | `download_file` | Downloads a file from a URL into the workspace |
 | `send_file` | Sends a file from the workspace to the user via Matrix |
+| `react_to_message` | Reacts to the user's message with an emoji in Matrix |
 | `create_agent` | Creates a new specialist sub-agent with its own Matrix identity and workspace |
 | `list_agents` | Lists all registered sub-agents and their status |
 | `delete_agent` | Permanently deletes a sub-agent and all its data |
@@ -520,6 +521,7 @@ Memtrix/
 │   │   ├── git_clone_tool.py         # Clone git repositories
 │   │   ├── download_file_tool.py     # Download files from URLs
 │   │   ├── send_file_tool.py         # Send files to user via Matrix
+│   │   ├── react_tool.py            # React to messages with emoji
 │   │   ├── create_agent_tool.py      # Create specialist sub-agents
 │   │   ├── list_agents_tool.py       # List registered sub-agents
 │   │   ├── delete_agent_tool.py      # Delete sub-agents

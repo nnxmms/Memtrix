@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.0
+
+- Message reactions — Memtrix can now react to user messages with emoji in Matrix. The LLM decides when and what to react with, just like a human would use reactions in a chat.
+- New tool: `react_to_message` — sends an emoji reaction to the current user message. Available to all agents (main and sub-agents). Only works on Matrix.
+- AGENT.md updated with Reactions section guiding natural emoji usage.
+
 ## 2.4.2
 
 - Simplified sub-agent Matrix usernames — sub-agents are now registered as `@<name>:memtrix.local` instead of `@memtrix-<name>:memtrix.local`.

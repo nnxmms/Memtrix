@@ -92,6 +92,7 @@ class Orchestrator:
             notify_reasoning: Callable[[str], None] | None = None,
             send_file: Callable[[str], None] | None = None,
             ask: Callable[[str], str] | None = None,
+            react: Callable[[str], None] | None = None,
             agent_depth: int = 0) -> str:
         """
         This function processes a user message through the agentic loop and returns the final response.
@@ -153,6 +154,7 @@ class Orchestrator:
                             **tool_args,
                             "_room_id": room_id,
                             "_ask": ask,
+                            "_react": react,
                             "_agent_depth": agent_depth
                         }
                         result: str = self._tools[tool_name].execute(**exec_args)

@@ -410,6 +410,7 @@ class AgentManager:
                 notify_reasoning=None,
                 send_file=None,
                 ask=None,
+                react=None,
                 agent_depth=depth + 1
             )
 
@@ -552,7 +553,7 @@ class AgentManager:
         self._commands[name] = agent_commands
 
         # Build handler for this agent
-        def agent_handle(user_input: str, room_id: str, notify: Callable, send_file: Callable | None = None, ask: Callable | None = None) -> str:
+        def agent_handle(user_input: str, room_id: str, notify: Callable, send_file: Callable | None = None, ask: Callable | None = None, react: Callable | None = None) -> str:
             # Extract the raw body (strip channel header if present)
             raw_body: str = user_input.split("\n", maxsplit=1)[1] if user_input.startswith("[Channel:") else user_input
 
@@ -591,7 +592,8 @@ class AgentManager:
                 notify=notify_cb,
                 notify_reasoning=reasoning_cb,
                 send_file=send_file,
-                ask=ask
+                ask=ask,
+                react=react
             )
 
         # Create Matrix channel for this agent

@@ -166,7 +166,7 @@ class Memtrix:
 
         return "Session cleared."
 
-    def _handle(self, user_input: str, room_id: str, notify: Callable[[str], None], send_file: Callable[[str], None] | None = None, ask: Callable[[str], str] | None = None) -> str:
+    def _handle(self, user_input: str, room_id: str, notify: Callable[[str], None], send_file: Callable[[str], None] | None = None, ask: Callable[[str], str] | None = None, react: Callable[[str], None] | None = None) -> str:
         """
         This function handles a user message and returns the response.
         The notify callback sends real-time status messages to the channel.
@@ -196,7 +196,8 @@ class Memtrix:
             notify=notify_cb,
             notify_reasoning=reasoning_cb,
             send_file=send_file,
-            ask=ask
+            ask=ask,
+            react=react
         )
 
     def run(self) -> None:
