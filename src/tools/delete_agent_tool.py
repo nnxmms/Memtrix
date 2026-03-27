@@ -25,7 +25,7 @@ class DeleteAgentTool(BaseTool):
                 "properties": {
                     "name": {
                         "type": "string",
-                        "description": "The name of the agent to delete (as shown in list_agents)."
+                        "description": "The name of the agent to delete (e.g. 'Dennis', 'Jenny')."
                     }
                 },
                 "required": ["name"]
@@ -45,13 +45,13 @@ class DeleteAgentTool(BaseTool):
         if not self._agent_manager:
             return "Error: agent manager not initialized."
 
-        name: str = kwargs.get("name", "").strip().lower()
+        name: str = kwargs.get("name", "").strip()
         if not name:
             return "Error: name cannot be empty."
 
         # Human-in-the-loop: confirm deletion
         confirm_msg: str = (
-            f"⚠️ Memtrix wants to permanently delete sub-agent '{name}':\n\n"
+            f"Permanently delete sub-agent '{name}'?\n\n"
             f"This will remove the agent's workspace, all memory files, sessions, and vector index.\n"
             f"This action cannot be undone.\n\n"
             f"Allow? (yes/no)"

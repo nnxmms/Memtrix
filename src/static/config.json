@@ -1,5 +1,6 @@
 {
     "main-agent": {
+        "name": "Memtrix",
         "provider": "",
         "model": "",
         "channel": "",

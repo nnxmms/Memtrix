@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.3.0
+
+- **Custom agent name** — onboarding now asks the user to name the main agent (default: Memtrix). The chosen name is used for the Matrix username, display name, system prompt identity, sub-agent naming conventions, and SOUL templates.
+- The name is stored in `main-agent.name` in config and propagated everywhere: Matrix bot registration, channel display name, workspace `AGENT.md`, sub-agent default display names, sub-agent Matrix usernames, and sub-agent SOUL/AGENT.md templates.
+- **Real names for sub-agents** — `create_agent` now requires a real human name (e.g. "Dennis", "Jenny") instead of a technical slug. The slug is derived internally for directories, Matrix usernames, and config keys. The `display_name` parameter has been removed.
+- The main agent is instructed to ask the user for a name if one isn't provided when requesting a new sub-agent.
+- `delete_agent` now resolves agents by display name (case-insensitive) or slug.
+
 ## 2.2.1
 
 - Updated default `BEHAVIOR.md` template — streamlined behavioral guidelines for new agents.

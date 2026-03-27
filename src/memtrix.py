@@ -223,11 +223,12 @@ class Memtrix:
         attachments_dir: str = os.path.join(workspace_dir, "attachments")
 
         if channel_type == "matrix":
+            agent_name: str = self._config["main-agent"].get("name", "Memtrix")
             channel: MatrixChannel = MatrixChannel(
                 homeserver=channel_config["homeserver"],
                 user_id=channel_config["user_id"],
                 access_token=channel_config["access_token"],
-                display_name=channel_config.get("display_name", "Memtrix ⚡"),
+                display_name=channel_config.get("display_name", f"{agent_name} ⚡"),
                 attachments_dir=attachments_dir,
                 bot_user_ids=self._bot_user_ids
             )

@@ -255,10 +255,14 @@ class Onboarding:
             bot_password: str = _generate_password()
             user_password: str = _generate_password()
 
+            # Use the configured agent name for the bot account
+            agent_name: str = self.config["main-agent"].get("name", "Memtrix")
+            bot_username: str = agent_name.lower().replace(" ", "-")
+
             # Register the three accounts
             accounts: list[tuple[str, str, str]] = [
                 ("admin", admin_password, "Admin"),
-                ("memtrix", bot_password, "Memtrix"),
+                (bot_username, bot_password, agent_name),
                 (username, user_password, username.capitalize())
             ]
 
@@ -286,7 +290,7 @@ class Onboarding:
                             display_name=acct_label
                         )
                     console.print(f"  [green]✓[/green] {acct_label} ([bold]{acct_username}[/bold]) registered")
-                    if acct_username == "memtrix":
+                    if acct_username == bot_username:
                         bot_data: dict[str, Any] = result
                 except requests.exceptions.HTTPError as e:
                     console.print(f"  [red]✗[/red] {acct_label} ([bold]{acct_username}[/bold]): {e.response.text}")
@@ -303,7 +307,7 @@ class Onboarding:
             console.print(table)
 
             # Use the bot's access token from registration
-            bot_user_id: str = bot_data.get("user_id", f"@memtrix:{server_name}")
+            bot_user_id: str = bot_data.get("user_id", f"@{bot_username}:{server_name}")
             bot_access_token: str = bot_data.get("access_token", "")
 
             if bot_access_token:
@@ -313,8 +317,8 @@ class Onboarding:
                 )
             else:
                 _say(
-                    message="I couldn't get the bot access token automatically.\n"
-                    "Please log in as [bold]memtrix[/bold] using Element Desktop and provide the access token."
+                    message=f"I couldn't get the bot access token automatically.\n"
+                    f"Please log in as [bold]{bot_username}[/bold] using Element Desktop and provide the access token."
                 )
                 bot_access_token: Any | str = Prompt.ask(" [cyan]>[/cyan] Bot access token").strip()
 
@@ -323,12 +327,13 @@ class Onboarding:
                 f"  Homeserver: [bold]http://localhost:6167[/bold]\n"
                 f"  Username:   [bold]@{username}:{server_name}[/bold]\n"
                 f"  Password:   [bold]{user_password}[/bold]\n\n"
-                "Then start a DM with [bold]@memtrix:memtrix.local[/bold] to chat!"
+                f"Then start a DM with [bold]@{bot_username}:{server_name}[/bold] to chat!"
             )
 
             params["homeserver"] = homeserver
             params["user_id"] = bot_user_id
             params["access_token"] = "$MATRIX_ACCESS_TOKEN"
+            params["display_name"] = f"{agent_name} ⚡"
 
             # Collect the bot token for the final .env block
             self._env_secrets.append(("MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN", bot_access_token, "Matrix bot access token for Conduit"))
@@ -383,6 +388,21 @@ class Onboarding:
 
         self.config["main-agent"]["channel"] = channel
 
+    def _setup_name(self) -> None:
+        """
+        This function asks the user to pick a name for the main agent.
+        """
+        _say(
+            message="First — what should I call myself?\n\n"
+            "This will be my name everywhere: Matrix display name, how I introduce myself, etc.\n"
+            "Leave blank to keep the default: [bold]Memtrix[/bold]."
+        )
+        name: str = Prompt.ask(" [cyan]>[/cyan] Agent name", default="Memtrix").strip()
+        if not name:
+            name = "Memtrix"
+        self.config["main-agent"]["name"] = name
+        _say(message=f"Got it — I'm [bold]{name}[/bold] from now on.")
+
     def run(self) -> None:
         """
         This function runs the onboarding wizard.
@@ -392,6 +412,9 @@ class Onboarding:
             "I'm going to walk you through a quick setup so we can get you up and running.\n"
             "This should only take a minute."
         )
+
+        # Ask for a name for the main agent
+        self._setup_name()
 
         # Setup model providers
         self.setup_new_provider()
@@ -407,6 +430,19 @@ class Onboarding:
 
         # Persist config
         self._save_config()
+
+        # Update workspace AGENT.md with the chosen name
+        agent_name: str = self.config["main-agent"].get("name", "Memtrix")
+        workspace_agent_md: str = os.path.join(self.config["workspace-directory"], "AGENT.md")
+        if agent_name != "Memtrix" and os.path.isfile(workspace_agent_md):
+            with open(file=workspace_agent_md, mode="r") as f:
+                content: str = f.read()
+            content = content.replace(
+                "You are **Memtrix**, a personal AI assistant.",
+                f"You are **{agent_name}**, a personal AI assistant."
+            )
+            with open(file=workspace_agent_md, mode="w") as f:
+                f.write(content)
 
         # Print .env block with all collected secrets
         if self._env_secrets:

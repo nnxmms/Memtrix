@@ -22,8 +22,8 @@ from src.providers.base import BaseProvider
 from src.session import Session
 from src.tools import discover_tools
 
-# Valid agent name: lowercase letters, digits, hyphens. 2–24 chars.
-_AGENT_NAME_PATTERN: re.Pattern[str] = re.compile(r"^[a-z0-9][a-z0-9\-]{1,23}$")
+# Valid agent name: letters, spaces, hyphens. 2–24 chars.
+_AGENT_NAME_PATTERN: re.Pattern[str] = re.compile(r"^[A-Za-z][A-Za-z \-]{1,23}$")
 
 # Agents root directory inside the container
 AGENTS_DIR: str = "/home/memtrix/agents"
@@ -34,11 +34,11 @@ SERVER_NAME: str = "memtrix.local"
 # Default core file templates for new agents
 _SOUL_TEMPLATE: str = """## Soul
 
-You are **{display_name}**, a specialist sub-agent of the Memtrix system.
+You are **{display_name}**, a specialist sub-agent of the {main_name} system.
 
 Your expertise: **{description}**
 
-You exist to provide deep, focused knowledge in your domain. You have your own memory, your own personality, and your own conversation history — separate from the main Memtrix agent and any other sub-agents.
+You exist to provide deep, focused knowledge in your domain. You have your own memory, your own personality, and your own conversation history — separate from the main {main_name} agent and any other sub-agents.
 
 You value accuracy in your domain above all else. If you're unsure about something, say so. If a question falls outside your expertise, be honest about your limits.
 
@@ -180,12 +180,13 @@ class AgentManager:
         if os.path.isfile(path=src_agent_md):
             shutil.copy2(src=src_agent_md, dst=dst_agent_md)
 
-            # Replace "Memtrix" with the agent's display name in AGENT.md
+            # Replace the opening line with sub-agent identity
             with open(file=dst_agent_md, mode="r") as f:
                 content: str = f.read()
+            main_name: str = self._config["main-agent"].get("name", "Memtrix")
             content: str = content.replace(
                 "You are **Memtrix**, a personal AI assistant.",
-                f"You are **{display_name}**, a specialist sub-agent of Memtrix.\n\nYour expertise: **{description}**"
+                f"You are **{display_name}**, a specialist sub-agent of {main_name}.\n\nYour expertise: **{description}**"
             )
 
             # Remove the Sub-Agents section — sub-agents cannot manage other agents
@@ -200,8 +201,9 @@ class AgentManager:
                 f.write(content)
 
         # Write customized core files
+        main_name: str = self._config["main-agent"].get("name", "Memtrix")
         with open(file=os.path.join(workspace_dir, "SOUL.md"), mode="w") as f:
-            f.write(_SOUL_TEMPLATE.format(display_name=display_name, description=description))
+            f.write(_SOUL_TEMPLATE.format(display_name=display_name, description=description, main_name=main_name))
 
         # Copy BEHAVIOR.md from main agent's workspace (inherits user's customizations)
         main_behavior: str = os.path.join(self._config["workspace-directory"], "BEHAVIOR.md")
@@ -220,23 +222,25 @@ class AgentManager:
 
         return workspace_dir
 
-    def create_agent(self, name: str, description: str, display_name: str = "", model: str = "") -> str:
+    def create_agent(self, name: str, description: str, model: str = "") -> str:
         """
         This function creates a new sub-agent: registers Matrix user, scaffolds workspace,
         persists config, and starts the agent. Returns a status message.
         """
         # Validate name
         if not _AGENT_NAME_PATTERN.match(name):
-            return "Error: agent name must be 2–24 characters, lowercase letters, digits, and hyphens only."
+            return "Error: agent name must be 2–24 characters, letters, spaces, and hyphens only."
+
+        # Derive slug for technical identifiers (directories, Matrix username, config key)
+        slug: str = name.lower().replace(" ", "-")
 
         # Check if agent already exists
         agents: dict[str, Any] = self._config.setdefault("agents", {})
-        if name in agents:
+        if slug in agents:
             return f"Error: agent '{name}' already exists."
 
-        # Default display name
-        if not display_name:
-            display_name: str = f"Memtrix {name.replace('-', ' ').title()}"
+        # Display name is the real name
+        display_name: str = name
 
         # Default model — same as main agent
         if not model:
@@ -248,7 +252,8 @@ class AgentManager:
 
         # Register Matrix user
         homeserver: str = self._get_homeserver()
-        username: str = f"memtrix-{name}"
+        main_username: str = self._config["main-agent"].get("name", "Memtrix").lower().replace(" ", "-")
+        username: str = f"{main_username}-{slug}"
         password: str = self._generate_password()
         user_id: str = f"@{username}:{SERVER_NAME}"
 
@@ -279,7 +284,7 @@ class AgentManager:
 
         # Scaffold workspace
         workspace_dir: str = self._scaffold_workspace(
-            name=name,
+            name=slug,
             description=description,
             display_name=display_name
         )
@@ -294,60 +299,76 @@ class AgentManager:
             "workspace": workspace_dir,
             "sessions": {}
         }
-        agents[name] = agent_config
+        agents[slug] = agent_config
         self._save_config()
 
         # Register the new user ID in the shared bot filter set
         self._bot_user_ids.add(user_id)
 
         # Start the agent
-        self._start_agent(name=name, agent_config=agent_config)
+        self._start_agent(name=slug, agent_config=agent_config)
 
         return (
             f"Agent '{display_name}' created successfully.\n\n"
             f"  Matrix user: {user_id}\n"
-            f"  Workspace: agents/{name}/\n"
+            f"  Workspace: agents/{slug}/\n"
             f"  Model: {model}\n\n"
             f"The user can now invite {user_id} to a Matrix room to start chatting."
         )
+
+    def _resolve_agent_slug(self, name: str) -> str | None:
+        """
+        This function resolves a display name or slug to an agent config key.
+        Tries direct slug match first, then case-insensitive display name match.
+        """
+        agents: dict[str, Any] = self._config.get("agents", {})
+        slug: str = name.lower().replace(" ", "-")
+        if slug in agents:
+            return slug
+        # Try matching by display name
+        for key, agent_config in agents.items():
+            if agent_config.get("display_name", "").lower() == name.lower():
+                return key
+        return None
 
     def delete_agent(self, name: str) -> str:
         """
         This function deletes a sub-agent: removes config, workspace, and stops the agent.
         """
-        agents: dict[str, Any] = self._config.get("agents", {})
-        if name not in agents:
+        slug: str | None = self._resolve_agent_slug(name=name)
+        if not slug:
             return f"Error: agent '{name}' not found."
 
-        agent_config: dict[str, Any] = agents[name]
-        display_name: str = agent_config.get("display_name", name)
+        agents: dict[str, Any] = self._config.get("agents", {})
+        agent_config: dict[str, Any] = agents[slug]
+        display_name: str = agent_config.get("display_name", slug)
 
         # Stop the agent thread (it's a daemon, will die with main)
-        self._threads.pop(name, None)
-        self._orchestrators.pop(name, None)
+        self._threads.pop(slug, None)
+        self._orchestrators.pop(slug, None)
 
         # Remove the user ID from the shared bot filter set
         agent_user_id: str = agent_config.get("matrix_user_id", "")
         self._bot_user_ids.discard(agent_user_id)
 
         # Remove workspace
-        workspace_dir: str = os.path.join(AGENTS_DIR, name)
+        workspace_dir: str = os.path.join(AGENTS_DIR, slug)
         if os.path.isdir(workspace_dir):
             shutil.rmtree(path=workspace_dir)
 
         # Remove memory index
         data_dir: str = os.path.dirname(CONFIG_PATH)
-        index_dir: str = os.path.join(data_dir, "memory_index", name)
+        index_dir: str = os.path.join(data_dir, "memory_index", slug)
         if os.path.isdir(s=index_dir):
             shutil.rmtree(path=index_dir)
 
         # Remove sessions
-        sessions_dir: str = os.path.join(data_dir, "sessions", name)
+        sessions_dir: str = os.path.join(data_dir, "sessions", slug)
         if os.path.isdir(s=sessions_dir):
             shutil.rmtree(path=sessions_dir)
 
         # Remove from config
-        del agents[name]
+        del agents[slug]
         self._save_config()
 
         return f"Agent '{display_name}' has been deleted. Matrix user remains on the homeserver."

@@ -19,22 +19,19 @@ class CreateAgentTool(BaseTool):
             description=(
                 "Create a new specialist sub-agent with its own Matrix identity, workspace, memory, and persona. "
                 "The agent will be available as a separate Matrix user that the human can invite to rooms. "
-                "Requires a short name (lowercase, hyphens allowed) and a description of the agent's expertise."
+                "Requires a real human name for the agent and a description of its expertise. "
+                "You MUST ask the user for a name if they haven't provided one."
             ),
             parameters={
                 "type": "object",
                 "properties": {
                     "name": {
                         "type": "string",
-                        "description": "Short identifier for the agent (lowercase letters, digits, hyphens). E.g. 'baking', 'devsecops', 'tax-advisor'"
+                        "description": "A real human name for the agent (e.g. 'Dennis', 'Jenny', 'Marco'). This becomes the agent's identity."
                     },
                     "description": {
                         "type": "string",
                         "description": "A clear description of the agent's area of expertise. E.g. 'Baking and pastry specialist — recipes, techniques, troubleshooting'"
-                    },
-                    "display_name": {
-                        "type": "string",
-                        "description": "Optional human-friendly display name. Defaults to '<Name>'. E.g. 'Baker'"
                     },
                     "model": {
                         "type": "string",
@@ -58,21 +55,19 @@ class CreateAgentTool(BaseTool):
         if not self._agent_manager:
             return "Error: agent manager not initialized."
 
-        name: str = kwargs.get("name", "").strip().lower()
+        name: str = kwargs.get("name", "").strip()
         description: str = kwargs.get("description", "").strip()
-        display_name: str = kwargs.get("display_name", "").strip()
         model: str = kwargs.get("model", "").strip()
 
         if not name:
-            return "Error: name cannot be empty."
+            return "Error: name cannot be empty. Ask the user what they want to name this agent."
         if not description:
             return "Error: description cannot be empty."
 
         # Human-in-the-loop: confirm agent creation
         confirm_msg: str = (
-            f"⚠️ Memtrix wants to create a new sub-agent:\n\n"
+            f"Create a new sub-agent?\n\n"
             f"  Name: {name}\n"
-            f"  Display: {display_name or f'Memtrix {name.replace(chr(45), chr(32)).title()}'}\n"
             f"  Expertise: {description}\n\n"
             f"This will register a new Matrix user and create a workspace.\n"
             f"Allow? (yes/no)"
@@ -83,6 +78,5 @@ class CreateAgentTool(BaseTool):
         return self._agent_manager.create_agent(
             name=name,
             description=description,
-            display_name=display_name,
             model=model
         )
