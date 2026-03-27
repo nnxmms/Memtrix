@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.5.3
+
+- Clear inter-agent sessions on `/clear` — when a user clears an agent's session, all internal sessions where that agent was the caller are also dropped. Next `ask_agent` call starts a fresh conversation with no stale context.
+
 ## 2.5.2
 
 - Per-agent verbose and reasoning — `/verbose` and `/reasoning` commands now apply to the agent they're used in. Sub-agents no longer toggle the main agent's settings. Each agent persists its own state to its own config section.

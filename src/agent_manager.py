@@ -437,6 +437,18 @@ class AgentManager:
             return agents[key].get("display_name", key)
         return key
 
+    def clear_internal_sessions(self, agent_key: str) -> None:
+        """
+        This function clears all internal sessions where the given agent is the caller.
+        Called when a user resets an agent's session so inter-agent context starts fresh too.
+        """
+        prefix: str = f"internal:{agent_key}:"
+        stale_keys: list[str] = [k for k in self._internal_sessions if k.startswith(prefix)]
+        for k in stale_keys:
+            del self._internal_sessions[k]
+        if stale_keys:
+            logger.info("Cleared %d internal session(s) for '%s'", len(stale_keys), agent_key)
+
     def delete_agent(self, name: str) -> str:
         """
         This function deletes a sub-agent: removes config, workspace, and stops the agent.
@@ -571,6 +583,7 @@ class AgentManager:
                 agent_config.setdefault("sessions", {})
                 agent_config["sessions"][room_id] = session.session_id
                 self._save_config()
+                self.clear_internal_sessions(agent_key=name)
                 return "Session cleared."
 
             # Handle slash commands

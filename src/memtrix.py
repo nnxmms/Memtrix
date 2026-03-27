@@ -172,6 +172,10 @@ class Memtrix:
         self._config["main-agent"]["sessions"][room_id] = session.session_id
         self._save_sessions()
 
+        # Clear all inter-agent sessions where the main agent is the caller
+        if self._agent_manager:
+            self._agent_manager.clear_internal_sessions(agent_key="main")
+
         return "Session cleared."
 
     def _handle(self, user_input: str, room_id: str, notify: Callable[[str], None], send_file: Callable[[str], None] | None = None, ask: Callable[[str], str] | None = None, react: Callable[[str], None] | None = None) -> str:
