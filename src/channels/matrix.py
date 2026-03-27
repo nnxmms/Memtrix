@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import asyncio
+import logging
 import os
 import time
 from urllib.parse import quote
@@ -10,6 +11,8 @@ from typing import Any, Callable
 import aiohttp
 
 from nio import AsyncClient, MatrixRoom, RoomMessageText, RoomMessageFile, RoomMessageImage, RoomMessageAudio, RoomMessageVideo, SyncResponse
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class MatrixChannel:
@@ -59,7 +62,9 @@ class MatrixChannel:
         async with aiohttp.ClientSession() as session:
             async with session.put(url=url, headers=headers, json={"displayname": self._display_name}) as resp:
                 if resp.status == 200:
-                    print(f"Display name set to '{self._display_name}'")
+                    logger.info("Display name set to '%s'", self._display_name)
+                else:
+                    logger.warning("Failed to set display name (status=%d)", resp.status)
 
     async def _join_room(self, room_id: str) -> None:
         """
@@ -70,7 +75,7 @@ class MatrixChannel:
         headers: dict[str, str] = {"Authorization": f"Bearer {self._access_token}"}
         async with aiohttp.ClientSession() as session:
             async with session.post(url=url, headers=headers, json={}) as resp:
-                print(f"Join {room_id}: {resp.status}")
+                logger.info("Join %s: %d", room_id, resp.status)
 
     async def _download_mxc(self, mxc_url: str, filename: str) -> str:
         """
@@ -208,6 +213,8 @@ class MatrixChannel:
         sender_label: str = self._get_sender_label(room=room, event=event)
         user_message: str = f"[Channel: Matrix, Sender: {sender_label}]\n[File received: attachments/{saved_filename}]"
 
+        logger.info("File received from %s in %s: %s", sender_label, room.room_id, saved_filename)
+
         loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
 
         def notify(msg: str) -> None:
@@ -262,7 +269,7 @@ class MatrixChannel:
                     content={"msgtype": "m.text", "body": reply}
                 )
             except Exception as e:
-                print(f"Error processing file message: {e}")
+                logger.error("Error processing file message in %s: %s", room.room_id, e, exc_info=True)
 
         task: asyncio.Task = asyncio.create_task(_process())
         self._tasks.add(task)
@@ -351,6 +358,8 @@ class MatrixChannel:
         sender_label: str = self._get_sender_label(room=room, event=event)
         prefixed_message: str = f"[Channel: Matrix, Sender: {sender_label}]\n{event.body}"
 
+        logger.info("Message from %s in %s: %s", sender_label, room.room_id, event.body[:100])
+
         # Process the message as a background task so sync_forever can continue
         async def _process() -> None:
             try:
@@ -361,7 +370,7 @@ class MatrixChannel:
                     content={"msgtype": "m.text", "body": reply}
                 )
             except Exception as e:
-                print(f"Error processing message: {e}")
+                logger.error("Error processing message in %s: %s", room.room_id, e, exc_info=True)
 
         task: asyncio.Task = asyncio.create_task(_process())
         self._tasks.add(task)
@@ -396,14 +405,14 @@ class MatrixChannel:
         await self._set_display_name()
 
         # Initial sync to catch up on pending invites
-        print(f"Matrix channel connecting to {self._homeserver} as {self._user_id}...")
+        logger.info("Connecting to %s as %s...", self._homeserver, self._user_id)
         response: Any = await self._client.sync(timeout=10000)
 
         # Join any rooms we were invited to while offline
         for room_id in response.rooms.invite:
             await self._join_room(room_id=room_id)
 
-        print("Matrix channel ready. Listening for messages...")
+        logger.info("Matrix channel ready — listening for messages")
 
         # Listen for new events indefinitely
         await self._client.sync_forever(timeout=30000)

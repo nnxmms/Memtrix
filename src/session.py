@@ -1,11 +1,14 @@
 #!/usr/bin/python3
 
 import json
+import logging
 import os
 import re
 import uuid
 from datetime import date
 from typing import Any
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 # UUID v4 format validation
 _UUID_PATTERN: re.Pattern[str] = re.compile(
@@ -75,6 +78,7 @@ class Session:
             return data
 
         # File was corrupted — reset to empty history
+        logger.warning("Corrupted session file %s — resetting", self._path)
         with open(file=self._path, mode="w") as f:
             json.dump(obj=[], fp=f)
         return []

@@ -1,11 +1,14 @@
 #!/usr/bin/python3
 
 import json
+import logging
 from typing import Any
 
 from openai import OpenAI
 
 from src.providers.base import BaseProvider
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class _ToolFunction:
@@ -99,6 +102,7 @@ class OpenRouterProvider(BaseProvider):
 
         response: Any = self._client.chat.completions.create(**kwargs)
         message: Any = response.choices[0].message
+        logger.debug("OpenRouter response received (model=%s)", model)
 
         # Extract reasoning content (OpenRouter returns it differently than Ollama)
         thinking: str | None = getattr(message, "reasoning", None) or getattr(message, "reasoning_content", None)

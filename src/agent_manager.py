@@ -2,6 +2,7 @@
 
 import importlib
 import json
+import logging
 import os
 import re
 import secrets
@@ -18,6 +19,8 @@ from src.channels.matrix import MatrixChannel
 from src.config import CONFIG_PATH, CONFIG_LOCK
 from src.memory_index import MemoryIndex
 from src.orchestrator import Orchestrator
+
+logger: logging.Logger = logging.getLogger(__name__)
 from src.providers.base import BaseProvider
 from src.session import Session
 from src.tools import discover_tools
@@ -296,7 +299,7 @@ class AgentManager:
                 display_name=f"{display_name} ⚡"
             )
         except Exception:
-            pass  # Non-critical
+            logger.warning("Failed to set display name for agent '%s'", name)
 
         # Scaffold workspace
         workspace_dir: str = self._scaffold_workspace(
@@ -322,6 +325,7 @@ class AgentManager:
         self._bot_user_ids.add(user_id)
 
         # Start the agent
+        logger.info("Creating sub-agent '%s' (%s)", display_name, user_id)
         self._start_agent(name=slug, agent_config=agent_config)
 
         return (
@@ -373,6 +377,7 @@ class AgentManager:
 
         # Resolve caller display name
         caller_display: str = self._get_display_name(key=caller_name)
+        logger.info("Inter-agent query: %s -> %s (depth=%d)", caller_display, target_name, depth)
 
         # Prevent self-calls
         caller_key: str | None = self._resolve_target(name=caller_name)
@@ -445,6 +450,7 @@ class AgentManager:
         display_name: str = agent_config.get("display_name", slug)
 
         # Stop the agent thread (it's a daemon, will die with main)
+        logger.info("Deleting sub-agent '%s'", display_name)
         self._threads.pop(slug, None)
         self._orchestrators.pop(slug, None)
         self._locks.pop(slug, None)
@@ -612,7 +618,7 @@ class AgentManager:
 
         # Run on a daemon thread so it doesn't block the main agent
         def run_agent() -> None:
-            print(f"Starting sub-agent '{name}' as {agent_config['matrix_user_id']}...")
+            logger.info("Starting sub-agent '%s' as %s", name, agent_config['matrix_user_id'])
             channel.run(handler=agent_handle)
 
         thread: threading.Thread = threading.Thread(target=run_agent, name=f"agent-{name}", daemon=True)
@@ -628,4 +634,4 @@ class AgentManager:
             try:
                 self._start_agent(name=name, agent_config=agent_config)
             except Exception as e:
-                print(f"Error starting sub-agent '{name}': {e}")
+                logger.error("Failed to start sub-agent '%s': %s", name, e, exc_info=True)

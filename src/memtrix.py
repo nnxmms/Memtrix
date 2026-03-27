@@ -2,6 +2,7 @@
 
 import importlib
 import json
+import logging
 import os
 from types import ModuleType
 from typing import Any, Callable
@@ -16,6 +17,8 @@ from src.orchestrator import Orchestrator
 from src.providers.base import BaseProvider
 from src.session import Session
 from src.tools import discover_tools
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class Memtrix:
@@ -72,6 +75,7 @@ class Memtrix:
             if isinstance(attr, type) and issubclass(attr, BaseProvider) and attr is not BaseProvider:
                 kwargs: dict[str, str] = {k: v for k, v in provider_config.items() if k != "type"}
                 self._provider = attr(**kwargs)
+                logger.info("Loaded provider '%s' (%s)", provider_instance, provider_type)
                 break
         else:
             raise RuntimeError(f"No provider class found for type '{provider_type}'.")
@@ -85,6 +89,8 @@ class Memtrix:
         index: MemoryIndex = MemoryIndex.get_instance(workspace_dir=workspace_dir)
         index.start_periodic_sync()
 
+        logger.info("Discovered %d tools", len(tools))
+
         self._orchestrator = Orchestrator(
             provider=self._provider,
             model=self._model,
@@ -92,6 +98,8 @@ class Memtrix:
             workspace_dir=workspace_dir,
             think=think
         )
+
+        logger.info("Orchestrator initialized (model=%s, think=%s)", self._model, think)
 
         # Create agent manager and wire it into the agent tools
         self._agent_manager = AgentManager(config=self._config, main_handler_factory=None, bot_user_ids=self._bot_user_ids)
@@ -205,6 +213,7 @@ class Memtrix:
         This function starts Memtrix on the configured channel.
         """
         # Load the configured provider and orchestrator
+        logger.info("Loading provider and orchestrator...")
         self._load_provider()
 
         # Seed bot user IDs from config before starting any channels
@@ -225,6 +234,7 @@ class Memtrix:
 
         if channel_type == "matrix":
             agent_name: str = self._config["main-agent"].get("name", "Memtrix")
+            logger.info("Starting Matrix channel as '%s'", agent_name)
             channel: MatrixChannel = MatrixChannel(
                 homeserver=channel_config["homeserver"],
                 user_id=channel_config["user_id"],
@@ -235,5 +245,6 @@ class Memtrix:
             )
             channel.run(handler=self._handle)
         else:
+            logger.info("Starting CLI channel")
             cli: CLIChannel = CLIChannel()
             cli.run(handler=self._handle)

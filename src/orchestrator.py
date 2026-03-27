@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import json
+import logging
 import os
 import re
 from typing import Any, Callable
@@ -8,6 +9,8 @@ from typing import Any, Callable
 from src.providers.base import BaseProvider
 from src.session import Session
 from src.tools.base import BaseTool
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 # Maximum number of tool-call rounds per request
 MAX_ITERATIONS: int = 10
@@ -113,8 +116,9 @@ class Orchestrator:
         session.append(message={"role": "user", "content": user_message})
 
         # Agentic loop — call LLM, execute tools, repeat
-        for _ in range(MAX_ITERATIONS):
+        for iteration in range(MAX_ITERATIONS):
             # Call the LLM with the full session history and tool definitions
+            logger.debug("LLM call (iteration %d, room=%s)", iteration + 1, room_id)
             message: Any = self._provider.completions(
                 model=self._model,
                 history=session.history,
@@ -132,6 +136,7 @@ class Orchestrator:
             if not message.tool_calls:
                 response: str = self._strip_thinking(text=message.content or "")
                 session.append(message={"role": "assistant", "content": response})
+                logger.info("Response ready (room=%s, length=%d)", room_id, len(response))
                 return response
 
             # Save the assistant's tool-call message to session
@@ -150,6 +155,7 @@ class Orchestrator:
                 # Execute the tool or report an error
                 if tool_name in self._tools:
                     try:
+                        logger.info("Executing tool '%s' (room=%s)", tool_name, room_id)
                         exec_args: dict[str, Any] = {
                             **tool_args,
                             "_room_id": room_id,
@@ -160,8 +166,10 @@ class Orchestrator:
                         result: str = self._tools[tool_name].execute(**exec_args)
                     except Exception as e:
                         result: str = f"Error: {e}"
+                        logger.error("Tool '%s' raised an exception: %s", tool_name, e)
                 else:
                     result: str = f"Error: unknown tool '{tool_name}'"
+                    logger.warning("LLM requested unknown tool '%s'", tool_name)
 
                 # Notify about the tool response
                 if notify:
@@ -177,6 +185,7 @@ class Orchestrator:
                     self._system_prompt = self._build_system_prompt(workspace_dir=self._workspace_dir)
 
         # Exhausted iterations — ask for a final answer without tools
+        logger.warning("Exhausted %d iterations (room=%s), forcing final answer", MAX_ITERATIONS, room_id)
         session.append(message={"role": "user", "content": "Please provide your final answer now."})
         message = self._provider.completions(model=self._model, history=session.history, think=self._think)
         if notify_reasoning:

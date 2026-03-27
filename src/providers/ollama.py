@@ -1,10 +1,13 @@
 #!/usr/bin/python3
 
+import logging
 from typing import Any
 
 from ollama import Client
 
 from src.providers.base import BaseProvider
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class OllamaProvider(BaseProvider):
@@ -33,4 +36,5 @@ class OllamaProvider(BaseProvider):
             kwargs["think"] = True
 
         response: Any = self._client.chat(**kwargs)
+        logger.debug("Ollama response received (model=%s)", model)
         return response.message

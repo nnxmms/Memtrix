@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import hashlib
+import logging
 import os
 import threading
 import time
@@ -10,6 +11,8 @@ import chromadb
 from sentence_transformers import SentenceTransformer
 
 from src.config import CONFIG_PATH
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 # Model is downloaded once to data/models/ and reused across restarts
 EMBEDDING_MODEL: str = "nomic-ai/nomic-embed-text-v1.5"
@@ -35,6 +38,7 @@ class LocalEmbeddingFunction:
             trust_remote_code=True,
             truncate_dim=EMBEDDING_DIM
         )
+        logger.info("Embedding model loaded (%s, dim=%d)", EMBEDDING_MODEL, EMBEDDING_DIM)
 
     @staticmethod
     def name() -> str:
@@ -112,6 +116,7 @@ class MemoryIndex:
 
         # Full reindex on startup
         self._reindex_all()
+        logger.info("Memory index ready (collection=%s, docs=%d)", collection_name, self._collection.count())
 
     @staticmethod
     def _hash_content(content: str) -> str:
@@ -185,7 +190,7 @@ class MemoryIndex:
                 try:
                     self.sync_changed()
                 except Exception as e:
-                    print(f"Memory sync error: {e}")
+                    logger.error("Memory sync error: %s", e, exc_info=True)
 
         thread: threading.Thread = threading.Thread(target=_sync_loop, daemon=True)
         thread.start()

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.5.1
+
+- Structured logging — replaced all `print()` calls with Python's `logging` module. Logs include timestamps, log levels, and module names. Noisy third-party loggers (httpx, chromadb, sentence_transformers, nio) are suppressed to WARNING. Logging is configured centrally in `main.py` and flows to stdout for `docker compose logs`.
+
 ## 2.5.0
 
 - Message reactions — Memtrix can now react to user messages with emoji in Matrix. The LLM decides when and what to react with, just like a human would use reactions in a chat.
