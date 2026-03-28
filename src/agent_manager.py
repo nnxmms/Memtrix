@@ -91,12 +91,17 @@ class AgentManager:
         # Inter-agent sessions (keyed by "caller_slug:target_slug")
         self._internal_sessions: dict[str, Session] = {}
 
-    def register_main_orchestrator(self, orchestrator: Orchestrator) -> None:
+        # Reference to the main agent's user sessions (set by register_main_orchestrator)
+        self._main_sessions: dict[str, Session] = {}
+
+    def register_main_orchestrator(self, orchestrator: Orchestrator, sessions: dict[str, Session]) -> None:
         """
         This function registers the main agent's orchestrator so sub-agents can query it.
+        The sessions dict is a live reference to the main agent's per-room sessions.
         """
         self._orchestrators["main"] = orchestrator
         self._locks["main"] = threading.Lock()
+        self._main_sessions = sessions
 
     def _save_config(self) -> None:
         """
@@ -402,8 +407,19 @@ class AgentManager:
 
             session: Session = self._internal_sessions[session_key]
 
-            # Build the prefixed message with internal channel header
-            prefixed: str = f"[Channel: Internal, Sender: {caller_display}]\n{message}"
+            # Inject recent user-conversation context so the target agent "remembers"
+            # what the user told it, even though this runs in a separate internal session
+            context: str = self._get_recent_context(target_key=target_key)
+            if context:
+                prefixed: str = (
+                    f"[Channel: Internal, Sender: {caller_display}]\n"
+                    f"[Your recent conversation with the user — use this as context]\n"
+                    f"{context}\n"
+                    f"[End of context]\n\n"
+                    f"{message}"
+                )
+            else:
+                prefixed: str = f"[Channel: Internal, Sender: {caller_display}]\n{message}"
 
             # Run with no callbacks (no notifications, no file sending, no human-in-the-loop)
             # and incremented depth to enforce the recursion limit
@@ -425,6 +441,60 @@ class AgentManager:
             return response
         finally:
             lock.release()
+
+    def _get_recent_context(self, target_key: str, max_pairs: int = 10) -> str:
+        """
+        This function extracts recent user/assistant exchanges from the target agent's
+        active user sessions. Gives inter-agent calls context about what the user
+        recently discussed with the target.
+        """
+        # Find user sessions for the target agent
+        if target_key == "main":
+            sessions: dict[str, Session] = self._main_sessions
+        else:
+            sessions: dict[str, Session] = {
+                k: v for k, v in self._sessions.items() if k.startswith(f"{target_key}:")
+            }
+
+        if not sessions:
+            return ""
+
+        # Pick the most recently active session (last message appended)
+        active_session: Session = max(sessions.values(), key=lambda s: os.path.getmtime(s._path) if os.path.exists(s._path) else 0)
+
+        # Extract user and assistant messages (skip system, tool, tool_calls)
+        relevant: list[dict[str, Any]] = [
+            msg for msg in active_session.history
+            if msg.get("role") in ("user", "assistant") and "tool_calls" not in msg
+        ]
+
+        # Take the most recent pairs
+        recent: list[dict[str, Any]] = relevant[-(max_pairs * 2):]
+        if not recent:
+            return ""
+
+        # Format as readable context (capped at 4000 chars)
+        lines: list[str] = []
+        total_length: int = 0
+
+        for msg in recent:
+            role: str = msg["role"].capitalize()
+            content: str = (msg.get("content") or "").strip()
+            # Strip channel headers from user messages
+            if content.startswith("[Channel:"):
+                content = content.split("\n", maxsplit=1)[-1].strip()
+            if not content:
+                continue
+            # Truncate long individual messages
+            if len(content) > 500:
+                content = content[:500] + "\u2026"
+            line: str = f"{role}: {content}"
+            if total_length + len(line) > 4000:
+                break
+            lines.append(line)
+            total_length += len(line)
+
+        return "\n".join(lines)
 
     def _get_display_name(self, key: str) -> str:
         """

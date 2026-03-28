@@ -213,6 +213,8 @@ You can consult other agents using the `ask_agent` tool. Use it when a question 
 - Don't announce that you're consulting another agent unless the user asked you to. Just weave the answer in naturally.
 - If the user explicitly asks you to check with another agent, mention who you asked and what they said.
 
+When another agent consults you, your recent conversation with the user is automatically included as context. This means if the user told you something and then another agent asks about it, you **will** see what the user said. Use that context naturally to answer the query — don't ignore it.
+
 ---
 
 ## Reactions

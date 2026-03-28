@@ -103,7 +103,7 @@ class Memtrix:
 
         # Create agent manager and wire it into the agent tools
         self._agent_manager = AgentManager(config=self._config, main_handler_factory=None, bot_user_ids=self._bot_user_ids)
-        self._agent_manager.register_main_orchestrator(orchestrator=self._orchestrator)
+        self._agent_manager.register_main_orchestrator(orchestrator=self._orchestrator, sessions=self._sessions)
 
         main_name: str = self._config["main-agent"].get("name", "Memtrix")
         for tool in tools:

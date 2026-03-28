@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.0
+
+- Cross-agent context awareness — when one agent consults another via `ask_agent`, the target agent's recent user conversation is automatically injected as context. If a user tells Agent A "remember the number 9, B will ask for it", and B later asks A, A now sees its own recent conversation with the user and can respond correctly. Context is capped at 10 message pairs / 4000 chars and stripped of tool-call noise.
+
 ## 2.5.4
 
 - Automatic date for daily memory tools — `read_memory_file` and `write_memory_file` no longer accept a `filename` parameter. The date is derived server-side via `date.today()`, preventing the LLM from specifying incorrect dates.
