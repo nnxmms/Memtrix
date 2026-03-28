@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.1
+
+- Fix sub-agent verbose/reasoning settings reset on `/clear` — `_save_config()` was overwriting the entire agents section on disk with the stale in-memory copy, wiping out `verbose` and `reasoning` flags that `Commands._save_setting()` had written directly to disk. Now merges per-agent configs so disk-only keys are preserved.
+
 ## 2.6.0
 
 - Cross-agent context awareness — when one agent consults another via `ask_agent`, the target agent's recent user conversation is automatically injected as context. If a user tells Agent A "remember the number 9, B will ask for it", and B later asks A, A now sees its own recent conversation with the user and can respond correctly. Context is capped at 10 message pairs / 4000 chars and stripped of tool-call noise.

@@ -105,12 +105,24 @@ class AgentManager:
 
     def _save_config(self) -> None:
         """
-        This function persists the agents section to config without overwriting secret placeholders.
+        This function persists the agents section to config.
+        Merges in-memory agent configs into the disk copy so that settings
+        written directly to disk (e.g. verbose, reasoning) are preserved.
         """
         with CONFIG_LOCK:
             with open(file=CONFIG_PATH, mode="r") as f:
                 disk_config: dict[str, Any] = json.load(fp=f)
-            disk_config["agents"] = self._config.get("agents", {})
+            disk_agents: dict[str, Any] = disk_config.setdefault("agents", {})
+            mem_agents: dict[str, Any] = self._config.get("agents", {})
+            for slug, mem_agent in mem_agents.items():
+                if slug in disk_agents:
+                    disk_agents[slug].update(mem_agent)
+                else:
+                    disk_agents[slug] = mem_agent
+            # Remove agents deleted in memory
+            for slug in list(disk_agents.keys()):
+                if slug not in mem_agents:
+                    del disk_agents[slug]
             with open(file=CONFIG_PATH, mode="w") as f:
                 json.dump(obj=disk_config, fp=f, indent=4)
 
