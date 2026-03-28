@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.0
+
+- Inter-agent exchange memory — after an inter-agent call, a summary of the exchange is appended to the target agent's active user session. This means if Agent B asks Agent A something, A can later tell the user what B asked and what it answered. Previously inter-agent conversations were invisible to the user-facing session.
+
 ## 2.6.1
 
 - Fix sub-agent verbose/reasoning settings reset on `/clear` — `_save_config()` was overwriting the entire agents section on disk with the stale in-memory copy, wiping out `verbose` and `reasoning` flags that `Commands._save_setting()` had written directly to disk. Now merges per-agent configs so disk-only keys are preserved.

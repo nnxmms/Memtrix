@@ -450,17 +450,24 @@ class AgentManager:
             # Prune internal session to prevent unbounded growth
             session.trim(max_messages=50)
 
+            # Log the exchange into the target agent's user session so it remembers
+            # what happened when the user asks about it later
+            self._log_inter_agent_exchange(
+                target_key=target_key,
+                caller_display=caller_display,
+                message=message,
+                response=response
+            )
+
             return response
         finally:
             lock.release()
 
-    def _get_recent_context(self, target_key: str, max_pairs: int = 10) -> str:
+    def _get_active_user_session(self, target_key: str) -> Session | None:
         """
-        This function extracts recent user/assistant exchanges from the target agent's
-        active user sessions. Gives inter-agent calls context about what the user
-        recently discussed with the target.
+        This function returns the most recently active user session for an agent.
+        Returns None if no user session exists.
         """
-        # Find user sessions for the target agent
         if target_key == "main":
             sessions: dict[str, Session] = self._main_sessions
         else:
@@ -469,10 +476,39 @@ class AgentManager:
             }
 
         if not sessions:
-            return ""
+            return None
 
-        # Pick the most recently active session (last message appended)
-        active_session: Session = max(sessions.values(), key=lambda s: os.path.getmtime(s._path) if os.path.exists(s._path) else 0)
+        return max(sessions.values(), key=lambda s: os.path.getmtime(s._path) if os.path.exists(s._path) else 0)
+
+    def _log_inter_agent_exchange(self, target_key: str, caller_display: str, message: str, response: str) -> None:
+        """
+        This function appends a note about an inter-agent exchange to the target agent's
+        active user session. This allows the agent to recall what it discussed with
+        other agents when the user asks about it.
+        """
+        user_session: Session | None = self._get_active_user_session(target_key=target_key)
+        if not user_session or not user_session.history:
+            return
+
+        # Cap message and response length to avoid bloating the session
+        msg_summary: str = message[:500] + "…" if len(message) > 500 else message
+        resp_summary: str = response[:500] + "…" if len(response) > 500 else response
+
+        note: str = (
+            f"[Internal note: {caller_display} just asked you: \"{msg_summary}\" "
+            f"and you responded: \"{resp_summary}\"]"
+        )
+        user_session.append(message={"role": "assistant", "content": note})
+
+    def _get_recent_context(self, target_key: str, max_pairs: int = 10) -> str:
+        """
+        This function extracts recent user/assistant exchanges from the target agent's
+        active user sessions. Gives inter-agent calls context about what the user
+        recently discussed with the target.
+        """
+        active_session: Session | None = self._get_active_user_session(target_key=target_key)
+        if not active_session:
+            return ""
 
         # Extract user and assistant messages (skip system, tool, tool_calls)
         relevant: list[dict[str, Any]] = [
