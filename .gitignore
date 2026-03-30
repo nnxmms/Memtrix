@@ -4,6 +4,11 @@ workspace/
 agents/
 .env
 
+# Website (generated/local files)
+website/.env
+website/nginx.conf
+website/certbot/
+
 # Apple
 .DS_Store
 
