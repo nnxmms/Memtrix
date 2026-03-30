@@ -81,12 +81,6 @@ http {
         include             /etc/letsencrypt/options-ssl-nginx.conf;
         ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
 
-        # OCSP Stapling
-        ssl_stapling on;
-        ssl_stapling_verify on;
-        resolver 1.1.1.1 8.8.8.8 valid=300s;
-        resolver_timeout 5s;
-
         # ── Security Headers ──
         add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
         add_header X-Content-Type-Options "nosniff" always;

@@ -11,7 +11,10 @@ services:
     cap_drop:
       - ALL
     cap_add:
-      - NET_BIND_SERVICE  # required for binding ports 80/443
+      - NET_BIND_SERVICE  # binding ports 80/443
+      - CHOWN             # nginx cache dir ownership
+      - SETUID            # worker process privilege drop
+      - SETGID            # worker process privilege drop
     # Reload config every 6h to pick up renewed certificates
     command: /bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'
     tmpfs:
