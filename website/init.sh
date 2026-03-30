@@ -59,6 +59,24 @@ echo ""
 echo "  Domain: $DOMAIN"
 echo ""
 
+# ── Prompt for Cloudflare API token ──
+# Required for DNS-01 challenge (works behind Cloudflare proxy)
+if [[ -f certbot/cloudflare.ini ]]; then
+    echo "  ℹ  Existing Cloudflare credentials found."
+    read -rp "  Re-enter Cloudflare API token? (y/N): " REDO_CF
+    if [[ "${REDO_CF,,}" == "y" ]]; then
+        read -rsp "  Enter Cloudflare API token: " CF_TOKEN
+        echo ""
+    fi
+else
+    echo "  Certbot needs a Cloudflare API token for DNS-01 verification."
+    echo "  Create one at: https://dash.cloudflare.com/profile/api-tokens"
+    echo "  Required permissions: Zone → DNS → Edit"
+    echo ""
+    read -rsp "  Enter Cloudflare API token: " CF_TOKEN
+    echo ""
+fi
+
 # ── Write .env ──
 cat > .env <<EOF
 DOMAIN=${DOMAIN}
@@ -69,6 +87,20 @@ echo "  ✓ .env written (chmod 600)"
 # ── Create directories ──
 mkdir -p certbot/conf certbot/www
 echo "  ✓ Created certbot directories"
+
+# ── Write Cloudflare credentials ──
+if [[ -n "${CF_TOKEN:-}" ]]; then
+    cat > certbot/cloudflare.ini <<EOF
+dns_cloudflare_api_token = ${CF_TOKEN}
+EOF
+    chmod 600 certbot/cloudflare.ini
+    echo "  ✓ Cloudflare credentials written (chmod 600)"
+fi
+
+if [[ ! -f certbot/cloudflare.ini ]]; then
+    echo "  ✗ Cloudflare credentials not found at certbot/cloudflare.ini"
+    exit 1
+fi
 
 # ── Generate DH parameters if missing ──
 if [[ ! -f certbot/conf/ssl-dhparams.pem ]]; then
@@ -96,55 +128,21 @@ fi
 if [[ -d "certbot/conf/live/$DOMAIN" ]]; then
     echo "  ✓ Certificate already exists for $DOMAIN"
 else
-    echo "  ⏳ Obtaining TLS certificate for $DOMAIN..."
+    echo "  ⏳ Obtaining TLS certificate for $DOMAIN via DNS-01..."
     echo ""
 
-    # Start nginx temporarily for the ACME challenge (HTTP-only mode)
-    # Create a minimal nginx config for the challenge
-    cat > nginx.conf.tmp <<TMPCONF
-events { worker_connections 64; }
-http {
-    server {
-        listen 80;
-        server_name ${DOMAIN};
-        location /.well-known/acme-challenge/ { root /var/www/certbot; }
-        location / { return 444; }
-    }
-}
-TMPCONF
-
-    docker compose -f docker-compose.yml run --rm -d \
-        --name memtrix-certbot-nginx \
-        -p 80:80 \
-        -v "$SCRIPT_DIR/nginx.conf.tmp:/etc/nginx/nginx.conf:ro" \
-        -v "$SCRIPT_DIR/certbot/www:/var/www/certbot:ro" \
-        nginx nginx -g 'daemon off;' 2>/dev/null || \
-    docker run --rm -d \
-        --name memtrix-certbot-nginx \
-        -p 80:80 \
-        -v "$SCRIPT_DIR/nginx.conf.tmp:/etc/nginx/nginx.conf:ro" \
-        -v "$SCRIPT_DIR/certbot/www:/var/www/certbot:ro" \
-        nginx:1-alpine nginx -g 'daemon off;'
-
-    # Give nginx a moment to start
-    sleep 2
-
-    # Run certbot
     docker run --rm \
         -v "$SCRIPT_DIR/certbot/conf:/etc/letsencrypt" \
-        -v "$SCRIPT_DIR/certbot/www:/var/www/certbot" \
-        certbot/certbot certonly \
-            --webroot \
-            --webroot-path=/var/www/certbot \
+        -v "$SCRIPT_DIR/certbot/cloudflare.ini:/etc/cloudflare.ini:ro" \
+        certbot/dns-cloudflare certonly \
+            --dns-cloudflare \
+            --dns-cloudflare-credentials /etc/cloudflare.ini \
+            --dns-cloudflare-propagation-seconds 30 \
             --email "admin@${DOMAIN}" \
             --agree-tos \
             --no-eff-email \
             --force-renewal \
             -d "$DOMAIN"
-
-    # Stop temporary nginx
-    docker stop memtrix-certbot-nginx 2>/dev/null || true
-    rm -f nginx.conf.tmp
 
     echo ""
     echo "  ✓ Certificate obtained for $DOMAIN"
