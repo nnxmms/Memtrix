@@ -102,6 +102,14 @@ http {
             try_files $uri $uri/ /index.html;
         }
 
+        # ── Static assets (images, favicons) ──
+        location /static/ {
+            alias /usr/share/nginx/html/static/;
+            expires 30d;
+            add_header Cache-Control "public, immutable";
+            access_log off;
+        }
+
         # ── Cache static assets ──
         location ~* \.(css|js|woff2?|ttf|eot|svg|png|jpg|jpeg|gif|ico|webp)$ {
             expires 30d;

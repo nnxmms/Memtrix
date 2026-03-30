@@ -8,7 +8,11 @@
   <meta name="theme-color" content="#0a0a12">
   <meta property="og:title" content="Memtrix — The AI That Remembers Everything">
   <meta property="og:description" content="Self-hosted, privacy-first personal AI agent with persistent memory, agentic tools, and evolving personality.">
+  <meta property="og:image" content="static/logo.png">
   <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" sizes="32x32" href="static/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="static/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="static/logo-180.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -117,7 +121,7 @@
       font-size: 1.15rem;
       color: var(--text);
     }
-    .nav-brand svg { width: 28px; height: 28px; }
+    .nav-brand img { width: 28px; height: 28px; border-radius: 6px; }
     .nav-links { display: flex; gap: 28px; align-items: center; }
     .nav-links a {
       color: var(--text-dim);
@@ -152,14 +156,7 @@
       text-align: center;
     }
     .hero-icon {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 110px;
-      height: 110px;
-      border-radius: 28px;
-      background: linear-gradient(135deg, #00e89d12, #a78bfa12);
-      border: 1px solid var(--border);
+      display: inline-block;
       margin-bottom: 32px;
       position: relative;
       animation: float 6s ease-in-out infinite;
@@ -167,14 +164,13 @@
     .hero-icon::after {
       content: '';
       position: absolute;
-      inset: -1px;
-      border-radius: 28px;
-      background: linear-gradient(135deg, var(--accent-dim), #a78bfa44);
+      inset: -10px;
+      background: radial-gradient(circle, var(--accent-dim), #a78bfa33, transparent 70%);
       z-index: -1;
-      filter: blur(20px);
-      opacity: .5;
+      filter: blur(30px);
+      opacity: .6;
     }
-    .hero-icon svg { width: 56px; height: 56px; }
+    .hero-icon img { width: 200px; height: 200px; }
     @keyframes float {
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(-8px); }
@@ -560,7 +556,7 @@
       color: var(--text-muted);
       font-size: .85rem;
     }
-    .footer-brand svg { width: 22px; height: 22px; opacity: .5; }
+    .footer-brand img { width: 22px; height: 22px; opacity: .5; border-radius: 4px; }
     .footer-links { display: flex; gap: 24px; }
     .footer-links a {
       color: var(--text-muted);
@@ -620,8 +616,8 @@
 
       /* Hero */
       .hero { padding: 120px 0 60px; }
-      .hero-icon { width: 88px; height: 88px; border-radius: 22px; margin-bottom: 24px; }
-      .hero-icon svg { width: 44px; height: 44px; }
+      .hero-icon { margin-bottom: 24px; }
+      .hero-icon img { width: 192px; height: 192px; }
       .hero h1 { font-size: 2.8rem; margin-bottom: 12px; }
       .hero-tagline { font-size: .78rem; letter-spacing: .15em; margin-bottom: 16px; }
       .hero p { font-size: .95rem; margin-bottom: 28px; padding: 0 8px; }
@@ -720,15 +716,7 @@
   <nav>
     <div class="container">
       <a href="#" class="nav-brand">
-        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="32" height="32" rx="8" fill="#00e89d15"/>
-          <path d="M16 6C10.477 6 6 10.477 6 16s4.477 10 10 10 10-4.477 10-10S21.523 6 16 6z" fill="none" stroke="#00e89d" stroke-width="1.5"/>
-          <path d="M16 10c-3.314 0-6 2.686-6 6s2.686 6 6 6 6-2.686 6-6-2.686-6-6-6z" fill="none" stroke="#00e89d" stroke-width="1.5" opacity=".5"/>
-          <circle cx="13" cy="15" r="1.2" fill="#00e89d"/>
-          <circle cx="19" cy="15" r="1.2" fill="#00e89d"/>
-          <path d="M13 19c0 0 1.5 1.5 3 1.5s3-1.5 3-1.5" stroke="#00e89d" stroke-width="1.2" stroke-linecap="round" fill="none"/>
-          <path d="M10 10l2 2M22 10l-2 2M10 22l2-2M22 22l-2-2" stroke="#a78bfa" stroke-width="1" stroke-linecap="round" opacity=".4"/>
-        </svg>
+        <img src="static/logo.png" alt="Memtrix" width="28" height="28">
         Memtrix <span class="version-tag">v2.7</span>
       </a>
       <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">
@@ -749,16 +737,7 @@
   <section class="hero">
     <div class="container">
       <div class="hero-icon">
-        <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M28 8C16.954 8 8 16.954 8 28s8.954 20 20 20 20-8.954 20-20S39.046 8 28 8z" fill="none" stroke="#00e89d" stroke-width="2"/>
-          <path d="M28 14c-7.732 0-14 6.268-14 14s6.268 14 14 14 14-6.268 14-14-6.268-14-14-14z" fill="none" stroke="#00e89d" stroke-width="1.5" opacity=".4"/>
-          <path d="M28 20c-4.418 0-8 3.582-8 8s3.582 8 8 8 8-3.582 8-8-3.582-8-8-8z" fill="#00e89d" opacity=".1"/>
-          <circle cx="24" cy="26" r="2" fill="#00e89d"/>
-          <circle cx="32" cy="26" r="2" fill="#00e89d"/>
-          <path d="M23 32c0 0 2.5 3 5 3s5-3 5-3" stroke="#00e89d" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-          <path d="M18 14l3 3M38 14l-3 3M18 42l3-3M38 42l-3-3M12 28h3M41 28h3M28 12v3M28 41v3" stroke="#a78bfa" stroke-width="1.2" stroke-linecap="round" opacity=".35"/>
-          <circle cx="28" cy="28" r="2" fill="#a78bfa" opacity=".3"/>
-        </svg>
+        <img src="static/logo.png" alt="Memtrix" width="90" height="90">
       </div>
 
       <h1>Memtrix</h1>
@@ -1048,14 +1027,8 @@
     <div class="container">
       <div class="footer-inner">
         <div class="footer-brand">
-          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="32" height="32" rx="8" fill="#00e89d15"/>
-            <path d="M16 6C10.477 6 6 10.477 6 16s4.477 10 10 10 10-4.477 10-10S21.523 6 16 6z" fill="none" stroke="#00e89d" stroke-width="1.5"/>
-            <circle cx="13" cy="15" r="1.2" fill="#00e89d"/>
-            <circle cx="19" cy="15" r="1.2" fill="#00e89d"/>
-            <path d="M13 19c0 0 1.5 1.5 3 1.5s3-1.5 3-1.5" stroke="#00e89d" stroke-width="1.2" stroke-linecap="round" fill="none"/>
-          </svg>
-          Built with 🧠 by the Memtrix community.
+          <img src="static/favicon-32.png" alt="Memtrix" width="22" height="22">
+          Homepage built with Claude.
         </div>
         <div class="footer-links">
           <a href="https://github.com/nnxmms/Memtrix">GitHub</a>

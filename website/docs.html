@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Memtrix Docs</title>
   <meta name="description" content="Documentation for Memtrix — a self-hosted, privacy-first personal AI agent.">
+  <link rel="icon" type="image/png" sizes="32x32" href="static/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="static/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="static/logo-180.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -74,7 +77,7 @@
       color: var(--text);
       min-width: var(--sidebar-w);
     }
-    .doc-header-brand svg { width: 26px; height: 26px; }
+    .doc-header-brand img { width: 26px; height: 26px; border-radius: 6px; }
     .doc-header-nav {
       display: flex;
       gap: 6px;
@@ -561,7 +564,7 @@
       .doc-main h1 { font-size: 1.35rem; }
       .doc-header { padding: 0 12px; }
       .doc-header-brand { font-size: .9rem; gap: 8px; }
-      .doc-header-brand svg { width: 22px; height: 22px; }
+      .doc-header-brand img { width: 22px; height: 22px; }
 
       pre { padding: 12px 10px; }
       pre code { font-size: .7rem; }
@@ -625,7 +628,7 @@
     <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
-    <svg viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#00e89d15"/><path d="M16 6C10.477 6 6 10.477 6 16s4.477 10 10 10 10-4.477 10-10S21.523 6 16 6z" fill="none" stroke="#00e89d" stroke-width="1.5"/><circle cx="13" cy="15" r="1.2" fill="#00e89d"/><circle cx="19" cy="15" r="1.2" fill="#00e89d"/><path d="M13 19s1.5 1.5 3 1.5 3-1.5 3-1.5" stroke="#00e89d" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg>
+    <img src="static/logo.png" alt="Memtrix" width="26" height="26">
     Memtrix
   </a>
   <nav class="doc-header-nav">
