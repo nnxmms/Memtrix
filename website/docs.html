@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memtrix Docs</title>
+  <meta name="description" content="Documentation for Memtrix — a self-hosted, privacy-first personal AI agent.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0f1117;
+      --bg-sidebar: #0c0d12;
+      --bg-card: #151820;
+      --bg-code: #1a1d27;
+      --bg-code-inline: #1e2130;
+      --bg-callout-tip: #0a2e1e;
+      --bg-callout-note: #0f1a3a;
+      --bg-callout-warn: #2e1f0a;
+      --border: #1e2030;
+      --border-active: #00e89d;
+      --text: #e2e2e8;
+      --text-dim: #8a8a9e;
+      --text-muted: #55556a;
+      --accent: #00e89d;
+      --accent-dim: #00e89d44;
+      --accent-bg: #00e89d0d;
+      --purple: #a78bfa;
+      --orange: #f0a050;
+      --blue: #60a5fa;
+      --red: #f87171;
+      --sidebar-w: 260px;
+      --toc-w: 200px;
+      --header-h: 56px;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Header ── */
+    .doc-header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      background: #0c0d12ee;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+    }
+    .doc-header-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text);
+      min-width: var(--sidebar-w);
+    }
+    .doc-header-brand svg { width: 26px; height: 26px; }
+    .doc-header-nav {
+      display: flex;
+      gap: 6px;
+      margin-left: 32px;
+    }
+    .doc-header-nav a {
+      color: var(--text-dim);
+      font-size: .82rem;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 6px;
+      transition: color .2s, background .2s;
+    }
+    .doc-header-nav a:hover, .doc-header-nav a.active {
+      color: var(--text);
+      background: #ffffff08;
+      text-decoration: none;
+    }
+    .doc-header-nav a.active { border-bottom: 2px solid var(--accent); }
+    .doc-header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .doc-header-right a {
+      color: var(--text-dim);
+      font-size: .82rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color .2s;
+    }
+    .doc-header-right a:hover { color: var(--text); text-decoration: none; }
+    .doc-header-right svg { width: 16px; height: 16px; }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #ffffff06;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 14px;
+      color: var(--text-muted);
+      font-size: .82rem;
+      cursor: pointer;
+      transition: border-color .2s;
+      min-width: 200px;
+    }
+    .search-box:hover { border-color: #2a2d40; }
+    .search-box svg { width: 14px; height: 14px; opacity: .5; }
+    .search-box kbd {
+      margin-left: auto;
+      font-family: var(--font-sans);
+      font-size: .7rem;
+      background: #ffffff0a;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      color: var(--text-muted);
+    }
+
+    .mobile-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    /* ── Layout ── */
+    .doc-layout {
+      display: flex;
+      margin-top: var(--header-h);
+      min-height: calc(100vh - var(--header-h));
+    }
+
+    /* ── Sidebar ── */
+    .doc-sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      position: fixed;
+      top: var(--header-h);
+      left: 0;
+      bottom: 0;
+      overflow-y: auto;
+      padding: 20px 16px 40px;
+      border-right: 1px solid var(--border);
+      background: var(--bg-sidebar);
+      z-index: 100;
+    }
+    .doc-sidebar::-webkit-scrollbar { width: 4px; }
+    .doc-sidebar::-webkit-scrollbar-thumb { background: #2a2d40; border-radius: 4px; }
+
+    .sidebar-group { margin-bottom: 24px; }
+    .sidebar-group-label {
+      font-size: .7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--text-muted);
+      padding: 0 12px;
+      margin-bottom: 6px;
+    }
+    .sidebar-link {
+      display: block;
+      padding: 6px 12px;
+      font-size: .85rem;
+      color: var(--text-dim);
+      border-radius: 6px;
+      transition: color .15s, background .15s;
+      cursor: pointer;
+    }
+    .sidebar-link:hover { color: var(--text); background: #ffffff06; text-decoration: none; }
+    .sidebar-link.active {
+      color: var(--accent);
+      background: var(--accent-bg);
+      font-weight: 500;
+    }
+
+    /* ── Main Content ── */
+    .doc-main {
+      flex: 1;
+      margin-left: var(--sidebar-w);
+      margin-right: var(--toc-w);
+      max-width: 780px;
+      padding: 40px 48px 80px;
+    }
+
+    /* ── Table of Contents (right) ── */
+    .doc-toc {
+      width: var(--toc-w);
+      flex-shrink: 0;
+      position: fixed;
+      top: var(--header-h);
+      right: 0;
+      bottom: 0;
+      overflow-y: auto;
+      padding: 24px 16px 40px;
+    }
+    .doc-toc::-webkit-scrollbar { width: 3px; }
+    .doc-toc::-webkit-scrollbar-thumb { background: #2a2d40; border-radius: 4px; }
+    .toc-title {
+      font-size: .72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .toc-link {
+      display: block;
+      padding: 3px 0 3px 12px;
+      font-size: .78rem;
+      color: var(--text-muted);
+      border-left: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+      line-height: 1.5;
+    }
+    .toc-link:hover { color: var(--text-dim); text-decoration: none; }
+    .toc-link.active { color: var(--accent); border-left-color: var(--accent); }
+    .toc-link.sub { padding-left: 24px; font-size: .75rem; }
+
+    /* ── Typography ── */
+    .doc-breadcrumb {
+      font-size: .8rem;
+      color: var(--accent);
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    .doc-main h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+      line-height: 1.2;
+    }
+    .doc-main .lead {
+      font-size: 1.05rem;
+      color: var(--text-dim);
+      margin-bottom: 32px;
+      line-height: 1.7;
+    }
+    .doc-main h2 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      margin-top: 56px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      letter-spacing: -0.01em;
+    }
+    .doc-main h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-top: 36px;
+      margin-bottom: 12px;
+    }
+    .doc-main h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-top: 28px;
+      margin-bottom: 8px;
+      color: var(--text-dim);
+    }
+    .doc-main p { margin-bottom: 16px; font-size: .92rem; }
+    .doc-main ul, .doc-main ol {
+      margin-bottom: 16px;
+      padding-left: 24px;
+    }
+    .doc-main li {
+      margin-bottom: 6px;
+      font-size: .92rem;
+    }
+    .doc-main strong { color: var(--text); font-weight: 600; }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: .82em;
+      background: var(--bg-code-inline);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--accent);
+    }
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+      color: var(--text);
+      font-size: .82rem;
+      line-height: 1.7;
+    }
+    .code-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: #12141d;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 10px 10px 0 0;
+      font-size: .75rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .code-title + pre { border-radius: 0 0 10px 10px; }
+    .code-title svg { width: 14px; height: 14px; opacity: .5; }
+
+    .copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #ffffff08;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-size: .7rem;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: color .2s, border-color .2s;
+      font-family: var(--font-sans);
+    }
+    .copy-btn:hover { color: var(--text); border-color: #3a3d50; }
+
+    /* ── Callouts ── */
+    .callout {
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 20px;
+      font-size: .88rem;
+      border-left: 3px solid;
+      display: flex;
+      gap: 12px;
+    }
+    .callout-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+    .callout-body { flex: 1; }
+    .callout-body strong { display: block; margin-bottom: 4px; }
+    .callout-body code { font-size: .8em; }
+    .callout.tip { background: var(--bg-callout-tip); border-color: #00e89d88; }
+    .callout.note { background: var(--bg-callout-note); border-color: #60a5fa88; }
+    .callout.warn { background: var(--bg-callout-warn); border-color: #f0a05088; }
+
+    /* ── Tables ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: .88rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      font-weight: 600;
+      font-size: .78rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--text-dim);
+      background: #ffffff04;
+    }
+    td { color: var(--text-dim); }
+    td code { font-size: .78rem; }
+    tr:hover td { background: #ffffff03; }
+
+    /* ── Steps ── */
+    .steps { counter-reset: step; margin-bottom: 24px; }
+    .step {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 28px;
+      position: relative;
+    }
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent-bg);
+      border: 1px solid var(--accent-dim);
+      color: var(--accent);
+      font-size: .82rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .step-content { flex: 1; padding-top: 3px; }
+    .step-content h4 { margin-top: 0; color: var(--text); font-size: 1rem; }
+
+    /* ── Nav Cards ── */
+    .nav-cards {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-top: 40px;
+    }
+    .nav-card {
+      padding: 18px 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      transition: border-color .2s, transform .15s;
+    }
+    .nav-card:hover { border-color: var(--accent-dim); transform: translateY(-2px); text-decoration: none; }
+    .nav-card-label {
+      font-size: .7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-bottom: 4px;
+    }
+    .nav-card-title {
+      font-size: .92rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .nav-card-desc {
+      font-size: .8rem;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    /* ── Page container (for hiding/showing) ── */
+    .doc-page { display: none; }
+    .doc-page.active { display: block; }
+
+    /* ── Responsive ── */
+    @media (max-width: 1100px) {
+      .doc-toc { display: none; }
+      .doc-main { margin-right: 0; }
+    }
+    @media (max-width: 800px) {
+      .doc-sidebar {
+        transform: translateX(-100%);
+        transition: transform .3s;
+        z-index: 150;
+      }
+      .doc-sidebar.open { transform: translateX(0); }
+      .doc-main { margin-left: 0; padding: 24px 20px 60px; }
+      .mobile-toggle { display: block; }
+      .doc-header-nav { display: none; }
+      .search-box { display: none; }
+      .nav-cards { grid-template-columns: 1fr; }
+      .doc-header-brand { min-width: auto; }
+    }
+
+    /* Sidebar overlay */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #00000066;
+      z-index: 140;
+    }
+    .sidebar-overlay.open { display: block; }
+
+    /* ── Separator ── */
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 40px 0;
+    }
+
+    /* ── Diagram ── */
+    .diagram {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+    }
+    .diagram pre { background: none; border: none; padding: 0; margin: 0; }
+    .diagram pre code { color: var(--text-dim); font-size: .78rem; line-height: 1.5; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="doc-header">
+  <button class="mobile-toggle" onclick="toggleSidebar()" aria-label="Menu">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
+    <svg viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#00e89d15"/><path d="M16 6C10.477 6 6 10.477 6 16s4.477 10 10 10 10-4.477 10-10S21.523 6 16 6z" fill="none" stroke="#00e89d" stroke-width="1.5"/><circle cx="13" cy="15" r="1.2" fill="#00e89d"/><circle cx="19" cy="15" r="1.2" fill="#00e89d"/><path d="M13 19s1.5 1.5 3 1.5 3-1.5 3-1.5" stroke="#00e89d" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg>
+    Memtrix
+  </a>
+  <nav class="doc-header-nav">
+    <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
+    <a href="#" onclick="navigate('configuration');return false;">Configuration</a>
+    <a href="#" onclick="navigate('agents');return false;">Agents</a>
+    <a href="#" onclick="navigate('tools-ref');return false;">Tools</a>
+    <a href="#" onclick="navigate('memory');return false;">Memory</a>
+    <a href="#" onclick="navigate('security');return false;">Security</a>
+  </nav>
+  <div class="doc-header-right">
+    <div class="search-box" onclick="document.getElementById('searchInput').focus()">
+      <svg fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>
+      <span>Search...</span>
+      <kbd>⌘K</kbd>
+    </div>
+    <a href="https://github.com/nicokimmel/memtrix" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+      GitHub
+    </a>
+  </div>
+</header>
+
+<!-- ── Sidebar Overlay (mobile) ── -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<!-- ── Sidebar ── -->
+<aside class="doc-sidebar" id="sidebar">
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Overview</div>
+    <a class="sidebar-link" onclick="navigate('overview')">Memtrix</a>
+    <a class="sidebar-link" onclick="navigate('features')">Features</a>
+    <a class="sidebar-link" onclick="navigate('architecture')">Architecture</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">First Steps</div>
+    <a class="sidebar-link active" onclick="navigate('getting-started')">Getting Started</a>
+    <a class="sidebar-link" onclick="navigate('onboarding')">Onboarding</a>
+    <a class="sidebar-link" onclick="navigate('first-conversation')">First Conversation</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Guides</div>
+    <a class="sidebar-link" onclick="navigate('agents')">Sub-Agents</a>
+    <a class="sidebar-link" onclick="navigate('persona')">Persona System</a>
+    <a class="sidebar-link" onclick="navigate('memory')">Memory & RAG</a>
+    <a class="sidebar-link" onclick="navigate('custom-tools')">Custom Tools</a>
+    <a class="sidebar-link" onclick="navigate('custom-providers')">Custom Providers</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Reference</div>
+    <a class="sidebar-link" onclick="navigate('configuration')">Configuration</a>
+    <a class="sidebar-link" onclick="navigate('commands')">Commands</a>
+    <a class="sidebar-link" onclick="navigate('tools-ref')">Tools Reference</a>
+    <a class="sidebar-link" onclick="navigate('security')">Security</a>
+    <a class="sidebar-link" onclick="navigate('docker')">Docker & Services</a>
+    <a class="sidebar-link" onclick="navigate('troubleshooting')">Troubleshooting</a>
+  </div>
+</aside>
+
+<!-- ── Content Area ── -->
+<div class="doc-layout">
+  <div class="doc-main" id="docMain">
+
+    <!-- ═══════════════════════════════════════ OVERVIEW ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-overview">
+      <div class="doc-breadcrumb">Overview</div>
+      <h1>Memtrix</h1>
+      <p class="lead">A self-hosted, privacy-first personal AI agent with persistent memory and agentic tool use. Not a chatbot — an <strong>agent</strong>.</p>
+
+      <p>Memtrix runs entirely on your hardware. It communicates through the Matrix protocol, remembers every conversation through semantic search, executes tools autonomously, and evolves its personality based on your interactions.</p>
+
+      <h2 id="ov-what">What is Memtrix?</h2>
+      <p>Memtrix is a personal AI agent that lives in a Docker container on your machine. You chat with it through any Matrix client (Element, FluffyChat, etc.) and it can:</p>
+      <ul>
+        <li>Search the web and fetch URLs</li>
+        <li>Manage files, clone repos, download content</li>
+        <li>Remember everything through daily journals and semantic search</li>
+        <li>Create specialist sub-agents with their own identity and memory</li>
+        <li>Update its own personality and knowledge of you over time</li>
+      </ul>
+
+      <h2 id="ov-who">Who is it for?</h2>
+      <p>Developers and power users who want a personal AI assistant they control completely — no cloud dependency, no data leaving your machine, no subscriptions.</p>
+
+      <h2 id="ov-different">What makes it different?</h2>
+      <ul>
+        <li><strong>Self-hosted</strong> — LLM, homeserver, search engine, vector DB — everything on your hardware</li>
+        <li><strong>Multi-provider</strong> — local models via Ollama or 200+ cloud models via OpenRouter</li>
+        <li><strong>Persistent memory</strong> — two-tier memory with semantic search (RAG) powered by on-device embeddings</li>
+        <li><strong>Agentic</strong> — iterative reasoning loop with 22 auto-discovered tools</li>
+        <li><strong>Multi-agent</strong> — create specialist sub-agents that can consult each other</li>
+        <li><strong>Security hardened</strong> — non-root, read-only filesystem, all capabilities dropped</li>
+      </ul>
+
+      <h2 id="ov-need">What you need</h2>
+      <table>
+        <thead><tr><th>Requirement</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://docs.docker.com/get-docker/">Docker &amp; Docker Compose</a></td><td>Runs all services</td></tr>
+          <tr><td><a href="https://ollama.ai">Ollama</a> or an <a href="https://openrouter.ai">OpenRouter</a> API key</td><td>LLM inference</td></tr>
+          <tr><td><a href="https://element.io/download">Element Desktop</a> (or any Matrix client)</td><td>Chat interface</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">Memtrix downloads the embedding model (~100 MB) on first launch. Subsequent starts reuse the cached model in <code>data/models/</code>.</div>
+      </div>
+
+      <h2 id="ov-quick">Quick start</h2>
+      <pre><code><span style="color:var(--text-muted)"># Clone and enter the project</span>
+git clone https://github.com/nicokimmel/memtrix.git && cd memtrix
+
+<span style="color:var(--text-muted)"># Create directories, build image, start Conduit</span>
+./setup.sh
+
+<span style="color:var(--text-muted)"># Interactive wizard — configure LLM, model, channel</span>
+./onboard.sh
+
+<span style="color:var(--text-muted)"># Launch everything</span>
+docker compose up -d</code></pre>
+
+      <p>Then open Element → connect to <code>http://localhost:6167</code> → log in → invite <code>@memtrix:memtrix.local</code> to a room.</p>
+
+      <div class="nav-cards">
+        <a class="nav-card" onclick="navigate('getting-started')">
+          <div class="nav-card-label">Next</div>
+          <div class="nav-card-title">Getting Started →</div>
+          <div class="nav-card-desc">Step-by-step installation guide</div>
+        </a>
+        <a class="nav-card" onclick="navigate('features')">
+          <div class="nav-card-label">Overview</div>
+          <div class="nav-card-title">Features →</div>
+          <div class="nav-card-desc">Everything Memtrix can do</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ FEATURES ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-features">
+      <div class="doc-breadcrumb">Overview</div>
+      <h1>Features</h1>
+      <p class="lead">Everything Memtrix brings to the table — from persistent memory to multi-agent orchestration.</p>
+
+      <h2 id="ft-selfhosted">Fully Self-Hosted</h2>
+      <p>Every component runs on your hardware. The LLM (via Ollama or OpenRouter), the Matrix homeserver (Conduit), the search engine (SearXNG), the vector database (ChromaDB) — nothing phones home.</p>
+
+      <h2 id="ft-memory">Persistent Memory</h2>
+      <p>Memtrix has a two-tier memory system:</p>
+      <ul>
+        <li><strong>Core Memory</strong> (<code>MEMORY.md</code>) — curated long-term knowledge that Memtrix actively maintains</li>
+        <li><strong>Daily Journals</strong> (<code>memory/yyyy-mm-dd.md</code>) — chronological logs searchable via RAG embeddings</li>
+      </ul>
+      <p>Semantic search is powered by <code>nomic-embed-text-v1.5</code> running entirely on-device. No external API calls.</p>
+
+      <h2 id="ft-tools">Agentic Tool System</h2>
+      <p>22 built-in tools auto-discovered at startup. The orchestrator runs an iterative reasoning loop (up to 10 iterations) where the LLM can call tools, observe results, and continue reasoning. New tools are just Python files dropped into <code>src/tools/</code>.</p>
+
+      <h2 id="ft-providers">Multi-Provider LLMs</h2>
+      <p>Run local models via <strong>Ollama</strong> (Llama, Mistral, Gemma, etc.) or tap 200+ cloud models through <strong>OpenRouter</strong> (OpenAI, Anthropic, Google). Configure multiple providers and switch models per-agent.</p>
+
+      <h2 id="ft-persona">Evolving Persona</h2>
+      <p>Memtrix's identity is defined by markdown files (<code>SOUL.md</code>, <code>BEHAVIOR.md</code>, <code>USER.md</code>, <code>MEMORY.md</code>) that it reads, understands, and updates itself over time. Its personality actually grows with every conversation.</p>
+
+      <h2 id="ft-agents">Multi-Agent System</h2>
+      <p>Create specialist sub-agents with their own identity, memory, Matrix presence, and workspace. Agents communicate via <code>ask_agent</code> — the main agent can consult sub-agents, and sub-agents can consult each other or the main agent.</p>
+
+      <h2 id="ft-matrix">Matrix Chat Protocol</h2>
+      <p>Communicates through the Matrix protocol via a local Conduit homeserver. Use Element, FluffyChat, or any Matrix client. Each room maintains its own conversation session.</p>
+
+      <h2 id="ft-security">Security Hardened</h2>
+      <p>Defense-in-depth: non-root container, read-only filesystem, all capabilities dropped, no shell access for the LLM, SSRF protection, human-in-the-loop for destructive operations, path traversal prevention, and prompt injection mitigation.</p>
+
+      <h2 id="ft-search">Private Web Search</h2>
+      <p>Built-in SearXNG instance for privacy-respecting web searches. Fetch, read, and summarize any URL — all self-hosted, no tracking.</p>
+
+      <h2 id="ft-reactions">Message Reactions</h2>
+      <p>Memtrix can react to your messages with emoji in Matrix — just like a human would. The LLM decides when and what to react with naturally.</p>
+    </div>
+
+    <!-- ═══════════════════════════════════════ ARCHITECTURE ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-architecture">
+      <div class="doc-breadcrumb">Overview</div>
+      <h1>Architecture</h1>
+      <p class="lead">How the pieces fit together — every component runs locally in Docker.</p>
+
+      <div class="diagram"><pre><code>                          ┌──────────────────┐
+                          │  Element Desktop  │
+                          │  (Matrix Client)  │
+                          └────────┬─────────┘
+                                   │
+┌──────────────────────────────────┼──────────────────────┐
+│  Docker Compose                  │                      │
+│                                  │                      │
+│  ┌───────────┐    ┌──────────────┴──┐    ┌───────────┐  │
+│  │  Memtrix  │◄──►│    Conduit      │    │  SearXNG  │  │
+│  │  (Agent)  │    │ (Matrix Server) │    │ (Search)  │  │
+│  └─────┬─────┘    └─────────────────┘    └─────▲─────┘  │
+│        │                                       │        │
+│        ├───> Sub-Agents (background threads)   │        │
+│        │     Each with own Matrix user         │        │
+│        │                                       │        │
+│        ├───────────────────────────────────────┘        │
+│        │                                                │
+│        ├──► ChromaDB (vector memory, per-agent)         │
+│        │                                                │
+└────────┼────────────────────────────────────────────────┘
+         │
+         ▼
+    Ollama (LLM)  /  OpenRouter (cloud LLMs)</code></pre></div>
+
+      <h2 id="ar-components">Components</h2>
+      <table>
+        <thead><tr><th>Component</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Memtrix</strong></td><td>Python agent — orchestrates LLM calls, tool execution, memory, sessions, sub-agents</td></tr>
+          <tr><td><strong>Conduit</strong></td><td>Lightweight Matrix homeserver (local-only, no federation)</td></tr>
+          <tr><td><strong>SearXNG</strong></td><td>Privacy-respecting metasearch engine for web access</td></tr>
+          <tr><td><strong>ChromaDB</strong></td><td>Embedded vector database for semantic memory search</td></tr>
+          <tr><td><strong>Ollama</strong></td><td>Local LLM inference (runs separately on host)</td></tr>
+          <tr><td><strong>OpenRouter</strong></td><td>Cloud LLM gateway — OpenAI, Anthropic, Google, and more</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="ar-tech">Tech Stack</h2>
+      <table>
+        <thead><tr><th>Layer</th><th>Technology</th></tr></thead>
+        <tbody>
+          <tr><td>Language</td><td>Python 3.13</td></tr>
+          <tr><td>LLM Backend</td><td>Ollama, OpenRouter</td></tr>
+          <tr><td>Embeddings</td><td>nomic-embed-text-v1.5 (local, sentence-transformers)</td></tr>
+          <tr><td>Vector Store</td><td>ChromaDB (embedded, persistent)</td></tr>
+          <tr><td>Communication</td><td>Matrix protocol (matrix-nio)</td></tr>
+          <tr><td>Homeserver</td><td>Conduit</td></tr>
+          <tr><td>Web Search</td><td>SearXNG</td></tr>
+          <tr><td>Container</td><td>Docker (security-hardened)</td></tr>
+          <tr><td>TUI</td><td>Rich (onboarding wizard)</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="ar-flow">Message Flow</h2>
+      <ol>
+        <li>You send a message in Element (or any Matrix client)</li>
+        <li>Conduit receives it and delivers to Memtrix via matrix-nio</li>
+        <li>Memtrix's orchestrator builds the system prompt (injecting persona files)</li>
+        <li>The LLM is called with conversation history + tool schemas</li>
+        <li>If the LLM requests tools → tools execute → results returned → loop continues (up to 10 iterations)</li>
+        <li>Final response is sent back through Conduit to your Matrix client</li>
+      </ol>
+    </div>
+
+    <!-- ═══════════════════════════════════════ GETTING STARTED ═══════════════════════════════════════ -->
+    <div class="doc-page active" id="page-getting-started">
+      <div class="doc-breadcrumb">First steps</div>
+      <h1>Getting Started</h1>
+      <p class="lead">Install Memtrix, run onboarding, and chat with your AI agent — all in about 5 minutes. By the end you will have a running Matrix homeserver, configured LLM, and a working chat session.</p>
+
+      <h2 id="gs-need">What you need</h2>
+      <ul>
+        <li><strong>Docker &amp; Docker Compose</strong> — version 2.0+ recommended</li>
+        <li><strong>An LLM provider</strong> — either <a href="https://ollama.ai">Ollama</a> running locally, or an <a href="https://openrouter.ai">OpenRouter</a> API key</li>
+        <li><strong>A Matrix client</strong> — <a href="https://element.io/download">Element Desktop</a> is recommended</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">Check Docker is installed with <code>docker --version</code> and <code>docker compose version</code>. Linux users not in the <code>docker</code> group should prefix commands with <code>sudo</code>.</div>
+      </div>
+
+      <h2 id="gs-setup">Quick setup</h2>
+
+      <div class="steps">
+        <div class="step">
+          <div></div>
+          <div class="step-content">
+            <h4>Clone the repository</h4>
+            <pre><code>git clone https://github.com/nicokimmel/memtrix.git && cd memtrix</code></pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div></div>
+          <div class="step-content">
+            <h4>Run setup</h4>
+            <pre><code>./setup.sh</code></pre>
+            <p>This creates directories (<code>data/</code>, <code>workspace/</code>, <code>agents/</code>), copies default config and persona files, generates secrets for SearXNG and Conduit, builds the Docker image, and starts the Conduit homeserver.</p>
+            <div class="callout note">
+              <span class="callout-icon">📘</span>
+              <div class="callout-body">Setup waits up to 60 seconds for Conduit to be ready. You'll see a "Conduit is ready" message when it's done.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div></div>
+          <div class="step-content">
+            <h4>Run onboarding</h4>
+            <pre><code>./onboard.sh</code></pre>
+            <p>The interactive wizard walks you through:</p>
+            <ol>
+              <li><strong>Naming your agent</strong> — give it a custom name (default: "Memtrix")</li>
+              <li><strong>Configuring an LLM provider</strong> — choose Ollama or OpenRouter, enter connection details</li>
+              <li><strong>Setting up a model</strong> — pick which model to use (e.g. <code>llama3</code>, <code>claude-sonnet-4-20250514</code>)</li>
+              <li><strong>Configuring the channel</strong> — choose Matrix or CLI, register Matrix accounts</li>
+            </ol>
+            <div class="callout tip">
+              <span class="callout-icon">💡</span>
+              <div class="callout-body">The wizard auto-registers three Matrix accounts on Conduit: an admin, the bot, and your user account. It prints the credentials — save them.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div></div>
+          <div class="step-content">
+            <h4>Launch everything</h4>
+            <pre><code>docker compose up -d</code></pre>
+            <p>This starts Memtrix, Conduit, and SearXNG. Check logs with:</p>
+            <pre><code>docker compose logs -f memtrix</code></pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div></div>
+          <div class="step-content">
+            <h4>Connect and chat</h4>
+            <p>Open Element Desktop and:</p>
+            <ol>
+              <li>Add a new homeserver: <code>http://localhost:6167</code></li>
+              <li>Log in with the user credentials from onboarding</li>
+              <li>Create a new room</li>
+              <li>Invite <code>@memtrix:memtrix.local</code> (or your custom name)</li>
+              <li>Send a message!</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <span class="callout-icon">📘</span>
+        <div class="callout-body"><strong>First startup:</strong> Memtrix downloads the embedding model (~100 MB) on first launch. This can take a couple of minutes. Subsequent starts reuse <code>data/cache/</code>.</div>
+      </div>
+
+      <h2 id="gs-next">What to do next</h2>
+
+      <div class="nav-cards">
+        <a class="nav-card" onclick="navigate('onboarding')">
+          <div class="nav-card-label">First steps</div>
+          <div class="nav-card-title">Onboarding Details →</div>
+          <div class="nav-card-desc">Deep dive into the setup wizard</div>
+        </a>
+        <a class="nav-card" onclick="navigate('first-conversation')">
+          <div class="nav-card-label">First steps</div>
+          <div class="nav-card-title">First Conversation →</div>
+          <div class="nav-card-desc">What to expect when you start chatting</div>
+        </a>
+        <a class="nav-card" onclick="navigate('agents')">
+          <div class="nav-card-label">Guide</div>
+          <div class="nav-card-title">Sub-Agents →</div>
+          <div class="nav-card-desc">Create specialist agents</div>
+        </a>
+        <a class="nav-card" onclick="navigate('configuration')">
+          <div class="nav-card-label">Reference</div>
+          <div class="nav-card-title">Configuration →</div>
+          <div class="nav-card-desc">All config options explained</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ ONBOARDING ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-onboarding">
+      <div class="doc-breadcrumb">First steps</div>
+      <h1>Onboarding</h1>
+      <p class="lead">A detailed walkthrough of the interactive setup wizard that configures your Memtrix instance.</p>
+
+      <h2 id="ob-how">How it works</h2>
+      <p>The onboarding wizard (<code>./onboard.sh</code>) runs the Python onboarding module inside a Docker container connected to the Conduit network. It uses Rich for a polished terminal UI.</p>
+
+      <h2 id="ob-name">Step 1: Name your agent</h2>
+      <p>Choose a name for your main agent. This name is used for:</p>
+      <ul>
+        <li>Matrix bot username (e.g. <code>@memtrix:memtrix.local</code>)</li>
+        <li>Display name in Matrix rooms</li>
+        <li>System prompt identity</li>
+        <li>Sub-agent naming conventions</li>
+        <li>Persona file templates</li>
+      </ul>
+      <p>Default is "Memtrix" — but you can name it anything.</p>
+
+      <h2 id="ob-provider">Step 2: Configure a provider</h2>
+      <p>Providers are dynamically discovered from <code>src/providers/</code>. Built-in options:</p>
+
+      <h3>Ollama (local)</h3>
+      <p>For running models on your own hardware.</p>
+      <ul>
+        <li><strong>Required:</strong> <code>base_url</code> — URL of your Ollama instance (e.g. <code>http://host.docker.internal:11434</code>)</li>
+        <li>Make sure Ollama is running and has a model pulled (<code>ollama pull llama3</code>)</li>
+      </ul>
+
+      <h3>OpenRouter (cloud)</h3>
+      <p>For accessing 200+ cloud models.</p>
+      <ul>
+        <li><strong>Required:</strong> <code>api_key</code> — your OpenRouter API key</li>
+        <li>Get one at <a href="https://openrouter.ai/keys">openrouter.ai/keys</a></li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">Secret values (API keys, tokens) are stored as <code>$PLACEHOLDER</code> references in config and resolved from environment variables at runtime. They never appear in plain text in config files.</div>
+      </div>
+
+      <p>You can configure multiple providers — the wizard will ask if you want to add more.</p>
+
+      <h2 id="ob-model">Step 3: Set up a model</h2>
+      <p>Select a provider, enter the model name (e.g. <code>llama3</code>, <code>anthropic/claude-sonnet-4-20250514</code>), and give it an instance name for reference.</p>
+
+      <div class="callout tip">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">For best results, use a model that supports tool calling. Recommended: <code>llama3</code> (Ollama) or <code>anthropic/claude-sonnet-4-20250514</code> (OpenRouter).</div>
+      </div>
+
+      <h2 id="ob-channel">Step 4: Configure the channel</h2>
+      <p>Choose between <strong>Matrix</strong> (recommended) or <strong>CLI</strong>.</p>
+      <p>For Matrix, the wizard automatically:</p>
+      <ol>
+        <li>Registers an admin account on Conduit</li>
+        <li>Registers the bot account</li>
+        <li>Registers your user account</li>
+        <li>Sets display names</li>
+        <li>Collects the bot access token</li>
+      </ol>
+      <p>Passwords are generated with Python's <code>secrets</code> module (cryptographically secure, 24 characters).</p>
+
+      <h2 id="ob-output">What onboarding produces</h2>
+      <ul>
+        <li><code>data/config.json</code> — full configuration with all providers, models, channels</li>
+        <li><code>.env</code> — all secrets (API keys, access tokens, registration token)</li>
+        <li><code>workspace/AGENT.md</code> — system prompt updated with your agent's name</li>
+      </ul>
+    </div>
+
+    <!-- ═══════════════════════════════════════ FIRST CONVERSATION ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-first-conversation">
+      <div class="doc-breadcrumb">First steps</div>
+      <h1>First Conversation</h1>
+      <p class="lead">What to expect when you send your first message — and how Memtrix learns about you.</p>
+
+      <h2 id="fc-start">Starting a chat</h2>
+      <p>After setup, open Element and invite the bot to a room. Memtrix auto-joins room invites. Each room gets its own independent conversation session — multiple rooms mean multiple contexts.</p>
+
+      <h2 id="fc-happens">What happens behind the scenes</h2>
+      <p>When you send a message, Memtrix:</p>
+      <ol>
+        <li><strong>Builds the system prompt</strong> — injects <code>SOUL.md</code>, <code>BEHAVIOR.md</code>, <code>USER.md</code>, and <code>MEMORY.md</code> into the <code>AGENT.md</code> template</li>
+        <li><strong>Searches memory</strong> — silently checks daily journals for relevant context</li>
+        <li><strong>Calls the LLM</strong> with conversation history and all 22 tool schemas</li>
+        <li><strong>Executes tools</strong> if the LLM requests them (web search, memory lookup, etc.)</li>
+        <li><strong>Responds</strong> with the final answer</li>
+        <li><strong>Self-updates</strong> — silently updates <code>USER.md</code>, daily journal, and <code>MEMORY.md</code> with anything new it learned</li>
+      </ol>
+
+      <div class="callout note">
+        <span class="callout-icon">📘</span>
+        <div class="callout-body">The "silent" operations happen through the tool loop — Memtrix calls <code>search_memory</code>, <code>read_core_file</code>, and <code>write_memory_file</code> as part of its reasoning, without announcing it to you.</div>
+      </div>
+
+      <h2 id="fc-verbose">Verbose &amp; reasoning modes</h2>
+      <p>Want to see what's happening under the hood?</p>
+      <ul>
+        <li><code>/verbose on</code> — shows tool call notifications in real-time</li>
+        <li><code>/reasoning on</code> — shows the LLM's thinking process</li>
+      </ul>
+      <p>Both are off by default. Turn them on to watch Memtrix's thought process.</p>
+
+      <h2 id="fc-tips">First conversation tips</h2>
+      <ul>
+        <li>Introduce yourself — Memtrix will save your name and details to <code>USER.md</code></li>
+        <li>Tell it about your preferences — it updates <code>BEHAVIOR.md</code> if you correct its style</li>
+        <li>Ask it to search the web — confirms tools are working</li>
+        <li>Try <code>/help</code> to see available commands</li>
+        <li>The more you talk, the better it gets — memory and persona evolve continuously</li>
+      </ul>
+    </div>
+
+    <!-- ═══════════════════════════════════════ SUB-AGENTS ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-agents">
+      <div class="doc-breadcrumb">Guides</div>
+      <h1>Sub-Agents</h1>
+      <p class="lead">Create specialist agents with their own identity, memory, and Matrix presence. Agents can consult each other autonomously.</p>
+
+      <h2 id="ag-what">What sub-agents get</h2>
+      <table>
+        <thead><tr><th>Feature</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Matrix user</strong></td><td>A separate bot account (e.g. <code>@dennis:memtrix.local</code>)</td></tr>
+          <tr><td><strong>Isolated workspace</strong></td><td>Own directory under <code>agents/&lt;name&gt;/</code> with core files, memory, attachments</td></tr>
+          <tr><td><strong>Own memory</strong></td><td>Separate daily journals and ChromaDB vector index</td></tr>
+          <tr><td><strong>Inherited behavior</strong></td><td>Copies main agent's <code>BEHAVIOR.md</code>, symlinks <code>USER.md</code> (shared)</td></tr>
+          <tr><td><strong>Custom persona</strong></td><td><code>SOUL.md</code> and <code>AGENT.md</code> tailored to the agent's expertise</td></tr>
+          <tr><td><strong>Full tool access</strong></td><td>All tools except agent management (<code>create_agent</code>, <code>delete_agent</code>)</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="ag-create">Creating a sub-agent</h2>
+      <p>Ask Memtrix to create one. It needs a real human name:</p>
+
+      <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> Example conversation</div>
+      <pre><code><span style="color:var(--blue)">You:</span>    Create me a cooking expert. Call him Dennis.
+
+<span style="color:var(--accent)">Memtrix:</span> ⚠️ Create a new sub-agent?
+
+         Name: Dennis
+         Expertise: Cooking and recipe specialist
+
+         Allow? (yes/no)
+
+<span style="color:var(--blue)">You:</span>    yes
+
+<span style="color:var(--accent)">Memtrix:</span> Dennis is ready! His Matrix user is @dennis:memtrix.local.
+         Invite him to a room to start chatting.</code></pre>
+
+      <div class="callout note">
+        <span class="callout-icon">📘</span>
+        <div class="callout-body">Agent creation requires your confirmation (human-in-the-loop). The name must be a real human name (2–24 characters, letters/spaces/hyphens). A slug is derived internally for directories and config keys.</div>
+      </div>
+
+      <h2 id="ag-chat">Chatting with a sub-agent</h2>
+      <p>Invite the agent's Matrix user (e.g. <code>@dennis:memtrix.local</code>) to a room and chat like you would with Memtrix. Dennis has his own memory — he'll remember your conversations and preferences independently.</p>
+
+      <h2 id="ag-inter">Inter-agent communication</h2>
+      <p>Agents can consult each other using the <code>ask_agent</code> tool:</p>
+      <ul>
+        <li>Main agent → sub-agent</li>
+        <li>Sub-agent → main agent</li>
+        <li>Sub-agent → sub-agent</li>
+      </ul>
+
+      <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> Cross-agent query</div>
+      <pre><code><span style="color:var(--blue)">You:</span>    I'm planning a dinner party. Ask Dennis for a menu.
+
+<span style="color:var(--accent)">Memtrix:</span> <span style="color:var(--text-muted)">(internally uses ask_agent to consult Dennis)</span>
+
+         Dennis suggests a three-course menu: roasted tomato soup
+         to start, herb-crusted salmon as the main, and a lemon
+         tart for dessert.</code></pre>
+
+      <h3>Safety guards</h3>
+      <ul>
+        <li><strong>Depth limit:</strong> 2 hops maximum (prevents infinite recursion)</li>
+        <li><strong>Deadlock prevention:</strong> non-blocking 5-second lock timeout per agent</li>
+        <li><strong>Isolated sessions:</strong> inter-agent conversations use dedicated sessions, not user-facing history</li>
+        <li><strong>No human-in-the-loop:</strong> destructive operations are denied during inter-agent calls</li>
+        <li><strong>Context injection:</strong> the target agent sees recent user conversation for context (capped at 10 pairs / 4000 chars)</li>
+      </ul>
+
+      <h2 id="ag-manage">Managing sub-agents</h2>
+      <ul>
+        <li><code>list_agents</code> — see all registered sub-agents and their status</li>
+        <li><code>delete_agent</code> — permanently remove a sub-agent (workspace, memory, sessions all cleaned up)</li>
+        <li><code>ask_agent</code> — query another agent by name</li>
+      </ul>
+
+      <h2 id="ag-memory-exchange">Memory exchange</h2>
+      <p>As of v2.7, after an inter-agent call, a summary of the exchange is appended to the target agent's active user session. If Agent B asks Agent A something, A can later tell the user what B asked and what it answered.</p>
+    </div>
+
+    <!-- ═══════════════════════════════════════ PERSONA SYSTEM ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-persona">
+      <div class="doc-breadcrumb">Guides</div>
+      <h1>Persona System</h1>
+      <p class="lead">How Memtrix defines its identity — and how it evolves over time.</p>
+
+      <h2 id="ps-files">Persona files</h2>
+      <p>Memtrix's identity is defined by markdown files in <code>workspace/</code>:</p>
+      <table>
+        <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>AGENT.md</code></td><td>System prompt template — wires everything together via <code>{{PLACEHOLDER}}</code> markers</td></tr>
+          <tr><td><code>BEHAVIOR.md</code></td><td>Communication style, tone, and habits</td></tr>
+          <tr><td><code>SOUL.md</code></td><td>Core values and personality</td></tr>
+          <tr><td><code>USER.md</code></td><td>Everything Memtrix knows about you</td></tr>
+          <tr><td><code>MEMORY.md</code></td><td>Distilled long-term memory (the "brain")</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="ps-inject">How injection works</h2>
+      <p><code>AGENT.md</code> contains placeholders like <code>{{BEHAVIOR}}</code>, <code>{{SOUL}}</code>, <code>{{USER}}</code>, <code>{{MEMORY}}</code>. At system prompt construction time, the orchestrator reads each file and replaces the placeholder with its contents.</p>
+
+      <h2 id="ps-live">Live updates</h2>
+      <p>These files are <strong>live-editable by Memtrix itself</strong>. When you tell it to behave differently or share personal details, it updates the appropriate file using <code>write_core_file</code> — with the system prompt rebuilt immediately after.</p>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body"><strong>Read-before-write:</strong> Memtrix must read a core file before writing to it (enforced at code level, not just in the prompt). This prevents blind overwrites.</div>
+      </div>
+
+      <h2 id="ps-defaults">Default personality</h2>
+      <p>Out of the box, Memtrix's personality (from <code>SOUL.md</code>) is:</p>
+      <ul>
+        <li>A companion, not a product</li>
+        <li>Values privacy</li>
+        <li>Honest and direct</li>
+        <li>Curious, remembers things</li>
+        <li>Not trying to impress</li>
+        <li>Grows with the user</li>
+      </ul>
+      <p>Its behavior (from <code>BEHAVIOR.md</code>) is:</p>
+      <ul>
+        <li>Keep it short, casual — like texting a friend</li>
+        <li>No emojis, no "As an AI..." disclaimers</li>
+        <li>Have opinions, be measured</li>
+        <li>Ask questions only when necessary</li>
+      </ul>
+      <p>All of this evolves as you interact. You can also edit the files directly.</p>
+    </div>
+
+    <!-- ═══════════════════════════════════════ MEMORY & RAG ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-memory">
+      <div class="doc-breadcrumb">Guides</div>
+      <h1>Memory &amp; RAG</h1>
+      <p class="lead">Two-tier memory architecture — a curated brain plus searchable daily journals powered by on-device embeddings.</p>
+
+      <h2 id="mm-core">Core Memory</h2>
+      <p><code>MEMORY.md</code> is a curated, compact summary of the most important long-term knowledge. Key facts, recurring themes, lasting context. Memtrix actively maintains and prunes this file — think of it as the <strong>brain</strong>.</p>
+
+      <h2 id="mm-daily">Daily Journals</h2>
+      <p>Files in <code>memory/yyyy-mm-dd.md</code> are chronological, append-only logs of each day's conversations:</p>
+      <pre><code><span style="color:var(--accent)"># 2026-03-18</span>
+
+<span style="color:var(--blue)">## Conversations</span>
+- Brief summaries of what was discussed.
+
+<span style="color:var(--blue)">## Learned</span>
+- New facts about the user.
+
+<span style="color:var(--blue)">## Decisions</span>
+- Agreements or directions decided.
+
+<span style="color:var(--blue)">## Tasks</span>
+- Things requested, completed, or pending.
+
+<span style="color:var(--blue)">## Notes</span>
+- Anything else worth remembering.</code></pre>
+
+      <h2 id="mm-rag">Semantic Search (RAG)</h2>
+      <p>Daily journals are embedded using <a href="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5">nomic-embed-text-v1.5</a> via <code>sentence-transformers</code> and stored in ChromaDB. The model runs entirely on-device — no external API calls.</p>
+      <ul>
+        <li><strong>Embedding dimensions:</strong> 768→256 (Matryoshka truncation for efficiency)</li>
+        <li><strong>Sync interval:</strong> every 300 seconds</li>
+        <li><strong>Singleton model:</strong> loaded once, shared across all agents</li>
+        <li><strong>Local-only loading:</strong> if cached, skips all HuggingFace Hub network calls</li>
+      </ul>
+
+      <h3>How search works</h3>
+      <pre><code><span style="color:var(--blue)">User:</span>     "Remember that cake recipe I told you about?"
+  → <span style="color:var(--accent)">search_memory</span>("cake recipe")
+  → Finds 2026-03-12.md (distance: 0.23)
+  → <span style="color:var(--accent)">read_memory_file</span>()
+  → Returns full context from that day</code></pre>
+
+      <h2 id="mm-auto">Automatic memory management</h2>
+      <p>Memtrix's system prompt (<code>AGENT.md</code>) instructs it to silently manage memory after every response:</p>
+      <ul>
+        <li>Update <code>USER.md</code> with any new personal information</li>
+        <li>Append to today's daily journal</li>
+        <li>Update <code>MEMORY.md</code> with lasting facts</li>
+        <li>Update <code>BEHAVIOR.md</code> if the user corrects its communication style</li>
+      </ul>
+      <p>This all happens in the tool loop — the user never sees these operations unless <code>/verbose</code> is enabled.</p>
+    </div>
+
+    <!-- ═══════════════════════════════════════ CUSTOM TOOLS ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-custom-tools">
+      <div class="doc-breadcrumb">Guides</div>
+      <h1>Custom Tools</h1>
+      <p class="lead">Extend Memtrix by dropping Python files into <code>src/tools/</code>.</p>
+
+      <h2 id="ct-add">Adding a tool</h2>
+      <p>Create a new <code>.py</code> file in <code>src/tools/</code> that subclasses <code>BaseTool</code>:</p>
+
+      <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg> src/tools/my_tool.py</div>
+      <pre><code><span style="color:var(--purple)">from</span> src.tools.base <span style="color:var(--purple)">import</span> BaseTool
+
+<span style="color:var(--purple)">class</span> <span style="color:var(--accent)">MyTool</span>(BaseTool):
+
+    <span style="color:var(--purple)">def</span> <span style="color:var(--blue)">__init__</span>(self, workspace_dir: str) -> None:
+        super().__init__(
+            name=<span style="color:var(--orange)">"my_tool"</span>,
+            description=<span style="color:var(--orange)">"Does something useful."</span>,
+            parameters={
+                <span style="color:var(--orange)">"type"</span>: <span style="color:var(--orange)">"object"</span>,
+                <span style="color:var(--orange)">"properties"</span>: {
+                    <span style="color:var(--orange)">"input"</span>: {
+                        <span style="color:var(--orange)">"type"</span>: <span style="color:var(--orange)">"string"</span>,
+                        <span style="color:var(--orange)">"description"</span>: <span style="color:var(--orange)">"The input."</span>
+                    }
+                },
+                <span style="color:var(--orange)">"required"</span>: [<span style="color:var(--orange)">"input"</span>]
+            }
+        )
+
+    <span style="color:var(--purple)">def</span> <span style="color:var(--blue)">execute</span>(self, **kwargs) -> str:
+        <span style="color:var(--purple)">return</span> <span style="color:var(--orange)">"result"</span></code></pre>
+
+      <p>Restart Memtrix and the tool is automatically discovered and available to the LLM.</p>
+
+      <h2 id="ct-interface">BaseTool interface</h2>
+      <ul>
+        <li><code>name</code> — unique tool name (used by the LLM to call it)</li>
+        <li><code>description</code> — explains what the tool does (guides the LLM)</li>
+        <li><code>parameters</code> — JSON Schema defining the tool's input</li>
+        <li><code>execute(**kwargs)</code> — called when the LLM invokes the tool, returns a string result</li>
+      </ul>
+
+      <h2 id="ct-injected">Injected parameters</h2>
+      <p>The orchestrator injects these kwargs automatically:</p>
+      <table>
+        <thead><tr><th>Kwarg</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>_room_id</code></td><td>Current room/session ID</td></tr>
+          <tr><td><code>_ask</code></td><td>Human-in-the-loop confirmation callback</td></tr>
+          <tr><td><code>_react</code></td><td>Emoji reaction callback</td></tr>
+          <tr><td><code>_agent_depth</code></td><td>Current inter-agent depth (0 = direct user call)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ═══════════════════════════════════════ CUSTOM PROVIDERS ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-custom-providers">
+      <div class="doc-breadcrumb">Guides</div>
+      <h1>Custom Providers</h1>
+      <p class="lead">Add support for any LLM API by dropping a provider file into <code>src/providers/</code>.</p>
+
+      <h2 id="cp-add">Adding a provider</h2>
+      <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg> src/providers/my_provider.py</div>
+      <pre><code><span style="color:var(--purple)">from</span> src.providers.base <span style="color:var(--purple)">import</span> BaseProvider
+
+<span style="color:var(--purple)">class</span> <span style="color:var(--accent)">MyProvider</span>(BaseProvider):
+
+    <span style="color:var(--purple)">def</span> <span style="color:var(--blue)">__init__</span>(self, api_key: str) -> None:
+        super().__init__(name=<span style="color:var(--orange)">"myprovider"</span>)
+        self._api_key = api_key
+
+    <span style="color:var(--purple)">def</span> <span style="color:var(--blue)">completions</span>(self, model, history, tools=None):
+        <span style="color:var(--text-muted)"># Call your LLM API and return a message object</span>
+        ...</code></pre>
+
+      <p>The onboarding wizard automatically discovers new providers and prompts for their constructor parameters. Secret fields (containing "key", "token", "secret" in the parameter name) are handled automatically.</p>
+    </div>
+
+    <!-- ═══════════════════════════════════════ CONFIGURATION ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-configuration">
+      <div class="doc-breadcrumb">Reference</div>
+      <h1>Configuration</h1>
+      <p class="lead">All configuration lives in <code>data/config.json</code>. Secrets are stored in <code>.env</code> and injected as environment variables.</p>
+
+      <h2 id="cf-structure">Config structure</h2>
+      <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg> data/config.json</div>
+      <pre><code>{
+    <span style="color:var(--accent)">"main-agent"</span>: {
+        <span style="color:var(--accent)">"name"</span>: <span style="color:var(--orange)">"Memtrix"</span>,
+        <span style="color:var(--accent)">"provider"</span>: <span style="color:var(--orange)">"my-ollama"</span>,
+        <span style="color:var(--accent)">"model"</span>: <span style="color:var(--orange)">"my-model"</span>,
+        <span style="color:var(--accent)">"channel"</span>: <span style="color:var(--orange)">"matrix"</span>,
+        <span style="color:var(--accent)">"sessions"</span>: {},
+        <span style="color:var(--accent)">"verbose"</span>: <span style="color:var(--purple)">false</span>,
+        <span style="color:var(--accent)">"reasoning"</span>: <span style="color:var(--purple)">false</span>
+    },
+    <span style="color:var(--accent)">"agents"</span>: {},
+    <span style="color:var(--accent)">"workspace-directory"</span>: <span style="color:var(--orange)">"/home/memtrix/workspace"</span>,
+    <span style="color:var(--accent)">"providers"</span>: {
+        <span style="color:var(--accent)">"my-ollama"</span>: {
+            <span style="color:var(--accent)">"type"</span>: <span style="color:var(--orange)">"ollama"</span>,
+            <span style="color:var(--accent)">"base_url"</span>: <span style="color:var(--orange)">"http://host.docker.internal:11434"</span>
+        },
+        <span style="color:var(--accent)">"my-openrouter"</span>: {
+            <span style="color:var(--accent)">"type"</span>: <span style="color:var(--orange)">"openrouter"</span>,
+            <span style="color:var(--accent)">"api_key"</span>: <span style="color:var(--orange)">"$OPENROUTER_API_KEY"</span>
+        }
+    },
+    <span style="color:var(--accent)">"models"</span>: {
+        <span style="color:var(--accent)">"my-model"</span>: {
+            <span style="color:var(--accent)">"provider"</span>: <span style="color:var(--orange)">"my-ollama"</span>,
+            <span style="color:var(--accent)">"model"</span>: <span style="color:var(--orange)">"llama3"</span>,
+            <span style="color:var(--accent)">"think"</span>: <span style="color:var(--purple)">true</span>
+        }
+    },
+    <span style="color:var(--accent)">"channels"</span>: {
+        <span style="color:var(--accent)">"matrix"</span>: {
+            <span style="color:var(--accent)">"type"</span>: <span style="color:var(--orange)">"matrix"</span>,
+            <span style="color:var(--accent)">"homeserver"</span>: <span style="color:var(--orange)">"http://conduit:6167"</span>,
+            <span style="color:var(--accent)">"user_id"</span>: <span style="color:var(--orange)">"@memtrix:memtrix.local"</span>,
+            <span style="color:var(--accent)">"access_token"</span>: <span style="color:var(--orange)">"$MATRIX_ACCESS_TOKEN"</span>
+        }
+    }
+}</code></pre>
+
+      <h2 id="cf-secrets">Secret management</h2>
+      <p>Values starting with <code>$</code> are <strong>resolved from environment variables</strong> at startup. The env var name is <code>MEMTRIX_SECRET_</code> + the placeholder name.</p>
+      <table>
+        <thead><tr><th>Config value</th><th>Environment variable</th></tr></thead>
+        <tbody>
+          <tr><td><code>$MATRIX_ACCESS_TOKEN</code></td><td><code>MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN</code></td></tr>
+          <tr><td><code>$OPENROUTER_API_KEY</code></td><td><code>MEMTRIX_SECRET_OPENROUTER_API_KEY</code></td></tr>
+          <tr><td><code>$REGISTRATION_TOKEN</code></td><td><code>MEMTRIX_SECRET_REGISTRATION_TOKEN</code></td></tr>
+        </tbody>
+      </table>
+      <p>Secrets are resolved once at boot and then <strong>cleared from the process environment</strong> — they can't leak via <code>/proc</code> or subprocess inspection.</p>
+
+      <h2 id="cf-main">Main agent config</h2>
+      <table>
+        <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>name</code></td><td>string</td><td>Agent's display name</td></tr>
+          <tr><td><code>provider</code></td><td>string</td><td>Reference to a provider in <code>providers</code></td></tr>
+          <tr><td><code>model</code></td><td>string</td><td>Reference to a model in <code>models</code></td></tr>
+          <tr><td><code>channel</code></td><td>string</td><td>Reference to a channel in <code>channels</code></td></tr>
+          <tr><td><code>verbose</code></td><td>boolean</td><td>Show tool call notifications</td></tr>
+          <tr><td><code>reasoning</code></td><td>boolean</td><td>Show LLM thinking process</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="cf-model">Model config</h2>
+      <table>
+        <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>provider</code></td><td>string</td><td>Which provider runs this model</td></tr>
+          <tr><td><code>model</code></td><td>string</td><td>Model identifier (e.g. <code>llama3</code>, <code>anthropic/claude-sonnet-4-20250514</code>)</td></tr>
+          <tr><td><code>think</code></td><td>boolean</td><td>Enable extended thinking / reasoning mode</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ═══════════════════════════════════════ COMMANDS ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-commands">
+      <div class="doc-breadcrumb">Reference</div>
+      <h1>Commands</h1>
+      <p class="lead">Slash commands available in any chat room. Prefix with <code>/</code>.</p>
+
+      <table>
+        <thead><tr><th>Command</th><th>Arguments</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/clear</code></td><td>—</td><td>Start a fresh session in the current room. Also clears inter-agent sessions.</td></tr>
+          <tr><td><code>/verbose</code></td><td><code>on</code> | <code>off</code></td><td>Toggle real-time tool execution notifications. Persists to config.</td></tr>
+          <tr><td><code>/reasoning</code></td><td><code>on</code> | <code>off</code></td><td>Toggle display of model reasoning/thinking. Persists to config.</td></tr>
+          <tr><td><code>/help</code></td><td>—</td><td>List all available commands.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout note">
+        <span class="callout-icon">📘</span>
+        <div class="callout-body"><code>/verbose</code> and <code>/reasoning</code> are per-agent — using them in a sub-agent's room only affects that agent.</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ TOOLS REFERENCE ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-tools-ref">
+      <div class="doc-breadcrumb">Reference</div>
+      <h1>Tools Reference</h1>
+      <p class="lead">All 22 built-in tools, auto-discovered at startup.</p>
+
+      <h2 id="tr-time">Time</h2>
+      <table>
+        <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>get_current_time</code></td><td>Returns the current date and time</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="tr-persona">Persona Files</h2>
+      <table>
+        <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>read_core_file</code></td><td>Reads a core persona file (BEHAVIOR, SOUL, USER, MEMORY)</td></tr>
+          <tr><td><code>write_core_file</code></td><td>Updates a core persona file (enforces read-before-write)</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="tr-memory">Memory</h2>
+      <table>
+        <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>read_memory_file</code></td><td>Reads today's daily memory journal (date derived automatically)</td></tr>
+          <tr><td><code>write_memory_file</code></td><td>Updates today's daily memory journal</td></tr>
+          <tr><td><code>search_memory</code></td><td>Semantic search across all daily memories via embeddings</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="tr-web">Web</h2>
+      <table>
+        <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>web_search</code></td><td>Searches the web via local SearXNG instance</td></tr>
+          <tr><td><code>fetch_url</code></td><td>Fetches and extracts readable text from a URL</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="tr-files">File Management</h2>
+      <table>
+        <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>read_file</code></td><td>Reads a file from the workspace (text and PDF supported)</td></tr>
+          <tr><td><code>create_file</code></td><td>Creates or overwrites a text file (overwrite requires confirmation)</td></tr>
+          <tr><td><code>delete_file</code></td><td>Permanently deletes a file from the workspace</td></tr>
+          <tr><td><code>create_directory</code></td><td>Creates a directory in the workspace</td></tr>
+          <tr><td><code>list_directory</code></td><td>Lists contents of a directory</td></tr>
+          <tr><td><code>delete_directory</code></td><td>Permanently deletes a directory and its contents</td></tr>
+          <tr><td><code>git_clone</code></td><td>Clones a public git repository into the workspace</td></tr>
+          <tr><td><code>download_file</code></td><td>Downloads a file from a URL (requires confirmation)</td></tr>
+          <tr><td><code>send_file</code></td><td>Sends a file to the user via Matrix</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="tr-reactions">Reactions</h2>
+      <table>
+        <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>react_to_message</code></td><td>React to the user's message with an emoji in Matrix</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="tr-agents">Agent Management</h2>
+      <table>
+        <thead><tr><th>Tool</th><th>Description</th><th>Access</th></tr></thead>
+        <tbody>
+          <tr><td><code>create_agent</code></td><td>Create a new specialist sub-agent</td><td>Main agent only</td></tr>
+          <tr><td><code>list_agents</code></td><td>List all registered sub-agents</td><td>Main agent only</td></tr>
+          <tr><td><code>delete_agent</code></td><td>Permanently delete a sub-agent</td><td>Main agent only</td></tr>
+          <tr><td><code>ask_agent</code></td><td>Ask another agent a question</td><td>All agents</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body"><strong>Read-before-write:</strong> Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level.</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ SECURITY ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-security">
+      <div class="doc-breadcrumb">Reference</div>
+      <h1>Security</h1>
+      <p class="lead">Defense-in-depth — multiple independent layers that each limit what the system and the LLM can do.</p>
+
+      <h2 id="sc-container">Container Isolation</h2>
+      <ul>
+        <li><strong>Non-root user</strong> — runs as <code>memtrix</code> (UID 1000), never root</li>
+        <li><strong>Read-only filesystem</strong> — immutable root via <code>read_only: true</code>; only <code>workspace/</code>, <code>data/</code>, and <code>/tmp</code> are writable</li>
+        <li><strong>All capabilities dropped</strong> — <code>cap_drop: ALL</code> with <code>no-new-privileges: true</code></li>
+        <li><strong>No shell tools</strong> — <code>curl</code>, <code>wget</code>, and other network utilities are not installed in the image</li>
+        <li><strong>Internal-only networking</strong> — Memtrix, Conduit, and SearXNG on a private Docker network with no published ports for the bot</li>
+      </ul>
+
+      <h2 id="sc-noexec">No Arbitrary Code Execution</h2>
+      <p>The LLM has <strong>no shell access</strong>. There is no <code>run_command</code> tool — every action goes through a purpose-built tool with its own validation.</p>
+
+      <h2 id="sc-ssrf">SSRF Protection</h2>
+      <p>All outbound tools (<code>fetch_url</code>, <code>download_file</code>, <code>git_clone</code>) validate URLs against:</p>
+      <ul>
+        <li>A hostname blocklist of internal Docker service names (<code>conduit</code>, <code>searxng</code>, <code>localhost</code>, etc.)</li>
+        <li>DNS resolution — hostnames are resolved and IPs checked against private, loopback, link-local, and reserved ranges</li>
+      </ul>
+
+      <h2 id="sc-hitl">Human-in-the-Loop</h2>
+      <p>Sensitive operations require explicit approval:</p>
+      <ul>
+        <li><strong>File downloads</strong> — user sees URL and destination, must confirm</li>
+        <li><strong>File overwrites</strong> — overwriting existing files requires approval</li>
+        <li><strong>Agent creation</strong> — user must confirm name and expertise</li>
+      </ul>
+      <p>During inter-agent calls, <code>confirm_with_user()</code> returns <code>false</code> (deny) when no human callback is available — no auto-approval of destructive operations.</p>
+
+      <h2 id="sc-fs">File System Protection</h2>
+      <ul>
+        <li><strong>Path traversal prevention</strong> — every path validated with <code>os.path.realpath()</code></li>
+        <li><strong>Core file protection</strong> — system files only accessible through dedicated tools with strict allowlist</li>
+        <li><strong>Memory protection</strong> — <code>memory/</code> directory off-limits to general file tools</li>
+        <li><strong>Read-before-write</strong> — per-room tracking ensures reading before modifying</li>
+      </ul>
+
+      <h2 id="sc-injection">Prompt Injection Mitigation</h2>
+      <ul>
+        <li><strong>Untrusted content tagged</strong> — web search results, fetched URLs, downloads, and attachments are prefixed with disclaimers</li>
+        <li><strong>Filename sanitization</strong> — <code>os.path.basename()</code> with auto-increment on collision</li>
+        <li><strong>Sender name sanitization</strong> — brackets stripped, 50-char limit to prevent prompt injection via Matrix profile names</li>
+      </ul>
+
+      <h2 id="sc-secrets">Secret Management</h2>
+      <ul>
+        <li>Secrets live in <code>.env</code> (chmod 600) and are injected at container startup</li>
+        <li>Resolved once at boot, then cleared from process environment</li>
+        <li>SearXNG gets a randomly generated secret key during setup</li>
+        <li>Conduit registration token is randomly generated — no hardcoded defaults</li>
+      </ul>
+    </div>
+
+    <!-- ═══════════════════════════════════════ DOCKER & SERVICES ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-docker">
+      <div class="doc-breadcrumb">Reference</div>
+      <h1>Docker &amp; Services</h1>
+      <p class="lead">Three services in Docker Compose — all on a private internal network.</p>
+
+      <h2 id="dk-services">Services</h2>
+      <table>
+        <thead><tr><th>Service</th><th>Image</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>memtrix</code></td><td>Built from <code>Dockerfile</code></td><td>The agent. Non-root, read-only root, all caps dropped.</td></tr>
+          <tr><td><code>conduit</code></td><td><code>matrixconduit/matrix-conduit:latest</code></td><td>Matrix homeserver. Port 6167 exposed.</td></tr>
+          <tr><td><code>searxng</code></td><td><code>searxng/searxng:latest</code></td><td>Web search engine. Internal only.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="dk-volumes">Volumes</h2>
+      <table>
+        <thead><tr><th>Mount</th><th>Container path</th><th>Content</th></tr></thead>
+        <tbody>
+          <tr><td><code>./workspace</code></td><td><code>/home/memtrix/workspace</code></td><td>Core files, memory, attachments</td></tr>
+          <tr><td><code>./agents</code></td><td><code>/home/memtrix/agents</code></td><td>Sub-agent workspaces</td></tr>
+          <tr><td><code>./data</code></td><td><code>/home/memtrix/data</code></td><td>Config, sessions, vector index</td></tr>
+          <tr><td><code>./data/cache</code></td><td><code>/home/memtrix/.cache</code></td><td>ChromaDB, HuggingFace models</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="dk-dockerfile">Dockerfile</h2>
+      <ul>
+        <li><strong>Base:</strong> <code>python:3.13-slim</code></li>
+        <li><strong>System deps:</strong> <code>git</code> only (minimal attack surface)</li>
+        <li><strong>User:</strong> <code>memtrix</code> (uid/gid 1000)</li>
+        <li><strong>Runtime:</strong> <code>python -m src.main</code></li>
+        <li><code>PYTHONUNBUFFERED=1</code> for real-time log output</li>
+      </ul>
+
+      <h2 id="dk-useful">Useful commands</h2>
+      <pre><code><span style="color:var(--text-muted)"># Start all services</span>
+docker compose up -d
+
+<span style="color:var(--text-muted)"># View logs</span>
+docker compose logs -f memtrix
+
+<span style="color:var(--text-muted)"># Restart Memtrix only</span>
+docker compose restart memtrix
+
+<span style="color:var(--text-muted)"># Stop everything</span>
+docker compose down
+
+<span style="color:var(--text-muted)"># Rebuild after code changes</span>
+docker compose build && docker compose up -d</code></pre>
+    </div>
+
+    <!-- ═══════════════════════════════════════ TROUBLESHOOTING ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-troubleshooting">
+      <div class="doc-breadcrumb">Reference</div>
+      <h1>Troubleshooting</h1>
+      <p class="lead">Common issues and how to fix them.</p>
+
+      <h2 id="ts-conduit">Conduit won't start</h2>
+      <p>Check if port 6167 is already in use:</p>
+      <pre><code>lsof -i :6167</code></pre>
+      <p>Verify the Conduit container is running:</p>
+      <pre><code>docker compose ps conduit</code></pre>
+
+      <h2 id="ts-bot">Bot doesn't respond</h2>
+      <ul>
+        <li>Check logs: <code>docker compose logs -f memtrix</code></li>
+        <li>Verify onboarding completed: the log should show "Starting Memtrix..." at boot</li>
+        <li>Make sure you invited the bot to the room (check the exact username from onboarding)</li>
+        <li>Check that the LLM provider is reachable (Ollama running? OpenRouter key valid?)</li>
+      </ul>
+
+      <h2 id="ts-ollama">Can't connect to Ollama</h2>
+      <p>If Ollama runs on your host machine, the container needs to reach it. Use:</p>
+      <pre><code>http://host.docker.internal:11434</code></pre>
+      <p>On Linux, you may need to add <code>--add-host=host.docker.internal:host-gateway</code> to the container or use your machine's LAN IP.</p>
+
+      <h2 id="ts-embedding">Embedding model download fails</h2>
+      <p>Memtrix downloads <code>nomic-embed-text-v1.5</code> on first launch. If it fails:</p>
+      <ul>
+        <li>Check internet connectivity from the container</li>
+        <li>Ensure <code>data/cache/</code> is writable (should be owned by uid 1000)</li>
+        <li>Try restarting: <code>docker compose restart memtrix</code></li>
+      </ul>
+
+      <h2 id="ts-permissions">Permission errors</h2>
+      <p>All mounted directories should be owned by uid 1000:</p>
+      <pre><code>sudo chown -R 1000:1000 workspace/ agents/ data/</code></pre>
+
+      <h2 id="ts-memory">Session or memory issues</h2>
+      <ul>
+        <li><code>/clear</code> — resets the current session</li>
+        <li>Sessions are stored in <code>data/</code> as JSON files organized by date</li>
+        <li>Memory files are in <code>workspace/memory/</code></li>
+        <li>Vector index is in <code>data/cache/</code> — deleting it triggers a full re-index on next sync</li>
+      </ul>
+
+      <h2 id="ts-reset">Full reset</h2>
+
+      <div class="callout warn">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body"><strong>This deletes all data</strong> — config, sessions, memory, persona files, sub-agents. Only do this if you want a fresh start.</div>
+      </div>
+
+      <pre><code>docker compose down
+rm -rf data/ workspace/ agents/ .env
+./setup.sh
+./onboard.sh
+docker compose up -d</code></pre>
+    </div>
+
+  </div><!-- /doc-main -->
+</div><!-- /doc-layout -->
+
+<!-- ── "On this page" TOC ── -->
+<aside class="doc-toc" id="docToc">
+  <div class="toc-title">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 4h10M3 8h6M3 12h8"/></svg>
+    On this page
+  </div>
+  <div id="tocLinks"></div>
+</aside>
+
+<script>
+  // ── Navigation ──
+  // Map each page to its header nav tab
+  const headerNavMap = {
+    'overview': 'getting-started', 'features': 'getting-started', 'architecture': 'getting-started',
+    'getting-started': 'getting-started', 'onboarding': 'getting-started', 'first-conversation': 'getting-started',
+    'configuration': 'configuration',
+    'agents': 'agents',
+    'tools-ref': 'tools-ref', 'custom-tools': 'tools-ref',
+    'memory': 'memory',
+    'security': 'security',
+    'persona': 'getting-started', 'custom-providers': 'getting-started',
+    'commands': 'getting-started', 'docker': 'getting-started', 'troubleshooting': 'getting-started'
+  };
+
+  function navigate(pageId) {
+    // Hide all pages
+    document.querySelectorAll('.doc-page').forEach(p => p.classList.remove('active'));
+    // Show target
+    const page = document.getElementById('page-' + pageId);
+    if (page) page.classList.add('active');
+    // Update sidebar
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    document.querySelectorAll('.sidebar-link').forEach(l => {
+      if (l.getAttribute('onclick')?.includes("'" + pageId + "'")) l.classList.add('active');
+    });
+    // Update header nav
+    const navTarget = headerNavMap[pageId] || pageId;
+    document.querySelectorAll('.doc-header-nav a').forEach(a => {
+      a.classList.remove('active');
+      if (a.getAttribute('onclick')?.includes("'" + navTarget + "'")) a.classList.add('active');
+    });
+    // Update TOC
+    buildToc();
+    // Scroll to top
+    window.scrollTo(0, 0);
+    // Close mobile sidebar
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
+    // Update URL hash
+    history.replaceState(null, '', '#' + pageId);
+  }
+
+  // ── Build TOC from h2/h3 in active page ──
+  function buildToc() {
+    const tocLinks = document.getElementById('tocLinks');
+    tocLinks.innerHTML = '';
+    const activePage = document.querySelector('.doc-page.active');
+    if (!activePage) return;
+    const headings = activePage.querySelectorAll('h2[id], h3[id]');
+    headings.forEach(h => {
+      const a = document.createElement('a');
+      a.className = 'toc-link' + (h.tagName === 'H3' ? ' sub' : '');
+      a.href = '#' + h.id;
+      a.textContent = h.textContent;
+      a.onclick = (e) => { e.preventDefault(); h.scrollIntoView({behavior:'smooth'}); };
+      tocLinks.appendChild(a);
+    });
+  }
+
+  // ── TOC scroll spy ──
+  function updateTocActive() {
+    const activePage = document.querySelector('.doc-page.active');
+    if (!activePage) return;
+    const headings = activePage.querySelectorAll('h2[id], h3[id]');
+    const tocLinks = document.querySelectorAll('.toc-link');
+    let current = '';
+    headings.forEach(h => {
+      if (h.getBoundingClientRect().top <= 100) current = h.id;
+    });
+    tocLinks.forEach(l => {
+      l.classList.toggle('active', l.getAttribute('href') === '#' + current);
+    });
+  }
+  window.addEventListener('scroll', updateTocActive);
+
+  // ── Mobile sidebar toggle ──
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('open');
+  }
+
+  // ── Init ──
+  const hash = location.hash.slice(1);
+  if (hash) navigate(hash);
+  buildToc();
+</script>
+
+</body>
+</html>
