@@ -12,6 +12,8 @@
 [![Version](https://img.shields.io/badge/version-2.7.0-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
+[Website](https://memtrix.me) · [Documentation](https://memtrix.me/docs.html) · [GitHub](https://github.com/nnxmms/Memtrix)
+
 <br>
 
 *Not a chatbot. An **agent** — it searches the web, executes commands, manages its own memory,<br>and evolves its personality over time based on your interactions.*
