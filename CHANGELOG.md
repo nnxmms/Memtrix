@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.13.0
+
+- Memtrix can now research its own documentation. Two new always-on tools let the agent (and every sub-agent) answer "how does Memtrix work?" questions from the bundled docs: `search_docs` returns ranked documentation sections with citations and makes no LLM call, while `ask_docs` retrieves the most relevant sections and synthesizes a direct, grounded answer with sources. Both draw from the same documentation that powers the website.
+- The documentation site (`website/docs.html`) is parsed into searchable sections and embedded into a shared ChromaDB `documentation` collection at startup, reusing the local embedding model and the shared `chroma` service. The index is content-hashed so it only rebuilds when the docs actually change, and a background sync keeps it current. The docs file is baked into the agent image at build time so it is available at runtime without mounting the website.
+
 ## 2.12.1
 
 - Fix the background deriver crashing with `AttributeError: 'list' object has no attribute 'tolist'` when storing reasoning conclusions against the shared ChromaDB service. The local embedding function returned plain Python lists, but ChromaDB's `HttpClient` query path serializes embeddings via `convert_np_embeddings_to_list()`, which calls `.tolist()` on each embedding and expects NumPy arrays. The embedding function now returns NumPy row vectors, so both the `HttpClient` (shared `chroma` service) and `PersistentClient` (local) code paths work. Reasoning-memory de-duplication and recall no longer error out.

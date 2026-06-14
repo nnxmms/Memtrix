@@ -17,6 +17,7 @@ import requests
 
 from src.channels.matrix import MatrixChannel
 from src.config import CONFIG_PATH, CONFIG_LOCK
+from src.docs_index import DocsIndex
 from src.memory_index import MemoryIndex
 from src.orchestrator import Orchestrator
 
@@ -716,6 +717,10 @@ class AgentManager:
             }
         )
 
+        # Documentation index so sub-agents can research the Memtrix docs too
+        docs_index: DocsIndex = DocsIndex.get_instance()
+        docs_index.start_periodic_sync()
+
         # Wire ask_agent tool with agent manager and caller identity
         display_name: str = agent_config.get("display_name", name)
         for tool in tools:
@@ -723,6 +728,10 @@ class AgentManager:
                 tool.set_agent_manager(manager=self)
             if hasattr(tool, "set_caller_name"):
                 tool.set_caller_name(name=display_name)
+            if hasattr(tool, "set_docs_index"):
+                tool.set_docs_index(index=docs_index)
+            if hasattr(tool, "set_dialectic"):
+                tool.set_dialectic(provider=provider, model=model_name)
 
         # Initialize memory index for this agent (registers in the instances cache)
         index: MemoryIndex = MemoryIndex.get_instance(workspace_dir=workspace_dir, collection_name=f"agent_{name}")

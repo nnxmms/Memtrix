@@ -38,6 +38,11 @@ COPY --chown=memtrix:memtrix src/ src/
 COPY --chown=memtrix:memtrix docker/ docker/
 RUN chmod +x docker/agent-entrypoint.sh
 
+# Bundle the documentation site so the agent can research its own docs at runtime.
+# website/ is not mounted into the container, so the file must be baked into the
+# image. website/docs.html remains the single source of truth.
+COPY --chown=memtrix:memtrix website/docs.html src/static/docs.html
+
 # Copy the built SPA into the location the web backend serves from
 COPY --from=frontend --chown=memtrix:memtrix /build/dist/ src/web/static/
 

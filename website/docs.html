@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.12.1</span>
+    memtrix<span class="ver">v2.13.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -787,7 +787,7 @@
         <li><strong>Self-hosted</strong> - LLM, homeserver, search engine, vector DB - everything on your hardware</li>
         <li><strong>Multi-provider</strong> - local models via Ollama or 200+ cloud models via OpenRouter</li>
         <li><strong>Persistent memory</strong> - daily-journal RAG plus a reasoning-memory layer (auto-curated peer cards &amp; conclusions), all on-device</li>
-        <li><strong>Agentic</strong> - iterative reasoning loop with 26 auto-discovered tools</li>
+        <li><strong>Agentic</strong> - iterative reasoning loop with 28 auto-discovered tools</li>
         <li><strong>Multi-agent</strong> - create specialist sub-agents that can consult each other</li>
         <li><strong>Web Control Panel</strong> - configure, test connections, manage secrets, and curate memory from the browser</li>
         <li><strong>Security hardened</strong> - non-root, read-only filesystem, all capabilities dropped</li>
@@ -858,7 +858,10 @@ docker compose up -d</code></pre>
       <p>A local web app at <code>localhost:8800</code> for running Memtrix without editing JSON: a validated config editor, one-click connection tests, secret management, full memory administration, and safe restarts with live progress. See <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a>.</p>
 
       <h2 id="ft-tools">Agentic Tool System</h2>
-      <p>26 built-in tools auto-discovered at startup. The orchestrator runs an iterative reasoning loop (up to 10 iterations) where the LLM can call tools, observe results, and continue reasoning. New tools are just Python files dropped into <code>src/tools/</code>.</p>
+      <p>28 built-in tools auto-discovered at startup. The orchestrator runs an iterative reasoning loop (up to 10 iterations) where the LLM can call tools, observe results, and continue reasoning. New tools are just Python files dropped into <code>src/tools/</code>.</p>
+
+      <h2 id="ft-selfdocs">Self-Documenting</h2>
+      <p>Memtrix can research its own documentation. The <code>search_docs</code> and <code>ask_docs</code> tools let the agent - and every sub-agent - answer "how does Memtrix work?" questions from the bundled docs, with citations. The docs are parsed into a vector-indexed <code>documentation</code> collection at startup and refreshed automatically. See <a onclick="navigate('tools-ref')" style="cursor:pointer;color:var(--accent)">Tools Reference</a>.</p>
 
       <h2 id="ft-providers">Multi-Provider LLMs</h2>
       <p>Run local models via <strong>Ollama</strong> (Llama, Mistral, Gemma, etc.) or tap 200+ cloud models through <strong>OpenRouter</strong> (OpenAI, Anthropic, Google). Configure multiple providers and switch models per-agent.</p>
@@ -1402,6 +1405,15 @@ docker compose up -d</code></pre>
         <li><strong>Behavior</strong> - <code>BEHAVIOR.md</code> is updated if you correct the agent's communication style</li>
       </ul>
       <p>These operations are silent - you only see them if <code>/verbose</code> is enabled.</p>
+
+      <h2 id="mm-docs">Documentation Index</h2>
+      <p>Memtrix indexes its <strong>own documentation</strong> so it can answer questions about how the system works. The documentation site is parsed into sections, embedded with the same on-device model, and stored in a separate <code>documentation</code> collection on the shared <code>chroma</code> service.</p>
+      <ul>
+        <li><strong>Source:</strong> the docs are bundled into the agent image at build time and parsed into searchable sections</li>
+        <li><strong>Change detection:</strong> the index is content-hashed and only rebuilt when the docs actually change</li>
+        <li><strong>Tools:</strong> <code>search_docs</code> returns matching sections with citations (no LLM), and <code>ask_docs</code> synthesizes a grounded answer with sources - see <a onclick="navigate('tools-ref')" style="cursor:pointer;color:var(--accent)">Tools Reference</a></li>
+        <li><strong>Availability:</strong> always on for the main agent and every sub-agent</li>
+      </ul>
     </div>
 
     <!-- ═══════════════════════════════════════ REASONING MEMORY ═══════════════════════════════════════ -->
@@ -1999,7 +2011,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
     <div class="doc-page" id="page-tools-ref">
       <div class="doc-breadcrumb">Reference</div>
       <h1>Tools Reference</h1>
-      <p class="lead">All 26 built-in tools, auto-discovered at startup. Drop a new file in <code>src/tools/</code> to add your own - see <a onclick="navigate('custom-tools')" style="cursor:pointer;color:var(--accent)">Custom Tools</a>.</p>
+      <p class="lead">All 28 built-in tools, auto-discovered at startup. Drop a new file in <code>src/tools/</code> to add your own - see <a onclick="navigate('custom-tools')" style="cursor:pointer;color:var(--accent)">Custom Tools</a>.</p>
 
       <h2 id="tr-time">Time</h2>
       <table>
@@ -2037,6 +2049,16 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
           <tr><td><code>memory_search</code></td><td>Searches reasoned conclusions and returns the most relevant excerpts</td></tr>
           <tr><td><code>memory_context</code></td><td>Answers a natural-language question grounded in reasoned memory</td></tr>
           <tr><td><code>memory_conclude</code></td><td>Stores a high-signal durable fact in reasoned memory</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="tr-docs">Documentation</h2>
+      <p>Always on for the main agent and every sub-agent - lets Memtrix research its own docs. See <a onclick="navigate('memory')" style="cursor:pointer;color:var(--accent)">Memory</a> for how the index is built.</p>
+      <table>
+        <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>search_docs</code></td><td>Searches the Memtrix documentation and returns matching sections with citations. No LLM call</td></tr>
+          <tr><td><code>ask_docs</code></td><td>Synthesizes a direct, grounded answer about how Memtrix works from its own documentation, with sources</td></tr>
         </tbody>
       </table>
 

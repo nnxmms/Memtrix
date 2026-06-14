@@ -138,6 +138,20 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
 
 </td>
 </tr>
+<tr>
+<td>
+
+📚 **Self-Documenting**<br>
+<sub>Researches its own documentation — ask it how Memtrix works and it answers from the bundled docs, with sources.</sub>
+
+</td>
+<td>
+
+🔍 **Private Web Search**<br>
+<sub>Searches the web through a local SearXNG instance — no queries leave your network unfiltered.</sub>
+
+</td>
+</tr>
 </table>
 
 <br>
@@ -199,6 +213,8 @@ Built-in tools are automatically discovered at startup:
 | `memory_search` | Semantic search over reasoned conclusions about the user and agent |
 | `memory_context` | Synthesizes a natural-language answer from reasoned memory |
 | `memory_conclude` | Stores a single high-signal durable fact immediately |
+| `search_docs` | Searches the Memtrix documentation and returns matching sections with citations (no LLM) |
+| `ask_docs` | Synthesizes a grounded answer about how Memtrix works from its own documentation |
 | `web_search` | Searches the web via local SearXNG instance |
 | `fetch_url` | Fetches and extracts readable text from a URL |
 | `read_file` | Reads a file from the workspace (text and PDF supported) |

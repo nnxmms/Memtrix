@@ -12,6 +12,7 @@ from src.channels.matrix import MatrixChannel
 from src.commands import Commands
 from src.config import CONFIG_PATH, update_config
 from src.deriver import Deriver
+from src.docs_index import DocsIndex
 from src.lifecycle import install_signal_handlers, start_heartbeat
 from src.memory_index import MemoryIndex
 from src.orchestrator import Orchestrator
@@ -133,12 +134,18 @@ class Memtrix:
         index: MemoryIndex = MemoryIndex.get_instance(workspace_dir=workspace_dir)
         index.start_periodic_sync()
 
+        # Initialize the documentation index so the agent can research its own docs
+        docs_index: DocsIndex = DocsIndex.get_instance()
+        docs_index.start_periodic_sync()
+
         # Wire reasoning-memory dependencies into the memory tools
         for tool in tools:
             if representation is not None and hasattr(tool, "set_representation"):
                 tool.set_representation(store=representation)
             if hasattr(tool, "set_dialectic"):
                 tool.set_dialectic(provider=self._provider, model=reasoning_model)
+            if hasattr(tool, "set_docs_index"):
+                tool.set_docs_index(index=docs_index)
 
         logger.info("Discovered %d tools", len(tools))
 
