@@ -47,6 +47,9 @@ def resolve_memory_config(config: dict[str, Any]) -> dict[str, Any]:
         "peer_card_max_chars": 1500,
         "dual_peer": True,
         "inject_top_k": 5,
+        "consolidation": True,                # daily memory-distillation pass
+        "consolidation_interval_hours": 24,   # how often distillation runs
+        "consolidation_min_items": 12,        # skip distillation below this many derived items
     }
     user_cfg: dict[str, Any] = config.get("memory", {}) or {}
     merged: dict[str, Any] = {**defaults, **user_cfg}
@@ -461,6 +464,69 @@ class RepresentationStore:
                 imported += 1
         logger.info("Imported %d conclusion(s)", imported)
         return imported
+
+    def replace_derived_conclusions(self, peer: str, records: list[dict[str, Any]]) -> tuple[int, int]:
+        """
+        This function atomically replaces a peer's derived conclusions with a distilled
+        set produced by the daily consolidation pass. Operator-authored conclusions
+        (source="manual") are preserved untouched. Returns (removed, added).
+
+        The caller must guarantee records is non-empty so a failed distillation can
+        never wipe the peer's memory.
+        """
+        if peer not in PEERS or not records:
+            return (0, 0)
+
+        with self._write_lock:
+            existing: dict[str, Any] = self._collection.get(where={"peer": peer})
+            ids: list[str] = existing.get("ids", []) or []
+            metadatas: list[dict[str, Any]] = existing.get("metadatas", []) or []
+            # Only derived conclusions are replaced; manual ones are kept as-is. Older
+            # records migrated from before the source field default to "derived".
+            derived_ids: list[str] = [
+                record_id
+                for record_id, meta in zip(ids, metadatas)
+                if (meta or {}).get("source", "derived") != "manual"
+            ]
+
+            added: int = 0
+            new_ids: list[str] = []
+            new_documents: list[str] = []
+            new_metadatas: list[dict[str, Any]] = []
+            now: float = time.time()
+            for record in records:
+                content: str = (record.get("content") or "").strip()
+                kind: str = record.get("kind", "observation")
+                if not content or kind not in KINDS:
+                    continue
+                premises: Any = record.get("premises", [])
+                if not isinstance(premises, list):
+                    premises = []
+                new_ids.append(str(uuid.uuid4()))
+                new_documents.append(content)
+                new_metadatas.append({
+                    "peer": peer,
+                    "kind": kind,
+                    "premises": json.dumps(premises),
+                    "ts": now,
+                    "times_seen": 1,
+                    "source": "derived",
+                })
+                added += 1
+
+            # Refuse to delete if the distilled set turned out empty after validation
+            if added == 0:
+                return (0, 0)
+
+            if derived_ids:
+                self._collection.delete(ids=derived_ids)
+            self._collection.add(ids=new_ids, documents=new_documents, metadatas=new_metadatas)
+
+        logger.info(
+            "Consolidated peer '%s': removed %d derived, stored %d distilled",
+            peer, len(derived_ids), added,
+        )
+        return (len(derived_ids), added)
 
     def _build_where(self, peer: str | None, kinds: list[str] | None) -> dict[str, Any] | None:
         """

@@ -121,7 +121,9 @@ class Memtrix:
             representation = RepresentationStore.get_instance(workspace_dir=workspace_dir)
             deriver = Deriver(provider=self._provider, model=reasoning_model, store=representation, config=mem_cfg)
             deriver.start()
+            deriver.start_consolidation_scheduler()
             self._deriver = deriver
+            self._commands.register(name="consolidate", handler=self._cmd_consolidate)
             logger.info("Reasoning memory enabled (recall_mode=%s)", mem_cfg["recall_mode"])
 
         # Discover tools, excluding the reasoning-memory tools unless tool access is enabled
@@ -318,6 +320,26 @@ class Memtrix:
             logger.info("Starting CLI channel")
             cli: CLIChannel = CLIChannel()
             cli.run(handler=self._handle)
+
+    def _cmd_consolidate(self, args: list[str]) -> str:
+        """
+        This function manually triggers a memory-consolidation pass, distilling the
+        accumulated reasoning conclusions into a smaller, cleaner set.
+        """
+        if self._deriver is None:
+            return "Reasoning memory is not enabled."
+
+        results: dict[str, tuple[int, int]] = self._deriver.consolidate_all()
+        if not results:
+            return "Memory consolidation is paused or unavailable right now."
+
+        parts: list[str] = []
+        for peer, (removed, added) in results.items():
+            if removed or added:
+                parts.append(f"{peer}: {removed} -> {added} conclusions")
+            else:
+                parts.append(f"{peer}: not enough to distill yet")
+        return "Memory consolidated. " + "; ".join(parts)
 
     def _shutdown(self) -> None:
         """

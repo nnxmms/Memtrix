@@ -11,7 +11,7 @@ from typing import Any
 from src.config import CONFIG_PATH
 from src.lifecycle import PAUSE_SENTINEL
 from src.providers.base import BaseProvider
-from src.representation import REASONING_LEVEL_ITEMS, RepresentationStore
+from src.representation import KINDS, REASONING_LEVEL_ITEMS, RepresentationStore
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -26,6 +26,12 @@ CARD_REFRESH_EVERY: int = 3
 
 # Peer -> config key that, when true, freezes that peer card against re-curation
 FREEZE_FLAGS: dict[str, str] = {"user": "freeze_user_card", "agent": "freeze_agent_card"}
+
+# Persisted timestamp of the last consolidation pass (survives restarts)
+CONSOLIDATION_STATE_FILE: str = os.path.join(os.path.dirname(CONFIG_PATH), ".last-consolidation")
+
+# How often the consolidation scheduler checks whether a pass is due
+CONSOLIDATION_CHECK_SECONDS: float = 3600.0
 
 
 def _estimate_tokens(text: str) -> int:
@@ -53,6 +59,11 @@ class Deriver:
         self._max_chars: int = int(config.get("peer_card_max_chars", 1500))
         self._dual_peer: bool = bool(config.get("dual_peer", True))
 
+        # Daily memory-consolidation (distillation) settings
+        self._consolidation: bool = bool(config.get("consolidation", True))
+        self._consolidation_interval: float = float(config.get("consolidation_interval_hours", 24)) * 3600.0
+        self._consolidation_min_items: int = int(config.get("consolidation_min_items", 12))
+
         # Per-peer pending message queues and token counters
         self._pending: dict[str, list[dict[str, str]]] = {}
         self._pending_tokens: dict[str, int] = {}
@@ -61,6 +72,7 @@ class Deriver:
         self._wake: threading.Event = threading.Event()
         self._stop: bool = False
         self._thread: threading.Thread | None = None
+        self._consolidation_thread: threading.Thread | None = None
 
     def start(self) -> None:
         """
@@ -264,6 +276,179 @@ class Deriver:
             card = re.sub(pattern=r"^```[a-zA-Z]*\n?|\n?```$", repl="", string=card).strip()
             self._store.write_peer_card(peer=peer, text=card, max_chars=self._max_chars)
             logger.info("Re-curated peer card for '%s' (%d chars)", peer, len(card))
+
+    # --------------------------------------------------- daily memory consolidation
+
+    def start_consolidation_scheduler(self) -> None:
+        """
+        This function starts the background scheduler that periodically distills the
+        accumulated conclusions into a smaller, cleaner set — like memory
+        consolidation during sleep. The schedule is persisted across restarts.
+        """
+        if not self._consolidation or self._consolidation_thread is not None:
+            return
+        # Seed the schedule on first ever run so the first pass happens one interval
+        # from now rather than immediately on boot.
+        if not os.path.isfile(CONSOLIDATION_STATE_FILE):
+            self._mark_consolidated()
+        self._consolidation_thread = threading.Thread(target=self._consolidation_loop, daemon=True)
+        self._consolidation_thread.start()
+        logger.info("Memory consolidation scheduled (every %.0fh)", self._consolidation_interval / 3600.0)
+
+    def _consolidation_loop(self) -> None:
+        """
+        This function periodically checks whether a consolidation pass is due and runs
+        it when the interval has elapsed and the deriver is not paused.
+        """
+        while not self._stop:
+            time.sleep(CONSOLIDATION_CHECK_SECONDS)
+            if self._stop:
+                break
+            try:
+                if self._consolidation_due() and not self._is_paused():
+                    self.consolidate_all()
+                    self._mark_consolidated()
+            except Exception as e:
+                logger.error("Consolidation scheduler error: %s", e, exc_info=True)
+
+    def consolidate_all(self) -> dict[str, tuple[int, int]]:
+        """
+        This function runs a consolidation pass for every active peer and returns a
+        per-peer (removed, added) summary. Honors the deriver pause sentinel.
+        """
+        if self._is_paused():
+            logger.info("Consolidation skipped: deriver is paused")
+            return {}
+
+        peers: list[str] = ["user"]
+        if self._dual_peer:
+            peers.append("agent")
+
+        results: dict[str, tuple[int, int]] = {}
+        for peer in peers:
+            try:
+                results[peer] = self._consolidate(peer=peer)
+            except Exception as e:
+                logger.error("Consolidation failed for peer '%s': %s", peer, e, exc_info=True)
+                results[peer] = (0, 0)
+        return results
+
+    def _consolidate(self, peer: str) -> tuple[int, int]:
+        """
+        This function distills a single peer's derived conclusions into a smaller,
+        higher-signal set and replaces them, then re-curates the peer card. Returns
+        (removed, added). Manual conclusions are preserved by the store.
+        """
+        records: list[dict[str, Any]] = self._store.list_conclusions(peer=peer, limit=1000)
+        derived: list[dict[str, Any]] = [r for r in records if r.get("source", "derived") != "manual"]
+        if len(derived) < self._consolidation_min_items:
+            logger.info(
+                "Consolidation for '%s' skipped (%d derived < %d minimum)",
+                peer, len(derived), self._consolidation_min_items,
+            )
+            return (0, 0)
+
+        distilled: list[dict[str, Any]] = self._distill(peer=peer, records=derived)
+        if not distilled:
+            logger.warning("Consolidation for '%s' produced nothing; keeping existing memory", peer)
+            return (0, 0)
+
+        removed, added = self._store.replace_derived_conclusions(peer=peer, records=distilled)
+        if added:
+            self._recurate_card(peer=peer)
+            logger.info("Consolidated '%s': %d -> %d derived conclusions", peer, removed, added)
+        return (removed, added)
+
+    def _distill(self, peer: str, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """
+        This function asks the model to merge, prune, and synthesize a peer's stored
+        conclusions into a cleaner set, returned as validated records.
+        """
+        subject: str = "the user" if peer == "user" else "the AI assistant itself"
+        listing: str = "\n".join(
+            f"{i}. ({r.get('kind', 'observation')}, seen {int(r.get('times_seen', 1))}x) {r['content']}"
+            for i, r in enumerate(records, start=1)
+        )
+
+        system_prompt: str = (
+            "You are a memory-consolidation engine, like a brain during sleep. You are given "
+            f"the full set of stored conclusions about {subject}. Distill them into a smaller, "
+            "cleaner set of durable knowledge. Respond with ONLY a JSON object, no prose, no "
+            "code fences.\n\n"
+            "Schema:\n"
+            "{\n"
+            '  "conclusions": [{"kind": "observation|deductive|inductive", "content": "...", "premises": ["..."]}]\n'
+            "}\n\n"
+            "Rules:\n"
+            "- Merge duplicates and near-duplicates into a single clear statement.\n"
+            "- Drop anything outdated, contradicted by a newer item, trivial, or ephemeral.\n"
+            "- You may synthesize a higher-order conclusion from several related items (kind 'inductive').\n"
+            "- Keep only durable, high-signal knowledge. Prefer fewer, stronger statements.\n"
+            "- Do not invent facts that are not supported by the input.\n"
+            "- 'premises' may be empty; add short supporting premises for deductive/inductive items."
+        )
+        history: list[dict[str, str]] = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Stored conclusions about {subject}:\n{listing}\n\nProduce the distilled set."},
+        ]
+
+        try:
+            message: Any = self._provider.completions(model=self._model, history=history, think=False)
+            raw: str = message.content or ""
+        except Exception as e:
+            logger.error("Consolidation reasoning call failed for '%s': %s", peer, e)
+            return []
+
+        parsed: dict[str, Any] | None = self._parse_json(raw)
+        if parsed is None:
+            logger.warning("Consolidation output unparseable for '%s'", peer)
+            return []
+
+        distilled: list[dict[str, Any]] = []
+        for item in parsed.get("conclusions", []) or []:
+            if not isinstance(item, dict):
+                continue
+            content: str = (item.get("content") or "").strip()
+            if not content:
+                continue
+            kind: str = item.get("kind", "observation")
+            if kind not in KINDS:
+                kind = "observation"
+            premises: Any = item.get("premises", [])
+            if not isinstance(premises, list):
+                premises = []
+            distilled.append({"kind": kind, "content": content, "premises": premises})
+        return distilled
+
+    @staticmethod
+    def _read_consolidation_ts() -> float:
+        """
+        This function reads the persisted timestamp of the last consolidation pass,
+        returning 0.0 when it has never run.
+        """
+        try:
+            with open(file=CONSOLIDATION_STATE_FILE, mode="r") as f:
+                return float(f.read().strip())
+        except (OSError, ValueError):
+            return 0.0
+
+    @staticmethod
+    def _mark_consolidated() -> None:
+        """
+        This function records the current time as the last consolidation pass.
+        """
+        try:
+            with open(file=CONSOLIDATION_STATE_FILE, mode="w") as f:
+                f.write(str(time.time()))
+        except OSError as e:
+            logger.error("Could not persist consolidation timestamp: %s", e)
+
+    def _consolidation_due(self) -> bool:
+        """
+        This function returns True when at least one interval has elapsed since the
+        last consolidation pass.
+        """
+        return (time.time() - self._read_consolidation_ts()) >= self._consolidation_interval
 
     @staticmethod
     def _is_paused() -> bool:

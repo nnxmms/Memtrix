@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.13.1</span>
+    memtrix<span class="ver">v2.14.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -1495,6 +1495,16 @@ docker compose up -d</code></pre>
         </div>
       </div>
 
+      <h2 id="rm-consolidation">Consolidation (distillation)</h2>
+      <p>When you talk to Memtrix a lot, the deriver produces many conclusions. A background <strong>consolidation</strong> pass runs once a day - like memory consolidation during sleep - and distills each peer's stored conclusions into a smaller, cleaner set.</p>
+      <ul>
+        <li><strong>Merges</strong> duplicates and near-duplicates into single clear statements</li>
+        <li><strong>Drops</strong> anything outdated, contradicted, trivial, or ephemeral</li>
+        <li><strong>Synthesizes</strong> higher-order patterns from several related items</li>
+        <li><strong>Preserves</strong> your manually added (<code>manual</code>) conclusions untouched - only <code>derived</code> ones are distilled</li>
+      </ul>
+      <p>The schedule is persisted to disk, so it survives restarts and runs roughly every <code>consolidation_interval_hours</code>. After a pass the peer card is re-curated from the distilled set. Run <code>/consolidate</code> in any room to trigger a pass immediately. Consolidation respects the deriver pause toggle.</p>
+
       <h2 id="rm-recall">Recall at message time</h2>
       <p>When you send a message, memory is brought back in two ways, controlled by <code>recall_mode</code>:</p>
       <table>
@@ -1534,7 +1544,10 @@ docker compose up -d</code></pre>
     <span style="color:var(--blue)">"batch_tokens"</span>: <span style="color:var(--accent)">1000</span>,       <span style="color:var(--text-muted)">// flush threshold per peer</span>
     <span style="color:var(--blue)">"peer_card_max_chars"</span>: <span style="color:var(--accent)">1500</span>,
     <span style="color:var(--blue)">"dual_peer"</span>: <span style="color:var(--purple)">true</span>,         <span style="color:var(--text-muted)">// also model the agent, not just the user</span>
-    <span style="color:var(--blue)">"inject_top_k"</span>: <span style="color:var(--accent)">5</span>          <span style="color:var(--text-muted)">// conclusions auto-injected per message</span>
+    <span style="color:var(--blue)">"inject_top_k"</span>: <span style="color:var(--accent)">5</span>,         <span style="color:var(--text-muted)">// conclusions auto-injected per message</span>
+    <span style="color:var(--blue)">"consolidation"</span>: <span style="color:var(--purple)">true</span>,     <span style="color:var(--text-muted)">// daily memory distillation pass</span>
+    <span style="color:var(--blue)">"consolidation_interval_hours"</span>: <span style="color:var(--accent)">24</span>,
+    <span style="color:var(--blue)">"consolidation_min_items"</span>: <span style="color:var(--accent)">12</span> <span style="color:var(--text-muted)">// skip below this many derived items</span>
   }
 }</code></pre>
 
@@ -1550,6 +1563,9 @@ docker compose up -d</code></pre>
           <tr><td><code>peer_card_max_chars</code></td><td><code>1500</code></td><td>Maximum size of each peer card</td></tr>
           <tr><td><code>dual_peer</code></td><td><code>true</code></td><td>Model the agent (<code>MEMORY.md</code>) as well as the user</td></tr>
           <tr><td><code>inject_top_k</code></td><td><code>5</code></td><td>Number of conclusions auto-injected per message</td></tr>
+          <tr><td><code>consolidation</code></td><td><code>true</code></td><td>Run the daily distillation pass that merges and prunes conclusions</td></tr>
+          <tr><td><code>consolidation_interval_hours</code></td><td><code>24</code></td><td>How often consolidation runs (persisted across restarts)</td></tr>
+          <tr><td><code>consolidation_min_items</code></td><td><code>12</code></td><td>Skip distillation for a peer below this many derived conclusions</td></tr>
         </tbody>
       </table>
 
@@ -1980,6 +1996,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
           <tr><td><code>/verbose</code></td><td><code>on</code> | <code>off</code></td><td>Toggle real-time tool execution notifications. Persists to config.</td></tr>
           <tr><td><code>/reasoning</code></td><td><code>on</code> | <code>off</code></td><td>Toggle display of model reasoning/thinking. Persists to config.</td></tr>
           <tr><td><code>/costs</code></td><td>-</td><td>Show OpenRouter credit usage - today, this week, this month, and all-time. Only available when an OpenRouter provider is configured.</td></tr>
+          <tr><td><code>/consolidate</code></td><td>-</td><td>Trigger a memory-consolidation pass now - distills reasoning conclusions into a smaller, cleaner set. Only available when reasoning memory is enabled.</td></tr>
           <tr><td><code>/help</code></td><td>-</td><td>List all available commands.</td></tr>
         </tbody>
       </table>

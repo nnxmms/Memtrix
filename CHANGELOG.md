@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.14.0
+
+- Daily memory consolidation - a background pass now distills accumulated reasoning conclusions into a smaller, cleaner set, like memory consolidation during sleep. For each peer it merges duplicates and near-duplicates, drops anything outdated, contradicted, trivial, or ephemeral, and synthesizes higher-order patterns from related items, then re-curates the peer card from the distilled set. Conclusions you added manually are preserved untouched; only derived ones are consolidated. The schedule is persisted to disk so it survives restarts, runs roughly every `consolidation_interval_hours` (default 24), and skips peers below `consolidation_min_items` (default 12). It honors the deriver pause toggle.
+- New `/consolidate` slash command triggers a consolidation pass on demand for the main agent, reporting how many conclusions were distilled per peer. Available whenever reasoning memory is enabled.
+- New `memory` config keys (all optional, safe defaults merged for existing installs): `consolidation`, `consolidation_interval_hours`, `consolidation_min_items`.
+
 ## 2.13.1
 
 - Fix the agent crashing on startup with `chromadb.errors.DuplicateIDError: Expected IDs to be unique` when building the documentation index. Pages with intro prose before their first heading (and headings without an `id` attribute) both fell back to the page id, producing colliding chunk ids such as `agents::agents`. Each documentation chunk now gets a unique id via a per-page sequence counter, so the docs index builds cleanly. Affected fresh starts and migrations of existing instances.
