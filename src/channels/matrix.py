@@ -401,12 +401,22 @@ class MatrixChannel:
         # Record start time (milliseconds) to skip old messages
         self._start_time = time.time() * 1000
 
-        # Set the display name
-        await self._set_display_name()
-
-        # Initial sync to catch up on pending invites
+        # Set the display name and perform the initial sync, retrying while the
+        # homeserver is still starting up or briefly unreachable (e.g. local Conduit
+        # booting, or a transient network issue with an external homeserver).
         logger.info("Connecting to %s as %s...", self._homeserver, self._user_id)
-        response: Any = await self._client.sync(timeout=10000)
+        response: Any = None
+        attempt: int = 0
+        while True:
+            attempt += 1
+            try:
+                await self._set_display_name()
+                response = await self._client.sync(timeout=10000)
+                break
+            except Exception as e:
+                if attempt == 1 or attempt % 10 == 0:
+                    logger.warning("Homeserver not reachable yet (attempt %d): %s", attempt, e)
+                await asyncio.sleep(delay=min(30, 2 * attempt))
 
         # Join any rooms we were invited to while offline
         for room_id in response.rooms.invite:

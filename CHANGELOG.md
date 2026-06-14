@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.8.0
+
+- Choose local or external Matrix homeserver — onboarding now lets you connect to the bundled local Conduit homeserver or an external/already-hosted Matrix server (your own Synapse, matrix.org, etc.). For external servers you provide the homeserver URL, the bot user ID, and an access token, which are verified via `/whoami` before saving.
+- Channel `managed` flag — matrix channels now carry a `managed` boolean. `true` = bundled Conduit with automatic user registration; `false` = external server with manually supplied credentials.
+- Server name is derived from the bot user ID — the hardcoded `memtrix.local` server name is gone; sub-agent and bot user IDs now use the domain of the configured bot account.
+- Sub-agents on external homeservers — `create_agent` accepts `matrix_user_id` and `matrix_access_token` for pre-created accounts. On a managed homeserver it still registers accounts automatically; on an external one it returns clear instructions when credentials are missing.
+- Conduit is now optional — the bundled Conduit container runs under a Compose `local` profile (`COMPOSE_PROFILES=local`), set automatically by onboarding. External setups don't start it.
+- Resilient Matrix connect — the channel now retries the initial sync with backoff while the homeserver is starting up or briefly unreachable, instead of crashing.
+
 ## 2.7.0
 
 - Inter-agent exchange memory — after an inter-agent call, a summary of the exchange is appended to the target agent's active user session. This means if Agent B asks Agent A something, A can later tell the user what B asked and what it answered. Previously inter-agent conversations were invisible to the user-facing session.

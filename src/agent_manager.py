@@ -31,8 +31,8 @@ _AGENT_NAME_PATTERN: re.Pattern[str] = re.compile(r"^[A-Za-z][A-Za-z \-]{1,23}$"
 # Agents root directory inside the container
 AGENTS_DIR: str = "/home/memtrix/agents"
 
-# Matrix server name (matches Conduit config)
-SERVER_NAME: str = "memtrix.local"
+# Fallback Matrix server name when it cannot be derived from the bot user ID
+DEFAULT_SERVER_NAME: str = "memtrix.local"
 
 # Default core file templates for new agents
 _SOUL_TEMPLATE: str = """## Soul
@@ -177,6 +177,32 @@ class AgentManager:
         channel_name: str = self._config["main-agent"]["channel"]
         return self._config["channels"][channel_name]["homeserver"]
 
+    def _get_main_channel(self) -> dict[str, Any]:
+        """
+        This function returns the main agent's channel config section.
+        """
+        channel_name: str = self._config["main-agent"]["channel"]
+        return self._config["channels"][channel_name]
+
+    def _is_managed(self) -> bool:
+        """
+        This function reports whether the main channel uses the bundled local Conduit
+        homeserver (managed) or an external/already-hosted server. Managed servers
+        support automatic user registration via the registration token.
+        """
+        return bool(self._get_main_channel().get("managed", True))
+
+    def _get_server_name(self) -> str:
+        """
+        This function derives the Matrix server name (the part after ':' in user IDs)
+        from the main agent's bot user ID, e.g. '@memtrix:matrix.org' -> 'matrix.org'.
+        Falls back to the default local Conduit server name.
+        """
+        user_id: str = self._get_main_channel().get("user_id", "")
+        if ":" in user_id:
+            return user_id.split(sep=":", maxsplit=1)[1]
+        return DEFAULT_SERVER_NAME
+
     def _load_provider(self, agent_config: dict[str, Any]) -> tuple[BaseProvider, str, bool]:
         """
         This function loads the provider for a sub-agent.
@@ -259,10 +285,15 @@ class AgentManager:
 
         return workspace_dir
 
-    def create_agent(self, name: str, description: str, model: str = "") -> str:
+    def create_agent(self, name: str, description: str, model: str = "",
+                     matrix_user_id: str = "", matrix_access_token: str = "") -> str:
         """
-        This function creates a new sub-agent: registers Matrix user, scaffolds workspace,
-        persists config, and starts the agent. Returns a status message.
+        This function creates a new sub-agent: registers (or adopts) a Matrix user,
+        scaffolds the workspace, persists config, and starts the agent.
+
+        On a managed (local Conduit) homeserver the Matrix user is registered
+        automatically. On an external homeserver the caller must supply a
+        pre-created matrix_user_id and matrix_access_token. Returns a status message.
         """
         # Validate name
         if not _AGENT_NAME_PATTERN.match(name):
@@ -287,27 +318,47 @@ class AgentManager:
         if model not in self._config.get("models", {}):
             return f"Error: model '{model}' not found in config."
 
-        # Register Matrix user
         homeserver: str = self._get_homeserver()
-        username: str = slug
-        password: str = self._generate_password()
-        user_id: str = f"@{username}:{SERVER_NAME}"
+        server_name: str = self._get_server_name()
 
-        try:
-            result: dict[str, Any] = self._register_matrix_user(
-                homeserver=homeserver,
-                username=username,
-                password=password
-            )
-            access_token: str = result.get("access_token", "")
-            user_id: str = result.get("user_id", user_id)
-        except requests.exceptions.HTTPError as e:
-            return f"Error: failed to register Matrix user — {e.response.text if e.response else e}"
+        if self._is_managed():
+            # Managed (local Conduit): register a fresh Matrix user automatically
+            username: str = slug
+            password: str = self._generate_password()
+            user_id: str = f"@{username}:{server_name}"
 
-        if not access_token:
-            return "Error: registration succeeded but no access token was returned."
+            try:
+                result: dict[str, Any] = self._register_matrix_user(
+                    homeserver=homeserver,
+                    username=username,
+                    password=password
+                )
+                access_token: str = result.get("access_token", "")
+                user_id: str = result.get("user_id", user_id)
+            except requests.exceptions.HTTPError as e:
+                return f"Error: failed to register Matrix user — {e.response.text if e.response else e}"
 
-        # Set display name
+            if not access_token:
+                return "Error: registration succeeded but no access token was returned."
+        else:
+            # External homeserver: the user must pre-create the Matrix account and
+            # provide its credentials, since registration is typically not available.
+            user_id: str = matrix_user_id.strip()
+            access_token: str = matrix_access_token.strip()
+            if not user_id or not access_token:
+                return (
+                    f"This agent runs on an external Matrix homeserver ({server_name}), "
+                    f"which doesn't support automatic account creation.\n\n"
+                    f"Ask the user to create a new Matrix account for '{display_name}' on their "
+                    f"homeserver, then provide:\n"
+                    f"  • the full user ID (e.g. @{slug}:{server_name})\n"
+                    f"  • an access token for that account\n\n"
+                    f"Then call create_agent again with matrix_user_id and matrix_access_token."
+                )
+            if not user_id.startswith("@") or ":" not in user_id:
+                return "Error: matrix_user_id must be a full Matrix ID like '@name:server'."
+
+        # Set display name (best-effort)
         try:
             self._set_display_name(
                 homeserver=homeserver,

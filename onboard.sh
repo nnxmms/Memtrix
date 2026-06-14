@@ -31,3 +31,31 @@ if [[ -f "$ENV_FILE" ]] && ! grep -q 'MEMTRIX_SECRET_REGISTRATION_TOKEN' "$ENV_F
         echo "✓ Registration token added to .env."
     fi
 fi
+
+# Decide whether to run the bundled local Conduit homeserver based on the chosen
+# main channel. Only matrix channels marked "managed" use the local Conduit.
+CONFIG_JSON="$SCRIPT_DIR/data/config.json"
+USE_LOCAL=$(python3 -c "
+import json
+try:
+    c = json.load(open('$CONFIG_JSON'))
+    ch = c['main-agent'].get('channel', '')
+    cfg = c.get('channels', {}).get(ch, {})
+    print('true' if cfg.get('type') == 'matrix' and cfg.get('managed', True) else 'false')
+except Exception:
+    print('false')
+" 2>/dev/null || echo false)
+
+if [[ -f "$ENV_FILE" ]]; then
+    # Drop any previous COMPOSE_PROFILES line before re-setting it
+    grep -v '^COMPOSE_PROFILES=' "$ENV_FILE" > "$ENV_FILE.tmp" 2>/dev/null && mv "$ENV_FILE.tmp" "$ENV_FILE" || true
+fi
+
+if [[ "$USE_LOCAL" == "true" ]]; then
+    echo "COMPOSE_PROFILES=local" >> "$ENV_FILE"
+    echo "✓ Using the bundled local Conduit homeserver."
+else
+    echo "✓ Using an external Matrix homeserver — the bundled Conduit will not run."
+    docker compose stop conduit >/dev/null 2>&1 || true
+fi
+

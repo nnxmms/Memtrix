@@ -36,6 +36,14 @@ class CreateAgentTool(BaseTool):
                     "model": {
                         "type": "string",
                         "description": "Optional model instance name from config. Defaults to the main agent's model."
+                    },
+                    "matrix_user_id": {
+                        "type": "string",
+                        "description": "Only for external Matrix homeservers: the full Matrix user ID of a pre-created account for this agent (e.g. '@dennis:matrix.org'). Leave empty on the bundled local homeserver, which creates accounts automatically."
+                    },
+                    "matrix_access_token": {
+                        "type": "string",
+                        "description": "Only for external Matrix homeservers: an access token for the pre-created account given in matrix_user_id. Leave empty on the bundled local homeserver."
                     }
                 },
                 "required": ["name", "description"]
@@ -58,6 +66,8 @@ class CreateAgentTool(BaseTool):
         name: str = kwargs.get("name", "").strip()
         description: str = kwargs.get("description", "").strip()
         model: str = kwargs.get("model", "").strip()
+        matrix_user_id: str = kwargs.get("matrix_user_id", "").strip()
+        matrix_access_token: str = kwargs.get("matrix_access_token", "").strip()
 
         if not name:
             return "Error: name cannot be empty. Ask the user what they want to name this agent."
@@ -78,5 +88,7 @@ class CreateAgentTool(BaseTool):
         return self._agent_manager.create_agent(
             name=name,
             description=description,
-            model=model
+            model=model,
+            matrix_user_id=matrix_user_id,
+            matrix_access_token=matrix_access_token
         )

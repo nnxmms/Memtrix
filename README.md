@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-2.7.0-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-2.8.0-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 [Website](https://memtrix.me) · [Documentation](https://memtrix.me/docs.html) · [GitHub](https://github.com/nnxmms/Memtrix)
@@ -50,6 +50,14 @@ docker compose up -d
 ```
 
 Open Element → connect to `http://localhost:6167` → log in → invite `@memtrix:memtrix.local` to a room.
+
+> [!TIP]
+> **Local or external homeserver:** During `./onboard.sh` you can choose the bundled local
+> Conduit homeserver (recommended — accounts are created for you) or an external/already-hosted
+> Matrix server (e.g. your own Synapse or matrix.org). For external servers you provide the
+> homeserver URL, the bot's user ID, and an access token. When using an external homeserver the
+> bundled Conduit container stays off, and sub-agents are created by pre-registering a Matrix
+> account for each and supplying its token.
 
 > [!NOTE]
 > **Linux users:** If your user is not in the `docker` group, run scripts with `sudo`.
@@ -153,7 +161,7 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
 | Component | Role |
 |:--|:--|
 | **Memtrix** | Python agent — orchestrates LLM calls, tool execution, memory, sessions, sub-agents |
-| **Conduit** | Lightweight Matrix homeserver (local-only, no federation) |
+| **Conduit** | Lightweight Matrix homeserver, bundled for local use (no federation). Optional — you can point Memtrix at any external Matrix homeserver instead |
 | **SearXNG** | Privacy-respecting metasearch engine for web access |
 | **ChromaDB** | Embedded vector database for semantic memory search |
 | **Ollama** | Local LLM inference (runs separately) |

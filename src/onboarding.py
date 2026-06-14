@@ -202,6 +202,212 @@ class Onboarding:
             timeout=10
         )
 
+    def _setup_local_matrix(self) -> dict[str, Any]:
+        """
+        This function sets up a Matrix channel against the bundled local Conduit
+        homeserver, registering the admin, bot, and user accounts automatically.
+        Returns the channel params dict.
+        """
+        _say(
+            message="Let's set up your [bold]local Matrix[/bold] channel!\n\n"
+            "I'll create three accounts on your Conduit homeserver:\n"
+            "  • [bold]admin[/bold] — the server administrator\n"
+            "  • [bold]memtrix[/bold] — the bot account\n"
+            "  • [bold]your user account[/bold] — so you can chat with Memtrix\n\n"
+            "Make sure Conduit is running and registration is enabled."
+        )
+
+        # Inside Docker we reach Conduit via the service name
+        homeserver: str = "http://conduit:6167"
+
+        username: str = Prompt.ask(" [cyan]>[/cyan] Your username (e.g. alice)").strip()
+        while not username:
+            _say(message="[bold red]Username can't be empty.[/bold red] Let's try that again.")
+            username = Prompt.ask(" [cyan]>[/cyan] Your username (e.g. alice)").strip()
+
+        # Generate random passwords
+        admin_password: str = _generate_password()
+        bot_password: str = _generate_password()
+        user_password: str = _generate_password()
+
+        # Use the configured agent name for the bot account
+        agent_name: str = self.config["main-agent"].get("name", "Memtrix")
+        bot_username: str = agent_name.lower().replace(" ", "-")
+
+        # Register the three accounts
+        accounts: list[tuple[str, str, str]] = [
+            ("admin", admin_password, "Admin"),
+            (bot_username, bot_password, agent_name),
+            (username, user_password, username.capitalize())
+        ]
+
+        _say(message="Registering accounts on the homeserver...")
+
+        # Resolve server name for user IDs (matches the Conduit server_name)
+        server_name: str = "memtrix.local"
+
+        bot_data: dict[str, Any] = {}
+        for acct_username, acct_password, acct_label in accounts:
+            try:
+                result: dict[str, Any] = self._register_matrix_user(
+                    homeserver=homeserver,
+                    username=acct_username,
+                    password=acct_password
+                )
+                # Set the display name
+                acct_user_id: str = result.get("user_id", f"@{acct_username}:{server_name}")
+                acct_token: str = result.get("access_token", "")
+                if acct_token:
+                    self._set_display_name(
+                        homeserver=homeserver,
+                        user_id=acct_user_id,
+                        access_token=acct_token,
+                        display_name=acct_label
+                    )
+                console.print(f"  [green]✓[/green] {acct_label} ([bold]{acct_username}[/bold]) registered")
+                if acct_username == bot_username:
+                    bot_data = result
+            except requests.exceptions.HTTPError as e:
+                console.print(f"  [red]✗[/red] {acct_label} ([bold]{acct_username}[/bold]): {e.response.text}")
+
+        # Print credentials table
+        _say(message="Here are the accounts I created. [bold]Save these passwords now![/bold]")
+
+        table: Table = Table(title="Matrix Accounts")
+        table.add_column("Account", style="cyan")
+        table.add_column("User ID", style="white")
+        table.add_column("Password", style="green")
+        for acct_username, acct_password, acct_label in accounts:
+            table.add_row(acct_label, f"@{acct_username}:{server_name}", acct_password)
+        console.print(table)
+
+        # Use the bot's access token from registration
+        bot_user_id: str = bot_data.get("user_id", f"@{bot_username}:{server_name}")
+        bot_access_token: str = bot_data.get("access_token", "")
+
+        if bot_access_token:
+            _say(
+                message=f"I got the bot access token automatically from registration.\n\n"
+                f"Bot user ID: [bold]{bot_user_id}[/bold]"
+            )
+        else:
+            _say(
+                message=f"I couldn't get the bot access token automatically.\n"
+                f"Please log in as [bold]{bot_username}[/bold] using Element Desktop and provide the access token."
+            )
+            bot_access_token = Prompt.ask(" [cyan]>[/cyan] Bot access token").strip()
+
+        _say(
+            message="Now log in with [bold]Element Desktop[/bold] using your account.\n\n"
+            f"  Homeserver: [bold]http://localhost:6167[/bold]\n"
+            f"  Username:   [bold]@{username}:{server_name}[/bold]\n"
+            f"  Password:   [bold]{user_password}[/bold]\n\n"
+            f"Then start a DM with [bold]@{bot_username}:{server_name}[/bold] to chat!"
+        )
+
+        # Collect the bot token for the final .env block
+        self._env_secrets.append(("MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN", bot_access_token, "Matrix bot access token for Conduit"))
+
+        return {
+            "type": "matrix",
+            "homeserver": homeserver,
+            "user_id": bot_user_id,
+            "access_token": "$MATRIX_ACCESS_TOKEN",
+            "display_name": f"{agent_name} ⚡",
+            "managed": True
+        }
+
+    def _setup_external_matrix(self) -> dict[str, Any] | None:
+        """
+        This function sets up a Matrix channel against an external, already-hosted
+        homeserver. The user supplies the homeserver URL, the bot's full user ID, and
+        an access token for that account. Returns the channel params dict, or None if
+        the details could not be verified (so onboarding can retry).
+        """
+        _say(
+            message="Let's connect to your [bold]external Matrix homeserver[/bold]!\n\n"
+            "You'll need a Matrix account for the bot already created on your server, "
+            "plus an access token for it.\n\n"
+            "Tip: log in as the bot account in Element, then find the access token under "
+            "[italic]Settings → Help & About → Advanced[/italic]."
+        )
+
+        homeserver: str = Prompt.ask(
+            " [cyan]>[/cyan] Homeserver URL (e.g. https://matrix.example.org)"
+        ).strip().rstrip("/")
+        if not homeserver:
+            _say(message="[bold red]Homeserver URL can't be empty.[/bold red]")
+            return None
+
+        bot_user_id: str = Prompt.ask(
+            " [cyan]>[/cyan] Bot user ID (e.g. @memtrix:example.org)"
+        ).strip()
+        if not bot_user_id.startswith("@") or ":" not in bot_user_id:
+            _say(message="[bold red]That doesn't look like a Matrix user ID.[/bold red] It should be like @name:server.")
+            return None
+
+        bot_access_token: str = Prompt.ask(" [cyan]>[/cyan] Bot access token", password=True).strip()
+        if not bot_access_token:
+            _say(message="[bold red]Access token can't be empty.[/bold red]")
+            return None
+
+        # Verify the credentials by calling /whoami
+        _say(message="Verifying the access token...")
+        try:
+            whoami_url: str = f"{homeserver}/_matrix/client/v3/account/whoami"
+            response: requests.Response = requests.get(
+                url=whoami_url,
+                headers={"Authorization": f"Bearer {bot_access_token}"},
+                timeout=15
+            )
+            response.raise_for_status()
+            resolved_id: str = response.json().get("user_id", "")
+        except requests.exceptions.RequestException as e:
+            _say(message=f"[bold red]Couldn't reach the homeserver or the token is invalid:[/bold red] {e}")
+            return None
+
+        if resolved_id and resolved_id != bot_user_id:
+            _say(
+                message=f"[yellow]Heads up:[/yellow] the token belongs to [bold]{resolved_id}[/bold], "
+                f"not [bold]{bot_user_id}[/bold]. Using [bold]{resolved_id}[/bold]."
+            )
+            bot_user_id = resolved_id
+
+        console.print(f"  [green]✓[/green] Connected as [bold]{bot_user_id}[/bold]")
+
+        agent_name: str = self.config["main-agent"].get("name", "Memtrix")
+        server_name: str = bot_user_id.split(sep=":", maxsplit=1)[1]
+
+        # Optionally set the bot's display name (best-effort)
+        try:
+            self._set_display_name(
+                homeserver=homeserver,
+                user_id=bot_user_id,
+                access_token=bot_access_token,
+                display_name=f"{agent_name} ⚡"
+            )
+        except Exception:
+            pass
+
+        _say(
+            message=f"All set! Start a DM with [bold]{bot_user_id}[/bold] from your own "
+            f"Matrix account on [bold]{server_name}[/bold] to chat.\n\n"
+            f"[italic]Note:[/italic] on an external homeserver, sub-agents can't be created "
+            f"automatically. You'll pre-create a Matrix account for each one and provide its token."
+        )
+
+        # Collect the bot token for the final .env block
+        self._env_secrets.append(("MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN", bot_access_token, "Matrix bot access token for external homeserver"))
+
+        return {
+            "type": "matrix",
+            "homeserver": homeserver,
+            "user_id": bot_user_id,
+            "access_token": "$MATRIX_ACCESS_TOKEN",
+            "display_name": f"{agent_name} ⚡",
+            "managed": False
+        }
+
     def setup_new_channel(self) -> None:
         """
         This function is used to interactively setup a new channel instance.
@@ -229,114 +435,28 @@ class Onboarding:
             _say(message="[bold red]Oops, instance name can't be empty.[/bold red] Let's try that again.")
             return self.setup_new_channel()
 
-        params: dict[str, str] = {"type": selection}
+        params: dict[str, Any] = {"type": selection}
 
         if selection == "matrix":
-            # Matrix-specific onboarding: create 3 users on Conduit
+            # Choose between the bundled local Conduit homeserver and an external one
             _say(
-                message="Let's set up your [bold]Matrix[/bold] channel!\n\n"
-                "I'll create three accounts on your Conduit homeserver:\n"
-                "  • [bold]admin[/bold] — the server administrator\n"
-                "  • [bold]memtrix[/bold] — the bot account\n"
-                "  • [bold]your user account[/bold] — so you can chat with Memtrix\n\n"
-                "Make sure Conduit is running and registration is enabled."
+                message="Where is your [bold]Matrix homeserver[/bold]?\n\n"
+                "  • [bold]local[/bold] — the Conduit homeserver bundled with Memtrix (recommended)\n"
+                "  • [bold]external[/bold] — a server you already host (e.g. your own Synapse, matrix.org)"
+            )
+            location: str = Prompt.ask(
+                " [cyan]>[/cyan] Homeserver",
+                choices=["local", "external"],
+                default="local"
             )
 
-            # Inside Docker we reach Conduit via the service name
-            homeserver: str = "http://conduit:6167"
-
-            username: str = Prompt.ask(" [cyan]>[/cyan] Your username (e.g. alice)").strip()
-            if not username:
-                _say(message="[bold red]Username can't be empty.[/bold red] Let's try that again.")
-                return self.setup_new_channel()
-
-            # Generate random passwords
-            admin_password: str = _generate_password()
-            bot_password: str = _generate_password()
-            user_password: str = _generate_password()
-
-            # Use the configured agent name for the bot account
-            agent_name: str = self.config["main-agent"].get("name", "Memtrix")
-            bot_username: str = agent_name.lower().replace(" ", "-")
-
-            # Register the three accounts
-            accounts: list[tuple[str, str, str]] = [
-                ("admin", admin_password, "Admin"),
-                (bot_username, bot_password, agent_name),
-                (username, user_password, username.capitalize())
-            ]
-
-            _say(message="Registering accounts on the homeserver...")
-
-            # Resolve server name for user IDs (matches CONDUIT_SERVER_NAME)
-            server_name: str = "memtrix.local"
-
-            bot_data: dict[str, Any] = {}
-            for acct_username, acct_password, acct_label in accounts:
-                try:
-                    result: dict[str, Any] = self._register_matrix_user(
-                        homeserver=homeserver,
-                        username=acct_username,
-                        password=acct_password
-                    )
-                    # Set the display name
-                    acct_user_id: str = result.get("user_id", f"@{acct_username}:{server_name}")
-                    acct_token: str = result.get("access_token", "")
-                    if acct_token:
-                        self._set_display_name(
-                            homeserver=homeserver,
-                            user_id=acct_user_id,
-                            access_token=acct_token,
-                            display_name=acct_label
-                        )
-                    console.print(f"  [green]✓[/green] {acct_label} ([bold]{acct_username}[/bold]) registered")
-                    if acct_username == bot_username:
-                        bot_data: dict[str, Any] = result
-                except requests.exceptions.HTTPError as e:
-                    console.print(f"  [red]✗[/red] {acct_label} ([bold]{acct_username}[/bold]): {e.response.text}")
-
-            # Print credentials table
-            _say(message="Here are the accounts I created. [bold]Save these passwords now![/bold]")
-
-            table: Table = Table(title="Matrix Accounts")
-            table.add_column("Account", style="cyan")
-            table.add_column("User ID", style="white")
-            table.add_column("Password", style="green")
-            for acct_username, acct_password, acct_label in accounts:
-                table.add_row(acct_label, f"@{acct_username}:{server_name}", acct_password)
-            console.print(table)
-
-            # Use the bot's access token from registration
-            bot_user_id: str = bot_data.get("user_id", f"@{bot_username}:{server_name}")
-            bot_access_token: str = bot_data.get("access_token", "")
-
-            if bot_access_token:
-                _say(
-                    message=f"I got the bot access token automatically from registration.\n\n"
-                    f"Bot user ID: [bold]{bot_user_id}[/bold]"
-                )
+            if location == "external":
+                external: dict[str, Any] | None = self._setup_external_matrix()
+                if external is None:
+                    return self.setup_new_channel()
+                params = external
             else:
-                _say(
-                    message=f"I couldn't get the bot access token automatically.\n"
-                    f"Please log in as [bold]{bot_username}[/bold] using Element Desktop and provide the access token."
-                )
-                bot_access_token: Any | str = Prompt.ask(" [cyan]>[/cyan] Bot access token").strip()
-
-            _say(
-                message="Now log in with [bold]Element Desktop[/bold] using your account.\n\n"
-                f"  Homeserver: [bold]http://localhost:6167[/bold]\n"
-                f"  Username:   [bold]@{username}:{server_name}[/bold]\n"
-                f"  Password:   [bold]{user_password}[/bold]\n\n"
-                f"Then start a DM with [bold]@{bot_username}:{server_name}[/bold] to chat!"
-            )
-
-            params["homeserver"] = homeserver
-            params["user_id"] = bot_user_id
-            params["access_token"] = "$MATRIX_ACCESS_TOKEN"
-            params["display_name"] = f"{agent_name} ⚡"
-
-            # Collect the bot token for the final .env block
-            self._env_secrets.append(("MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN", bot_access_token, "Matrix bot access token for Conduit"))
+                params = self._setup_local_matrix()
 
         elif channel_types[selection]:
             _say(message=f"I need a few details to set up [bold]{instance_name}[/bold].")

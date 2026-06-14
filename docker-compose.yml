@@ -21,14 +21,17 @@ services:
       - ./data/cache:/home/memtrix/.cache     # writable cache for ChromaDB / HuggingFace
     restart: unless-stopped
     depends_on:
-      - conduit
       - searxng
     networks:
       - matrix
 
   ############ Conduit (Matrix homeserver) ############
+  # Only started for the bundled local homeserver. When using an external
+  # Matrix server, leave COMPOSE_PROFILES unset so this service stays down.
   conduit:
     image: matrixconduit/matrix-conduit:latest
+    profiles:
+      - local
     environment:
       CONDUIT_CONFIG: /etc/conduit.toml
     ports:
