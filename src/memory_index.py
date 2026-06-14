@@ -71,21 +71,25 @@ class LocalEmbeddingFunction:
         """
         return "local"
 
-    def __call__(self, input: list[str]) -> list[list[float]]:
+    def __call__(self, input: list[str]) -> Any:
         """
-        This function generates embeddings for a list of texts.
+        This function generates embeddings for a list of texts. It returns numpy
+        arrays (not Python lists) because ChromaDB's HttpClient serializes query
+        embeddings via .tolist() and expects numpy arrays on the way out.
         """
         prefixed: list[str] = [f"search_document: {text}" for text in input]
         embeddings = self._model.encode(sentences=prefixed, normalize_embeddings=True, show_progress_bar=False)
-        return embeddings.tolist()
+        return list(embeddings)
 
-    def embed_query(self, input: list[str]) -> list[list[float]]:
+    def embed_query(self, input: list[str]) -> Any:
         """
-        This function generates embeddings for query texts.
+        This function generates embeddings for query texts. It returns numpy arrays
+        (not Python lists) so the result works with both ChromaDB's PersistentClient
+        and HttpClient code paths.
         """
         prefixed: list[str] = [f"search_query: {text}" for text in input]
         embeddings = self._model.encode(sentences=prefixed, normalize_embeddings=True, show_progress_bar=False)
-        return embeddings.tolist()
+        return list(embeddings)
 
 
 class MemoryIndex:

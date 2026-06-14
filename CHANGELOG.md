@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.12.1
+
+- Fix the background deriver crashing with `AttributeError: 'list' object has no attribute 'tolist'` when storing reasoning conclusions against the shared ChromaDB service. The local embedding function returned plain Python lists, but ChromaDB's `HttpClient` query path serializes embeddings via `convert_np_embeddings_to_list()`, which calls `.tolist()` on each embedding and expects NumPy arrays. The embedding function now returns NumPy row vectors, so both the `HttpClient` (shared `chroma` service) and `PersistentClient` (local) code paths work. Reasoning-memory de-duplication and recall no longer error out.
+
 ## 2.12.0
 
 - New `/costs` slash command — reports OpenRouter credit usage for every configured OpenRouter provider (deduplicated by API key), including **credits used today** (current UTC day), this week, this month, and all-time, plus any configured credit limit and remaining balance. Credits are US dollars. The command queries `GET https://openrouter.ai/api/v1/key` with the provider's API key and is only available when at least one OpenRouter provider is configured. Network and authorization errors are reported gracefully.
