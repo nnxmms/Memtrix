@@ -22,7 +22,7 @@ class BitwardenSecrets:
 
     def __init__(
         self,
-        organization_id: str,
+        organization_id: str | None = None,
         project_id: str | None = None,
         api_url: str | None = None,
         identity_url: str | None = None,

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.10.3
+
+- Fix onboarding crash when enabling Bitwarden — `BitwardenSecrets.__init__` still declared `organization_id` as a required positional argument, so the reworked wizard (which constructs the client before the org ID is known) failed with `TypeError: __init__() missing 1 required positional argument: 'organization_id'`. The argument is now optional and defaults to `None`.
+
 ## 2.10.2
 
 - Fix Bitwarden secret storage failing with `404 Resource not found` — two causes. First, `create_secret` passed arguments to the SDK in the wrong order (`note` and `value` were swapped); the correct signature is `create(organization_id, key, value, note, project_ids)`. Second, the onboarding wizard silently swallowed project-listing failures and could proceed with no project selected, and creating a project-less secret returns a 404. Project selection is now required and listing failures are surfaced.
