@@ -87,7 +87,7 @@ class BitwardenSecrets:
         This function returns a list of (id, name) tuples for the organization's projects.
         """
         response: Any = self._client.projects().list(self._organization_id)
-        return [(p.id, p.name) for p in response.data.data]
+        return [(str(p.id), str(p.name)) for p in response.data.data]
 
     def fetch_all(self) -> dict[str, str]:
         """

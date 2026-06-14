@@ -68,7 +68,7 @@ class Onboarding:
         This function saves the current config to disk.
         """
         with open(file=CONFIG_PATH, mode="w") as f:
-            json.dump(obj=self.config, fp=f, indent=4)
+            json.dump(obj=self.config, fp=f, indent=4, default=str)
 
     def setup_new_provider(self) -> None:
         """

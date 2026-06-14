@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.10.1
+
+- Fix onboarding crash when using Bitwarden Secrets Manager — `list_projects()` returned the project `id` and `name` as `UUID` objects from the Bitwarden SDK, so the selected `project_id` was stored in the config as a `UUID` and `json.dump` failed with `TypeError: Object of type UUID is not JSON serializable` at the final save step. Project IDs and names are now coerced to strings, and config saving uses a `default=str` fallback as a safety net.
+
 ## 2.10.0
 
 - Native reasoning memory — Memtrix now has a built-in "memory that reasons" layer inspired by Honcho, implemented entirely locally with no external service. A background **deriver** thread continuously reasons over each conversation and distills durable conclusions about both the user and the agent itself: explicit observations, certain deductions, and observed patterns. Conclusions are vector-indexed in a local ChromaDB store (`data/representations`) using the same on-device `nomic-embed-text-v1.5` embedder.
