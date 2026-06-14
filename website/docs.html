@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.15.0</span>
+    memtrix<span class="ver">v2.16.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -858,7 +858,7 @@ docker compose up -d</code></pre>
       <p>A local web app at <code>localhost:8800</code> for running Memtrix without editing JSON: a validated config editor, one-click connection tests, secret management, full memory administration, and safe restarts with live progress. See <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a>.</p>
 
       <h2 id="ft-tools">Agentic Tool System</h2>
-      <p>28 built-in tools auto-discovered at startup. The orchestrator runs an iterative reasoning loop (up to 10 iterations) where the LLM can call tools, observe results, and continue reasoning. New tools are just Python files dropped into <code>src/tools/</code>.</p>
+      <p>36 built-in tools auto-discovered at startup. The orchestrator runs an iterative reasoning loop (up to 10 iterations) where the LLM can call tools, observe results, and continue reasoning. New tools are just Python files dropped into <code>src/tools/</code>.</p>
 
       <h2 id="ft-selfdocs">Self-Documenting</h2>
       <p>Memtrix can research its own documentation. The <code>search_docs</code> and <code>ask_docs</code> tools let the agent - and every sub-agent - answer "how does Memtrix work?" questions from the bundled docs, with citations. The docs are parsed into a vector-indexed <code>documentation</code> collection at startup and refreshed automatically. See <a onclick="navigate('tools-ref')" style="cursor:pointer;color:var(--accent)">Tools Reference</a>.</p>
@@ -871,6 +871,9 @@ docker compose up -d</code></pre>
 
       <h2 id="ft-agents">Multi-Agent System</h2>
       <p>Create specialist sub-agents with their own identity, memory, Matrix presence, and workspace. Agents communicate via <code>ask_agent</code> - the main agent can consult sub-agents, and sub-agents can consult each other or the main agent.</p>
+
+      <h2 id="ft-ssh">SSH Remote Administration</h2>
+      <p>Memtrix can act as a sysadmin on your remote hosts. It generates its own SSH key, registers hosts, and opens a <strong>persistent interactive session</strong> it works inside across many commands (so <code>cd</code> and environment changes persist), then closes it. Key-only auth, trust-on-first-use host keys, confirmation for destructive commands, and in-memory-only <code>sudo</code> passwords. See <a onclick="navigate('tools-ref')" style="cursor:pointer;color:var(--accent)">Tools Reference</a>.</p>
 
       <h2 id="ft-matrix">Matrix Chat Protocol</h2>
       <p>Communicates through the Matrix protocol via a local Conduit homeserver. Use Element, FluffyChat, or any Matrix client. Each room maintains its own conversation session.</p>
@@ -1833,6 +1836,12 @@ docker compose up -d</code></pre>
         <span style="color:var(--accent)">"dual_peer"</span>: <span style="color:var(--purple)">true</span>,
         <span style="color:var(--accent)">"inject_top_k"</span>: <span style="color:var(--purple)">5</span>
     },
+    <span style="color:var(--accent)">"ssh"</span>: {
+        <span style="color:var(--accent)">"enabled"</span>: <span style="color:var(--purple)">true</span>,
+        <span style="color:var(--accent)">"connect_timeout"</span>: <span style="color:var(--purple)">15</span>,
+        <span style="color:var(--accent)">"command_timeout"</span>: <span style="color:var(--purple)">120</span>,
+        <span style="color:var(--accent)">"max_output_chars"</span>: <span style="color:var(--purple)">20000</span>
+    },
     <span style="color:var(--accent)">"secrets"</span>: {
         <span style="color:var(--accent)">"backend"</span>: <span style="color:var(--orange)">"env"</span>
     }
@@ -1891,6 +1900,18 @@ docker compose up -d</code></pre>
 
       <h2 id="cf-memory">Memory config</h2>
       <p>The <code>memory</code> block tunes the reasoning-memory system (backend, recall mode, derivation depth, peer cards, and more). Every key is documented on the <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a> page.</p>
+
+      <h2 id="cf-ssh">SSH config</h2>
+      <p>The optional <code>ssh</code> block controls the <a onclick="navigate('tools-ref')" style="cursor:pointer;color:var(--accent)">remote-administration tools</a>. Omit it to run on the defaults below.</p>
+      <table>
+        <thead><tr><th>Key</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>enabled</code></td><td><code>true</code></td><td>Load the SSH tools. Set to <code>false</code> to remove the capability entirely.</td></tr>
+          <tr><td><code>connect_timeout</code></td><td><code>15</code></td><td>Seconds to wait when opening a connection.</td></tr>
+          <tr><td><code>command_timeout</code></td><td><code>120</code></td><td>Seconds to wait for a single command to finish.</td></tr>
+          <tr><td><code>max_output_chars</code></td><td><code>20000</code></td><td>Cap on command output returned to the model.</td></tr>
+        </tbody>
+      </table>
 
       <h2 id="cf-web">Web Control Panel</h2>
       <p>The panel is configured through environment variables on the <code>web</code> service, not <code>config.json</code>:</p>
@@ -2123,6 +2144,26 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
         </tbody>
       </table>
 
+      <h2 id="tr-ssh">Remote Administration (SSH)</h2>
+      <p>Memtrix can administer remote hosts over SSH through a <strong>persistent interactive session</strong>: it opens a connection and works inside it across many commands (so <code>cd</code> and environment changes persist), then closes it. These tools are available to the main agent only and load only when <code>ssh.enabled</code> is true.</p>
+      <table>
+        <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>ssh_gen_key</code></td><td>Generate Memtrix's own ed25519 SSH key; returns the public key (private key never disclosed)</td></tr>
+          <tr><td><code>ssh_get_pub_key</code></td><td>Return the public key to install in a host's <code>authorized_keys</code></td></tr>
+          <tr><td><code>ssh_add_host</code></td><td>Register a remote host under a short alias</td></tr>
+          <tr><td><code>ssh_remove_host</code></td><td>Unregister a remote host alias</td></tr>
+          <tr><td><code>ssh_get_remote_hosts</code></td><td>List registered hosts and their connection status</td></tr>
+          <tr><td><code>ssh_connect</code></td><td>Open a persistent session (trust-on-first-use host-key confirmation)</td></tr>
+          <tr><td><code>ssh_run</code></td><td>Run a command in the open session; state persists between calls; optional <code>sudo</code></td></tr>
+          <tr><td><code>ssh_disconnect</code></td><td>Close an open SSH session</td></tr>
+        </tbody>
+      </table>
+      <div class="callout note">
+        <span class="callout-tag note">note</span>
+        <div class="callout-body">Authentication is key-only (you install Memtrix's public key on each host). Host keys are pinned trust-on-first-use; potentially destructive commands (<code>rm</code>, <code>dd</code>, <code>mkfs</code>, <code>shutdown</code>, recursive <code>chmod</code>/<code>chown</code>, block-device writes) require confirmation; <code>sudo</code> passwords are kept in memory only and never written to disk.</div>
+      </div>
+
       <div class="callout warn">
         <span class="callout-tag warn">warn</span>
         <div class="callout-body"><strong>Read-before-write:</strong> Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level.</div>
@@ -2150,7 +2191,8 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
       </div>
 
       <h2 id="sc-noexec">No Arbitrary Code Execution</h2>
-      <p>The LLM has <strong>no shell access</strong>. There is no <code>run_command</code> tool - every action goes through a purpose-built tool with its own validation.</p>
+      <p>The LLM has <strong>no shell access on the host container</strong>. There is no local <code>run_command</code> tool - every action goes through a purpose-built tool with its own validation.</p>
+      <p>The optional SSH tools do let the agent run commands on <em>remote</em> hosts you have explicitly registered, but never on the Memtrix container itself. That capability is gated: it only loads when <code>ssh.enabled</code> is true, authenticates with a key you install, pins host keys trust-on-first-use, requires confirmation for destructive commands, and keeps any <code>sudo</code> password in memory only. See <a onclick="navigate('tools-ref')" style="cursor:pointer;color:var(--accent)">Tools Reference → Remote Administration</a>.</p>
 
       <h2 id="sc-ssrf">SSRF Protection</h2>
       <p>All outbound tools (<code>fetch_url</code>, <code>download_file</code>, <code>git_clone</code>) validate URLs against:</p>

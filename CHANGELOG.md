@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.16.0
+
+- SSH remote administration - Memtrix can now act as a sysadmin on remote hosts over SSH. It opens a persistent interactive session and works inside it across many commands, so the working directory and environment persist between calls just like a human at a terminal. Eight new tools: `ssh_gen_key` (generate the agent's own ed25519 key), `ssh_get_pub_key` (return the public key to install in a host's authorized_keys), `ssh_add_host` / `ssh_remove_host` / `ssh_get_remote_hosts` (manage a registry of named hosts), `ssh_connect` / `ssh_disconnect` (open and close persistent sessions), and `ssh_run` (run a command in the open session, with optional `sudo`).
+- Security: authentication is key-only (install Memtrix's public key on each host); host keys are pinned trust-on-first-use with an explicit fingerprint confirmation; potentially destructive commands (`rm`, `dd`, `mkfs`, `shutdown`/`reboot`, recursive `chmod`/`chown`, block-device writes, etc.) require confirmation; `sudo` passwords are requested via the human-in-the-loop prompt and kept in memory only, never written to disk; SSH to Memtrix's own internal services and to loopback/link-local addresses is refused, while private LAN hosts are allowed. The private key is written `0600` and never disclosed.
+- The SSH tools are available to the main agent only (excluded from sub-agents) and are gated behind a new optional `ssh` config block: `enabled` (default true), `connect_timeout` (15), `command_timeout` (120), `max_output_chars` (20000). Open sessions are closed on shutdown.
+
 ## 2.15.0
 
 - Typing indicator - Memtrix now shows the native Matrix "typing" indicator while it is working on a reply, so you can tell it received your message and is composing a response. The indicator is refreshed periodically for long-running replies and cleared as soon as the answer is sent. Applies to both text and file/attachment messages.

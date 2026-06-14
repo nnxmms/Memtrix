@@ -24,6 +24,7 @@ from src.orchestrator import Orchestrator
 logger: logging.Logger = logging.getLogger(__name__)
 from src.providers.base import BaseProvider
 from src.session import Session
+from src.ssh_manager import SSH_TOOL_FILES
 from src.tools import discover_tools
 
 # Valid agent name: letters, spaces, hyphens. 2–24 chars.
@@ -714,7 +715,7 @@ class AgentManager:
                 "memory_search_tool.py",
                 "memory_context_tool.py",
                 "memory_conclude_tool.py",
-            }
+            } | SSH_TOOL_FILES
         )
 
         # Documentation index so sub-agents can research the Memtrix docs too

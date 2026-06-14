@@ -64,3 +64,19 @@ def _atomic_write(config: dict[str, Any]) -> None:
         f.flush()
         os.fsync(f.fileno())
     os.replace(src=tmp_path, dst=CONFIG_PATH)
+
+
+def resolve_ssh_config(config: dict[str, Any]) -> dict[str, Any]:
+    """
+    This function returns the SSH configuration merged with safe defaults so that
+    installs without an "ssh" section keep working unchanged. When disabled, the
+    SSH sysadmin tools are not loaded at all.
+    """
+    defaults: dict[str, Any] = {
+        "enabled": True,            # load the SSH remote-administration tools
+        "connect_timeout": 15,     # seconds to wait when opening a connection
+        "command_timeout": 120,    # seconds to wait for a single command to finish
+        "max_output_chars": 20000, # cap command output returned to the model
+    }
+    user_cfg: dict[str, Any] = config.get("ssh", {}) or {}
+    return {**defaults, **user_cfg}

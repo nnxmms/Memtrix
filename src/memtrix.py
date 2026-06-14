@@ -10,7 +10,7 @@ from src.agent_manager import AgentManager
 from src.channels.cli import CLIChannel
 from src.channels.matrix import MatrixChannel
 from src.commands import Commands
-from src.config import CONFIG_PATH, update_config
+from src.config import CONFIG_PATH, resolve_ssh_config, update_config
 from src.deriver import Deriver
 from src.docs_index import DocsIndex
 from src.lifecycle import install_signal_handlers, start_heartbeat
@@ -19,6 +19,7 @@ from src.orchestrator import Orchestrator
 from src.providers.base import BaseProvider
 from src.representation import RepresentationStore, resolve_memory_config
 from src.session import Session
+from src.ssh_manager import SSH_TOOL_FILES, SSHManager
 from src.tools import discover_tools
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -130,6 +131,14 @@ class Memtrix:
         tool_exclude: set[str] = set()
         if not (mem_cfg["enabled"] and mem_cfg["recall_mode"] in ("tools", "hybrid")):
             tool_exclude |= MEMORY_TOOL_FILES
+
+        # Exclude the SSH sysadmin tools unless SSH administration is enabled
+        ssh_cfg: dict[str, Any] = resolve_ssh_config(config=self._config)
+        if not ssh_cfg["enabled"]:
+            tool_exclude |= SSH_TOOL_FILES
+        else:
+            logger.info("SSH remote administration enabled")
+
         tools: list[BaseTool] = discover_tools(workspace_dir=workspace_dir, exclude=tool_exclude)
 
         # Eagerly initialize the memory index so existing files are indexed at startup
@@ -351,3 +360,8 @@ class Memtrix:
                 self._deriver.flush_now()
             except Exception as exc:
                 logger.error("Error flushing deriver on shutdown: %s", exc)
+
+        try:
+            SSHManager.get_instance().disconnect_all()
+        except Exception as exc:
+            logger.error("Error closing SSH sessions on shutdown: %s", exc)

@@ -231,6 +231,14 @@ Built-in tools are automatically discovered at startup:
 | `list_agents` | Lists all registered sub-agents and their status |
 | `delete_agent` | Permanently deletes a sub-agent and all its data |
 | `ask_agent` | Asks another agent a question and returns their response |
+| `ssh_gen_key` | Generates Memtrix's own ed25519 SSH key (returns the public key) |
+| `ssh_get_pub_key` | Returns the SSH public key to install in a host's `authorized_keys` |
+| `ssh_add_host` | Registers a remote host under a short alias |
+| `ssh_remove_host` | Unregisters a remote host alias |
+| `ssh_get_remote_hosts` | Lists registered hosts and their connection status |
+| `ssh_connect` | Opens a persistent interactive SSH session to a host (trust-on-first-use host key) |
+| `ssh_run` | Runs a command in the open session — state persists between calls; optional `sudo` |
+| `ssh_disconnect` | Closes an open SSH session |
 
 > Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt. `USER.md` and `MEMORY.md` are profile cards owned by the reasoning memory and cannot be written by the agent at all.
 
@@ -338,7 +346,48 @@ User: "Remember that cake recipe I told you about?"
 
 <br>
 
-## 🖥️ Web Control Panel
+## � SSH Remote Administration
+
+Memtrix can act as a sysadmin over SSH, working on remote hosts through a **persistent interactive session** — it opens a connection, works inside it across many commands, then closes it. Because the shell stays open, state carries over between commands: `cd /etc` in one step is still in effect on the next, exactly like a human at a terminal.
+
+```
+You:     Set up the new Raspberry Pi at 192.168.1.50, user 'pi'.
+Memtrix: → ssh_gen_key            (creates its ed25519 key, shows the public key)
+You:     (install that key in the Pi's ~/.ssh/authorized_keys)
+Memtrix: → ssh_add_host(alias="pi", hostname="192.168.1.50", username="pi")
+         → ssh_connect("pi")      (asks you to trust the host key on first contact)
+         → ssh_run("cd /etc/apt && ls")
+         → ssh_run("apt update", sudo=true)   (asks for the sudo password once)
+         → ssh_disconnect("pi")
+```
+
+**How it works**
+
+- **Its own key** — `ssh_gen_key` creates an ed25519 keypair stored on the data volume (private key `0600`, never disclosed). Install the public key (`ssh_get_pub_key`) in each host's `authorized_keys`. Authentication is key-only; Memtrix never uses a login password.
+- **Host registry** — `ssh_add_host` / `ssh_remove_host` / `ssh_get_remote_hosts` manage named hosts in `data/ssh/hosts.json`.
+- **Persistent session** — `ssh_connect` opens a shell that subsequent `ssh_run` calls reuse; `ssh_disconnect` closes it. Sessions are also closed on shutdown.
+- **sudo** — pass `sudo=true` to `ssh_run`. Memtrix asks you for the sudo password, keeps it **in memory only** for the session (never written to disk), and feeds it to `sudo -S`.
+
+**Safety**
+
+- **Trust-on-first-use host keys** — on the first connection Memtrix shows the host-key fingerprint and asks you to confirm; the key is pinned in `data/ssh/known_hosts` and verified strictly thereafter.
+- **Destructive-command confirmation** — commands like `rm`, `dd`, `mkfs`, `shutdown`/`reboot`, recursive `chmod`/`chown`, and writes to block devices require your explicit approval before running.
+- **No internal targets** — SSH to Memtrix's own Docker services and to loopback/link-local addresses is refused. Private LAN hosts are allowed (that's the point).
+
+SSH administration is enabled by default and configured via the optional `ssh` section in `config.json`:
+
+| Key | Default | Description |
+|:--|:--|:--|
+| `enabled` | `true` | Load the SSH tools. Set to `false` to remove the capability entirely. |
+| `connect_timeout` | `15` | Seconds to wait when opening a connection. |
+| `command_timeout` | `120` | Seconds to wait for a single command to finish. |
+| `max_output_chars` | `20000` | Cap on command output returned to the model. |
+
+The SSH tools are available to the main agent only; sub-agents do not get them.
+
+<br>
+
+## �🖥️ Web Control Panel
 
 A production-ready browser UI for configuring everything Memtrix offers, served by a dedicated, hardened FastAPI container with a React/TypeScript single-page app. It runs alongside the agent and shares the same `config.json` and memory store.
 
@@ -595,6 +644,7 @@ Memtrix/
 │   ├── memory_index.py               # ChromaDB + local embeddings (RAG)
 │   ├── representation.py             # Reasoning-memory store (conclusions + profile cards)
 │   ├── deriver.py                    # Background reasoning thread
+│   ├── ssh_manager.py                # Persistent SSH sessions + key/host registry
 │   ├── config.py                     # Config path constant
 │   ├── onboarding.py                 # Interactive setup wizard (Rich TUI)
 │   ├── channels/
@@ -632,7 +682,15 @@ Memtrix/
 │   │   ├── create_agent_tool.py      # Create specialist sub-agents
 │   │   ├── list_agents_tool.py       # List registered sub-agents
 │   │   ├── delete_agent_tool.py      # Delete sub-agents
-│   │   └── ask_agent_tool.py         # Inter-agent communication
+│   │   ├── ask_agent_tool.py         # Inter-agent communication
+│   │   ├── ssh_gen_key_tool.py       # Generate the agent's SSH key
+│   │   ├── ssh_get_pub_key_tool.py   # Return the SSH public key
+│   │   ├── ssh_add_host_tool.py      # Register a remote host
+│   │   ├── ssh_remove_host_tool.py   # Unregister a remote host
+│   │   ├── ssh_get_remote_hosts_tool.py # List registered hosts
+│   │   ├── ssh_connect_tool.py       # Open a persistent SSH session
+│   │   ├── ssh_run_tool.py           # Run a command in the session
+│   │   └── ssh_disconnect_tool.py    # Close an SSH session
 │   └── static/
 │       ├── config.json               # Config template
 │       ├── conduit.toml              # Conduit homeserver config
