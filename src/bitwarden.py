@@ -31,11 +31,12 @@ class BitwardenSecrets:
         This is a thin wrapper around the Bitwarden Secrets Manager SDK used to
         fetch and create secrets for Memtrix.
         """
-        self._organization_id: str = organization_id
+        self._organization_id: str | None = organization_id
         self._project_id: str | None = project_id
         self._api_url: str = api_url or DEFAULT_API_URL
         self._identity_url: str = identity_url or DEFAULT_IDENTITY_URL
         self._client: Any = None
+        self._login_response: Any = None
 
     def connect(self, access_token: str) -> None:
         """
@@ -67,9 +68,41 @@ class BitwardenSecrets:
         try:
             # state file is intentionally None: re-authenticate each run so we
             # never write SDK state onto the read-only container filesystem.
-            self._client.auth().login_access_token(access_token, None)
+            self._login_response = self._client.auth().login_access_token(access_token, None)
         except Exception as exc:
             raise RuntimeError(f"Bitwarden authentication failed: {exc}") from exc
+
+    def set_organization_id(self, organization_id: str) -> None:
+        """
+        This function sets the organization ID used for subsequent calls.
+        """
+        self._organization_id = organization_id
+
+    def set_project_id(self, project_id: str) -> None:
+        """
+        This function sets the project ID that new secrets are stored in.
+        """
+        self._project_id = project_id
+
+    def detect_organization_id(self) -> str | None:
+        """
+        This function makes a best-effort attempt to read the organization ID from
+        the access-token login response. Secrets Manager tokens are scoped to a
+        single organization, but the SDK does not reliably expose it, so this may
+        return None and the caller should fall back to asking the user.
+        """
+        response: Any = self._login_response
+        if response is None:
+            return None
+        candidates: list[Any] = [response, getattr(response, "data", None)]
+        for source in candidates:
+            if source is None:
+                continue
+            for attr in ("organization_id", "organizationId", "organization"):
+                value: Any = getattr(source, attr, None)
+                if value:
+                    return str(value)
+        return None
 
     def test_connection(self) -> bool:
         """
@@ -106,11 +139,12 @@ class BitwardenSecrets:
         This function creates a single secret in the configured project.
         """
         project_ids: list[str] = [self._project_id] if self._project_id else []
+        # SDK signature is create(organization_id, key, value, note, project_ids).
         self._client.secrets().create(
             self._organization_id,
             key,
-            note,
             value,
+            note,
             project_ids,
         )
 

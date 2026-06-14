@@ -544,58 +544,85 @@ class Onboarding:
                 _say(message="[bold red]Token can't be empty.[/bold red] Let's try again.")
                 continue
 
-            organization_id: str = Prompt.ask(" [cyan]>[/cyan] Organization ID").strip()
-            if not organization_id:
-                _say(message="[bold red]Organization ID can't be empty.[/bold red] Let's try again.")
-                continue
-
-            # Self-hosted support: optional custom endpoints
+            # Self-hosted support: optional custom endpoints (needed before we connect)
             api_url: str | None = None
             identity_url: str | None = None
             if Confirm.ask(" [cyan]>[/cyan] Using a self-hosted Bitwarden server?", default=False):
                 api_url = Prompt.ask(" [cyan]>[/cyan] API URL", default="https://api.bitwarden.eu").strip() or None
                 identity_url = Prompt.ask(" [cyan]>[/cyan] Identity URL", default="https://identity.bitwarden.eu").strip() or None
 
-            # Attempt to connect and verify
+            # Authenticate with the access token (no org ID required yet)
             client: BitwardenSecrets = BitwardenSecrets(
-                organization_id=organization_id,
                 api_url=api_url,
                 identity_url=identity_url,
             )
             try:
                 client.connect(access_token=token)
-                if not client.test_connection():
-                    raise RuntimeError("could not list secrets for this organization")
             except Exception as exc:
-                _say(message=f"[bold red]Connection failed:[/bold red] {exc}\n\nLet's try again.")
+                _say(message=f"[bold red]Authentication failed:[/bold red] {exc}\n\nLet's try again.")
                 if not Confirm.ask(" [cyan]>[/cyan] Retry Bitwarden setup?", default=True):
                     _say(message="[yellow]Skipping Bitwarden — secrets will be written to .env instead.[/yellow]")
                     return
                 continue
 
-            # Choose a project to store secrets in
-            project_id: str | None = None
+            # Resolve the organization: auto-detect from the token if possible, else ask
+            organization_id: str | None = client.detect_organization_id()
+            if organization_id:
+                _say(message=f"Detected organization [bold]{organization_id}[/bold] from your access token.")
+            while not organization_id:
+                _say(
+                    message="A Secrets Manager access token is tied to one [bold]organization[/bold], "
+                    "but I couldn't read its ID automatically.\n"
+                    "You'll find it in the Bitwarden web vault URL or under "
+                    "[dim]Organization settings → Information[/dim]."
+                )
+                organization_id = Prompt.ask(" [cyan]>[/cyan] Organization ID").strip() or None
+            client.set_organization_id(organization_id=organization_id)
+
+            # Verify the token can actually reach this organization's secrets
+            if not client.test_connection():
+                _say(
+                    message="[bold red]Couldn't access that organization's secrets.[/bold red] "
+                    "Double-check the organization ID and that the token has read-write access."
+                )
+                if not Confirm.ask(" [cyan]>[/cyan] Retry Bitwarden setup?", default=True):
+                    _say(message="[yellow]Skipping Bitwarden — secrets will be written to .env instead.[/yellow]")
+                    return
+                continue
+
+            # Choose a project to store secrets in (selection is required)
             try:
                 projects: list[tuple[str, str]] = client.list_projects()
-            except Exception:
+            except Exception as exc:
+                _say(message=f"[bold red]Couldn't list projects:[/bold red] {exc}")
                 projects = []
 
-            if len(projects) == 1:
-                project_id = projects[0][0]
-                _say(message=f"Using Bitwarden project [bold]{projects[0][1]}[/bold].")
-            elif len(projects) > 1:
-                _say(message="Which [bold]project[/bold] should I store your secrets in?")
-                table: Table = Table(show_header=True, header_style="bold cyan")
-                table.add_column("#")
-                table.add_column("Project")
-                for idx, (_, name) in enumerate(projects, start=1):
-                    table.add_row(str(idx), name)
-                console.print(table)
-                choice: str = Prompt.ask(
-                    " [cyan]>[/cyan] Project",
-                    choices=[str(i) for i in range(1, len(projects) + 1)],
+            if not projects:
+                _say(
+                    message="[bold red]No projects found in this organization.[/bold red]\n"
+                    "Create a project in Bitwarden Secrets Manager (and grant this machine "
+                    "account access to it), then come back."
                 )
-                project_id = projects[int(choice) - 1][0]
+                if not Confirm.ask(" [cyan]>[/cyan] Retry Bitwarden setup?", default=True):
+                    _say(message="[yellow]Skipping Bitwarden — secrets will be written to .env instead.[/yellow]")
+                    return
+                continue
+
+            _say(message="Which [bold]project[/bold] should I store your secrets in?")
+            table: Table = Table(show_header=True, header_style="bold cyan")
+            table.add_column("#")
+            table.add_column("Project")
+            for idx, (_, name) in enumerate(projects, start=1):
+                table.add_row(str(idx), name)
+            console.print(table)
+            choice: str = Prompt.ask(
+                " [cyan]>[/cyan] Project",
+                choices=[str(i) for i in range(1, len(projects) + 1)],
+            )
+            project_id: str = projects[int(choice) - 1][0]
+            project_name: str = projects[int(choice) - 1][1]
+            client.set_project_id(project_id=project_id)
+            _say(message=f"Using Bitwarden project [bold]{project_name}[/bold].")
 
             # Persist non-secret backend configuration
             self.config["secrets"] = {

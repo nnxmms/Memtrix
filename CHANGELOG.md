@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.10.2
+
+- Fix Bitwarden secret storage failing with `404 Resource not found` — two causes. First, `create_secret` passed arguments to the SDK in the wrong order (`note` and `value` were swapped); the correct signature is `create(organization_id, key, value, note, project_ids)`. Second, the onboarding wizard silently swallowed project-listing failures and could proceed with no project selected, and creating a project-less secret returns a 404. Project selection is now required and listing failures are surfaced.
+- Improved Bitwarden onboarding flow — the wizard now authenticates with the access token first, attempts to auto-detect the organization ID from the login response (falling back to asking when the SDK doesn't expose it), verifies it can reach the organization's secrets, then lists projects and requires you to pick one. Self-hosted endpoints are asked before connecting so verification uses the right server.
+
 ## 2.10.1
 
 - Fix onboarding crash when using Bitwarden Secrets Manager — `list_projects()` returned the project `id` and `name` as `UUID` objects from the Bitwarden SDK, so the selected `project_id` was stored in the config as a `UUID` and `json.dump` failed with `TypeError: Object of type UUID is not JSON serializable` at the final save step. Project IDs and names are now coerced to strings, and config saving uses a `default=str` fallback as a safety net.
