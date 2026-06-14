@@ -151,6 +151,31 @@ class MatrixChannel:
             }
         )
 
+    async def _typing_loop(self, room_id: str) -> None:
+        """
+        This function keeps the typing indicator alive in a room until cancelled.
+        Matrix typing notifications expire after a timeout, so they must be refreshed
+        periodically while the agent is working on a reply.
+        """
+        try:
+            while True:
+                try:
+                    await self._client.room_typing(room_id=room_id, typing_state=True, timeout=30000)
+                except Exception as e:
+                    logger.debug("Failed to send typing notification in %s: %s", room_id, e)
+                await asyncio.sleep(delay=20)
+        except asyncio.CancelledError:
+            pass
+
+    async def _stop_typing(self, room_id: str) -> None:
+        """
+        This function clears the typing indicator in a room.
+        """
+        try:
+            await self._client.room_typing(room_id=room_id, typing_state=False)
+        except Exception as e:
+            logger.debug("Failed to clear typing notification in %s: %s", room_id, e)
+
     async def _react_to_event(self, room_id: str, event_id: str, key: str) -> None:
         """
         This function sends an emoji reaction to a message via the Matrix API.
@@ -261,6 +286,7 @@ class MatrixChannel:
             future.result(timeout=10)
 
         async def _process() -> None:
+            typing_task: asyncio.Task = asyncio.create_task(self._typing_loop(room_id=room.room_id))
             try:
                 reply: str = await asyncio.to_thread(self._handler, user_message, room.room_id, notify, send_file, ask, react)
                 await self._client.room_send(
@@ -270,6 +296,9 @@ class MatrixChannel:
                 )
             except Exception as e:
                 logger.error("Error processing file message in %s: %s", room.room_id, e, exc_info=True)
+            finally:
+                typing_task.cancel()
+                await self._stop_typing(room_id=room.room_id)
 
         task: asyncio.Task = asyncio.create_task(_process())
         self._tasks.add(task)
@@ -362,6 +391,7 @@ class MatrixChannel:
 
         # Process the message as a background task so sync_forever can continue
         async def _process() -> None:
+            typing_task: asyncio.Task = asyncio.create_task(self._typing_loop(room_id=room.room_id))
             try:
                 reply: str = await asyncio.to_thread(self._handler, prefixed_message, room.room_id, notify, send_file, ask, react)
                 await self._client.room_send(
@@ -371,6 +401,9 @@ class MatrixChannel:
                 )
             except Exception as e:
                 logger.error("Error processing message in %s: %s", room.room_id, e, exc_info=True)
+            finally:
+                typing_task.cancel()
+                await self._stop_typing(room_id=room.room_id)
 
         task: asyncio.Task = asyncio.create_task(_process())
         self._tasks.add(task)

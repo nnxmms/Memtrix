@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.15.0
+
+- Typing indicator - Memtrix now shows the native Matrix "typing" indicator while it is working on a reply, so you can tell it received your message and is composing a response. The indicator is refreshed periodically for long-running replies and cleared as soon as the answer is sent. Applies to both text and file/attachment messages.
+
 ## 2.14.0
 
 - Daily memory consolidation - a background pass now distills accumulated reasoning conclusions into a smaller, cleaner set, like memory consolidation during sleep. For each peer it merges duplicates and near-duplicates, drops anything outdated, contradicted, trivial, or ephemeral, and synthesizes higher-order patterns from related items, then re-curates the peer card from the distilled set. Conclusions you added manually are preserved untouched; only derived ones are consolidated. The schedule is persisted to disk so it survives restarts, runs roughly every `consolidation_interval_hours` (default 24), and skips peers below `consolidation_min_items` (default 12). It honors the deriver pause toggle.
