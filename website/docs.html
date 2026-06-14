@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Memtrix Docs</title>
   <meta name="description" content="Documentation for Memtrix - a self-hosted, privacy-first personal AI agent.">
+  <link rel="icon" type="image/svg+xml" href="static/favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="static/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="static/favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="static/logo-180.png">
@@ -887,24 +888,24 @@ docker compose up -d</code></pre>
       <h1>Architecture</h1>
       <p class="lead">How the pieces fit together - every component runs locally in Docker.</p>
 
-      <div class="diagram"><pre><code>     ┌──────────────────┐        ┌──────────────────────┐
-     │  Element Desktop │        │   Web Browser        │
+      <div class="diagram"><pre><code>     ┌──────────────────┐        ┌────────────────────────┐
+     │  Element Desktop │        │   Web Browser         │
      │ (Matrix Client)  │        │ localhost:8800 (Panel)│
-     └────────┬─────────┘        └───────────┬──────────┘
-              │                              │
-┌─────────────┼──────────────────────────────┼──────────────────┐
+     └────────┬─────────┘        └────────────┬──────────┘
+              │                               │
+┌─────────────┼───────────────────────────────┼──────────────────┐
 │  Docker Compose                             │                  │
 │             │                               │                  │
-│  ┌──────────┴──────┐   ┌──────────────┐   ┌─┴────────────┐    │
-│  │    Conduit      │◄─►│   Memtrix    │◄─►│  web (panel) │    │
-│  │ (Matrix Server) │   │   (Agent)    │   │  FastAPI+SPA │    │
-│  └─────────────────┘   └──┬────────┬──┘   └──────────────┘    │
-│                           │        │                          │
-│         Sub-Agents ◄──────┤        ├──────► SearXNG (search)  │
-│      (background threads)  │        │                          │
-│                           │        └──────► chroma (vectors)  │
+│  ┌──────────┴──────┐   ┌──────────────┐   ┌─┴────────────┐     │
+│  │    Conduit      │◄─►│   Memtrix    │◄─►│  web (panel) │     │
+│  │ (Matrix Server) │   │   (Agent)    │   │  FastAPI+SPA │     │
+│  └─────────────────┘   └──┬────────┬──┘   └──────────────┘     │
+│                           │        │                           │
+│         Sub-Agents ◄──────┤        ├──────► SearXNG (search)   │
+│      (background threads) │        │                           │
+│                           │        └──────► chroma (vectors)   │
 │                           │                  shared store      │
-└───────────────────────────┼──────────────────────────────────┘
+└───────────────────────────┼────────────────────────────────────┘
                             │
                             ▼
         Ollama (local LLM)  /  OpenRouter (cloud LLMs)</code></pre></div>
