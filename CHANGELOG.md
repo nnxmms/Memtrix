@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.13.1
+
+- Fix the agent crashing on startup with `chromadb.errors.DuplicateIDError: Expected IDs to be unique` when building the documentation index. Pages with intro prose before their first heading (and headings without an `id` attribute) both fell back to the page id, producing colliding chunk ids such as `agents::agents`. Each documentation chunk now gets a unique id via a per-page sequence counter, so the docs index builds cleanly. Affected fresh starts and migrations of existing instances.
+
 ## 2.13.0
 
 - Memtrix can now research its own documentation. Two new always-on tools let the agent (and every sub-agent) answer "how does Memtrix work?" questions from the bundled docs: `search_docs` returns ranked documentation sections with citations and makes no LLM call, while `ask_docs` retrieves the most relevant sections and synthesizes a direct, grounded answer with sources. Both draw from the same documentation that powers the website.

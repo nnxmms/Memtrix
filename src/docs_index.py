@@ -115,16 +115,22 @@ class DocsIndex:
             section_title: str = page_title
             section_id: str = page_id
             parts: list[str] = []
+            seq: int = 0
 
             def flush() -> None:
+                nonlocal seq
                 body: str = " ".join(p for p in parts if p).strip()
                 if not body:
                     return
                 anchor: str = f"docs.html#{section_id}" if section_id else "docs.html"
                 heading: str = f"{page_title} — {section_title}" if section_title != page_title else page_title
                 document: str = f"{heading}\n\n{body}"
+                # Unique chunk id: section ids can repeat (intro prose and headings
+                # without an id both fall back to page_id), so disambiguate by sequence.
+                chunk_id: str = f"{page_id}::{section_id}::{seq}"
+                seq += 1
                 chunks.append({
-                    "id": f"{page_id}::{section_id}",
+                    "id": chunk_id,
                     "document": document,
                     "metadata": {
                         "page_id": page_id,
