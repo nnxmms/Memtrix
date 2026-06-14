@@ -3,10 +3,15 @@ beautifulsoup4
 bitwarden-sdk
 chromadb
 einops
+fastapi
+filelock
 matrix-nio
 ollama
 openai
+pydantic
 pymupdf
+python-multipart
 requests
 rich
 sentence-transformers
+uvicorn[standard]

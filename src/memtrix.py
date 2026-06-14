@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 import importlib
-import json
 import logging
 import os
 from types import ModuleType
@@ -11,8 +10,9 @@ from src.agent_manager import AgentManager
 from src.channels.cli import CLIChannel
 from src.channels.matrix import MatrixChannel
 from src.commands import Commands
-from src.config import CONFIG_PATH, CONFIG_LOCK
+from src.config import CONFIG_PATH, update_config
 from src.deriver import Deriver
+from src.lifecycle import install_signal_handlers, start_heartbeat
 from src.memory_index import MemoryIndex
 from src.orchestrator import Orchestrator
 from src.providers.base import BaseProvider
@@ -48,6 +48,9 @@ class Memtrix:
 
         # Orchestrator for the agentic loop
         self._orchestrator: Orchestrator | None = None
+
+        # Background reasoning deriver (when reasoning memory is enabled)
+        self._deriver: Deriver | None = None
 
         # Slash commands
         self._commands: Commands = Commands(agent_config=config["main-agent"], config_path=["main-agent"])
@@ -117,6 +120,7 @@ class Memtrix:
             representation = RepresentationStore.get_instance(workspace_dir=workspace_dir)
             deriver = Deriver(provider=self._provider, model=reasoning_model, store=representation, config=mem_cfg)
             deriver.start()
+            self._deriver = deriver
             logger.info("Reasoning memory enabled (recall_mode=%s)", mem_cfg["recall_mode"])
 
         # Discover tools, excluding the reasoning-memory tools unless tool access is enabled
@@ -188,12 +192,12 @@ class Memtrix:
         """
         This function persists the sessions mapping to config without overwriting secret placeholders.
         """
-        with CONFIG_LOCK:
-            with open(file=CONFIG_PATH, mode="r") as f:
-                disk_config: dict[str, Any] = json.load(fp=f)
-            disk_config["main-agent"]["sessions"] = self._config["main-agent"]["sessions"]
-            with open(file=CONFIG_PATH, mode="w") as f:
-                json.dump(obj=disk_config, fp=f, indent=4)
+        sessions: Any = self._config["main-agent"]["sessions"]
+
+        def mutate(disk_config: dict[str, Any]) -> None:
+            disk_config["main-agent"]["sessions"] = sessions
+
+        update_config(mutate=mutate)
 
     def _get_session(self, room_id: str) -> Session:
         """
@@ -266,6 +270,11 @@ class Memtrix:
         """
         This function starts Memtrix on the configured channel.
         """
+        # Install signal handlers and start the liveness heartbeat so the web
+        # control panel can supervise this process
+        install_signal_handlers(on_shutdown=self._shutdown)
+        start_heartbeat()
+
         # Load the configured provider and orchestrator
         logger.info("Loading provider and orchestrator...")
         self._load_provider()
@@ -302,3 +311,14 @@ class Memtrix:
             logger.info("Starting CLI channel")
             cli: CLIChannel = CLIChannel()
             cli.run(handler=self._handle)
+
+    def _shutdown(self) -> None:
+        """
+        This function performs a best-effort graceful shutdown: it flushes any
+        pending reasoning work so nothing is lost across a restart.
+        """
+        if self._deriver is not None:
+            try:
+                self._deriver.flush_now()
+            except Exception as exc:
+                logger.error("Error flushing deriver on shutdown: %s", exc)

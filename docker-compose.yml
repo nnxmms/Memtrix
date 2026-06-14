@@ -6,6 +6,9 @@ services:
     image: memtrix
     user: "1000:1000"  # run as memtrix (non-root)
     read_only: true    # immutable root filesystem
+    # Supervisor entrypoint runs the agent and restarts the PROCESS when the web
+    # control panel requests it (via a sentinel on the data volume).
+    command: ["/bin/sh", "docker/agent-entrypoint.sh"]
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -14,6 +17,8 @@ services:
       - /tmp           # writable scratch space for Python internals
     env_file:
       - .env           # secrets (access tokens, API keys)
+    environment:
+      CHROMA_URL: http://chroma:8000   # shared vector store (multi-process safe)
     volumes:
       - ./workspace:/home/memtrix/workspace   # persistent workspace (AGENT.md, MEMORY.md, memory/, …)
       - ./agents:/home/memtrix/agents           # sub-agent workspaces (isolated per agent)
@@ -22,6 +27,59 @@ services:
     restart: unless-stopped
     depends_on:
       - searxng
+      - chroma
+    networks:
+      - matrix
+
+  ############ Web Control Panel ############
+  # Configures everything Memtrix offers and administers reasoning memory. Front
+  # this with your own authenticating reverse proxy; the port is bound to
+  # localhost only by default. Set MEMTRIX_WEB_TOKEN in .env for an extra
+  # shared-secret header check.
+  web:
+    build: .
+    image: memtrix
+    user: "1000:1000"
+    read_only: true
+    command: ["python", "-m", "src.web"]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+    env_file:
+      - .env
+    environment:
+      CHROMA_URL: http://chroma:8000
+      MEMTRIX_WEB_PORT: "8800"
+    volumes:
+      - ./workspace:/home/memtrix/workspace
+      - ./agents:/home/memtrix/agents
+      - ./data:/home/memtrix/data
+      - ./data/cache:/home/memtrix/.cache
+    ports:
+      - "127.0.0.1:8800:8800"   # localhost only — put a reverse proxy in front
+    restart: unless-stopped
+    depends_on:
+      - chroma
+    networks:
+      - matrix
+
+  ############ ChromaDB (shared vector store) ############
+  # Runs the reasoning-memory store as a server so the agent and the web panel
+  # can both read and write without SQLite single-writer corruption. Internal
+  # network only — never exposed to the host.
+  chroma:
+    image: chromadb/chroma:latest
+    user: "1000:1000"
+    environment:
+      IS_PERSISTENT: "TRUE"
+      ANONYMIZED_TELEMETRY: "FALSE"
+      PERSIST_DIRECTORY: /data
+    volumes:
+      - ./data/representations:/data
+    restart: unless-stopped
     networks:
       - matrix
 

@@ -1,3 +1,21 @@
+# ---------------------------------------------------------------------------
+# Stage 1: build the React control-panel SPA
+# ---------------------------------------------------------------------------
+FROM node:20-slim AS frontend
+
+WORKDIR /build
+
+# Install dependencies first for better layer caching
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install
+
+# Build the static SPA into /build/dist
+COPY frontend/ ./
+RUN npm run build
+
+# ---------------------------------------------------------------------------
+# Stage 2: python runtime (shared by the agent and the web control panel)
+# ---------------------------------------------------------------------------
 FROM python:3.13-slim
 
 # Install system dependencies
@@ -15,8 +33,13 @@ WORKDIR /home/memtrix/source
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code and hand ownership to memtrix
+# Copy source code and the supervisor entrypoint, handing ownership to memtrix
 COPY --chown=memtrix:memtrix src/ src/
+COPY --chown=memtrix:memtrix docker/ docker/
+RUN chmod +x docker/agent-entrypoint.sh
+
+# Copy the built SPA into the location the web backend serves from
+COPY --from=frontend --chown=memtrix:memtrix /build/dist/ src/web/static/
 
 # Pre-create runtime directories so mounted volumes are owned correctly
 RUN mkdir -p /home/memtrix/workspace \
@@ -33,4 +56,6 @@ USER memtrix
 
 ENV PYTHONUNBUFFERED=1
 
+# Default command runs the agent directly. Compose overrides this with the
+# supervisor entrypoint (agent) or the web server command (control panel).
 CMD ["python", "-m", "src.main"]

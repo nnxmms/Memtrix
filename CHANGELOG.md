@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.11.0
+
+- Web Control Panel — a production-ready web UI for configuring everything Memtrix offers, served by a dedicated, hardened FastAPI container and built as a React/TypeScript single-page app. The panel runs alongside the agent (bound to `127.0.0.1:8800` by default) and shares the same config and memory store.
+- Safe, validated config editing — every section (main agent, providers, models, channels, sub-agents, memory settings) is editable from the browser. Changes are validated server-side before they touch `config.json`; malformed configurations are rejected with field-level errors and never saved. Provider and channel connectivity can be live-tested ("Test connection") before saving, with `$PLACEHOLDER` secrets resolved automatically for the test.
+- One-click safe restart — an "Apply & Restart" action validates the config, then requests a restart via a sentinel file watched by a supervisor entrypoint (no Docker socket access required). Restart progress streams live to the UI over Server-Sent Events using the agent's heartbeat, reporting stopping → starting → ready (or timeout).
+- Secrets management — view (decrypted, masked by default with reveal) and change secrets from the UI, for both the local `.env` backend (`data/secrets.env`) and Bitwarden Secrets Manager. New values are written atomically with `0600` permissions, or upserted into Bitwarden.
+- Full memory administration — browse per-peer reasoning conclusions with semantic search, edit/delete individual records, add manual conclusions (kept verbatim, skipping de-duplication), wipe a peer, and export/import the whole store as JSON. Peer cards (`USER.md`/`MEMORY.md`) can be edited directly and frozen to stop the deriver re-curating them. Background reasoning can be paused/resumed from the UI.
+- Shared ChromaDB service — the reasoning-memory store now runs as a separate `chroma` service that both the agent and the web panel connect to via `chromadb.HttpClient` (set by `CHROMA_URL`), eliminating SQLite single-writer corruption when both processes read and write concurrently. Writes are additionally coordinated with file locks.
+- Hardened by default — the web container drops all capabilities, runs read-only and non-root with `no-new-privileges`, and binds only to localhost. An optional shared-secret header (`MEMTRIX_WEB_TOKEN`) gates the API when set; authentication is otherwise expected to be handled by a reverse proxy.
+
 ## 2.10.3
 
 - Fix onboarding crash when enabling Bitwarden — `BitwardenSecrets.__init__` still declared `organization_id` as a required positional argument, so the reworked wizard (which constructs the client before the org ID is known) failed with `TypeError: __init__() missing 1 required positional argument: 'organization_id'`. The argument is now optional and defaults to `None`.

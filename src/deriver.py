@@ -2,11 +2,14 @@
 
 import json
 import logging
+import os
 import re
 import threading
 import time
 from typing import Any
 
+from src.config import CONFIG_PATH
+from src.lifecycle import PAUSE_SENTINEL
 from src.providers.base import BaseProvider
 from src.representation import REASONING_LEVEL_ITEMS, RepresentationStore
 
@@ -20,6 +23,9 @@ IDLE_FLUSH_SECONDS: float = 90.0
 
 # Re-curate the finite peer card after this many reasoning passes for a peer
 CARD_REFRESH_EVERY: int = 3
+
+# Peer -> config key that, when true, freezes that peer card against re-curation
+FREEZE_FLAGS: dict[str, str] = {"user": "freeze_user_card", "agent": "freeze_agent_card"}
 
 
 def _estimate_tokens(text: str) -> int:
@@ -108,8 +114,13 @@ class Deriver:
     def _drain(self, force: bool) -> None:
         """
         This function flushes peers. When force is True, every non-empty peer is
-        flushed; otherwise only peers above the token threshold are flushed.
+        flushed; otherwise only peers above the token threshold are flushed. When the
+        operator has paused the deriver via the sentinel file, pending messages are
+        retained and no reasoning runs.
         """
+        if self._is_paused():
+            return
+
         with self._lock:
             peers: list[str] = list(self._pending.keys())
 
@@ -202,8 +213,13 @@ class Deriver:
     def _recurate_card(self, peer: str) -> None:
         """
         This function condenses a peer's stored conclusions into its finite peer-card
-        file, reconciling redundancy within the character budget.
+        file, reconciling redundancy within the character budget. When the operator
+        has frozen the peer card, re-curation is skipped so manual edits persist.
         """
+        if self._is_frozen(peer=peer):
+            logger.info("Peer card '%s' is frozen; skipping re-curation", peer)
+            return
+
         records: list[dict[str, Any]] = self._store.all_for_peer(peer=peer, limit=40)
         if not records:
             return
@@ -248,6 +264,28 @@ class Deriver:
             card = re.sub(pattern=r"^```[a-zA-Z]*\n?|\n?```$", repl="", string=card).strip()
             self._store.write_peer_card(peer=peer, text=card, max_chars=self._max_chars)
             logger.info("Re-curated peer card for '%s' (%d chars)", peer, len(card))
+
+    @staticmethod
+    def _is_paused() -> bool:
+        """
+        This function returns True when the deriver pause sentinel file is present.
+        """
+        return os.path.isfile(PAUSE_SENTINEL)
+
+    def _is_frozen(self, peer: str) -> bool:
+        """
+        This function returns True when the peer's card is frozen in config. The flag
+        is re-read from disk so the web panel can toggle it without a restart.
+        """
+        flag: str | None = FREEZE_FLAGS.get(peer)
+        if not flag:
+            return False
+        try:
+            with open(file=CONFIG_PATH, mode="r") as f:
+                disk_config: dict[str, Any] = json.load(fp=f)
+            return bool((disk_config.get("memory") or {}).get(flag, False))
+        except (OSError, json.JSONDecodeError):
+            return bool(self._config.get(flag, False))
 
     @staticmethod
     def _parse_json(raw: str) -> dict[str, Any] | None:

@@ -7,8 +7,10 @@ import threading
 import time
 import uuid
 from typing import Any
+from urllib.parse import urlparse
 
 import chromadb
+from filelock import FileLock
 
 from src.config import CONFIG_PATH
 from src.memory_index import LocalEmbeddingFunction
@@ -18,6 +20,9 @@ logger: logging.Logger = logging.getLogger(__name__)
 # Valid peers and conclusion kinds
 PEERS: set[str] = {"user", "agent"}
 KINDS: set[str] = {"observation", "deductive", "inductive"}
+
+# Valid provenance values for a stored conclusion
+SOURCES: set[str] = {"derived", "manual"}
 
 # Peer card files (finite, always-injected summaries)
 PEER_CARD_FILES: dict[str, str] = {"user": "USER.md", "agent": "MEMORY.md"}
@@ -59,6 +64,31 @@ REASONING_LEVEL_ITEMS: dict[str, int] = {
 }
 
 
+def _make_chroma_client(persist_dir: str) -> chromadb.ClientAPI:
+    """
+    This function returns a ChromaDB client. When the CHROMA_URL environment
+    variable is set (e.g. http://chroma:8000), it connects to the shared ChromaDB
+    server via HttpClient so the agent and the web control panel can both read and
+    write the same store without SQLite single-writer corruption. Otherwise it
+    falls back to a process-local PersistentClient at persist_dir.
+    """
+    chroma_url: str | None = os.environ.get("CHROMA_URL")
+    if chroma_url:
+        parsed = urlparse(chroma_url)
+        host: str = parsed.hostname or "chroma"
+        port: int = parsed.port or 8000
+        logger.info("Connecting to shared ChromaDB server at %s:%d", host, port)
+        return chromadb.HttpClient(
+            host=host,
+            port=port,
+            settings=chromadb.Settings(anonymized_telemetry=False),
+        )
+    return chromadb.PersistentClient(
+        path=persist_dir,
+        settings=chromadb.Settings(anonymized_telemetry=False, is_persistent=True),
+    )
+
+
 class RepresentationStore:
 
     _instances: dict[str, "RepresentationStore"] = {}
@@ -93,10 +123,7 @@ class RepresentationStore:
             persist_dir: str = os.path.join(data_dir, "representations")
         else:
             persist_dir = os.path.join(data_dir, "representations", collection_name)
-        self._client: chromadb.ClientAPI = chromadb.PersistentClient(
-            path=persist_dir,
-            settings=chromadb.Settings(anonymized_telemetry=False, is_persistent=True),
-        )
+        self._client: chromadb.ClientAPI = _make_chroma_client(persist_dir=persist_dir)
         self._collection: chromadb.Collection = self._client.get_or_create_collection(
             name=collection_name,
             embedding_function=self._embedding_fn,
@@ -138,6 +165,7 @@ class RepresentationStore:
                         "premises": json.dumps(record.get("premises", [])),
                         "ts": time.time(),
                         "times_seen": 1,
+                        "source": "derived",
                     }],
                 )
                 added += 1
@@ -209,10 +237,12 @@ class RepresentationStore:
         for i in range(len(ids[0])):
             meta: dict[str, Any] = results["metadatas"][0][i]
             matches.append({
+                "id": ids[0][i],
                 "content": results["documents"][0][i],
                 "peer": meta.get("peer", ""),
                 "kind": meta.get("kind", ""),
                 "distance": results["distances"][0][i],
+                "source": meta.get("source", "derived"),
             })
         return matches
 
@@ -254,7 +284,9 @@ class RepresentationStore:
     def write_peer_card(self, peer: str, text: str, max_chars: int = 1500) -> None:
         """
         This function writes the finite peer-card file for a peer, enforcing a hard
-        character budget so the card stays compact.
+        character budget so the card stays compact. The write is guarded by a
+        cross-process file lock so the deriver and the web panel never clobber each
+        other's edits.
         """
         filename: str | None = PEER_CARD_FILES.get(peer)
         if not filename:
@@ -263,6 +295,208 @@ class RepresentationStore:
         if len(trimmed) > max_chars:
             trimmed = trimmed[:max_chars].rstrip()
         path: str = os.path.join(self._workspace_dir, filename)
-        with self._write_lock:
+        with self._write_lock, FileLock(path + ".lock", timeout=15):
             with open(file=path, mode="w") as f:
                 f.write(trimmed + "\n")
+
+    # ----------------------------------------------------------------- admin API
+
+    def list_conclusions(self, peer: str | None = None, kinds: list[str] | None = None,
+                         limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+        """
+        This function returns stored conclusions (including their ids and full
+        metadata) for administration, optionally filtered by peer and kinds, sorted
+        most-recent first. Used by the web control panel.
+        """
+        where: dict[str, Any] | None = self._build_where(peer=peer, kinds=kinds)
+        results: dict[str, Any] = self._collection.get(where=where)
+        ids: list[str] = results.get("ids", []) or []
+        documents: list[str] = results.get("documents", []) or []
+        metadatas: list[dict[str, Any]] = results.get("metadatas", []) or []
+
+        records: list[dict[str, Any]] = []
+        for record_id, content, meta in zip(ids, documents, metadatas):
+            records.append(self._to_record(record_id=record_id, content=content, meta=meta))
+        records.sort(key=lambda r: r["ts"], reverse=True)
+        return records[offset:offset + limit]
+
+    def get_conclusion(self, record_id: str) -> dict[str, Any] | None:
+        """
+        This function returns a single conclusion by id, or None when missing.
+        """
+        results: dict[str, Any] = self._collection.get(ids=[record_id])
+        ids: list[str] = results.get("ids", []) or []
+        if not ids:
+            return None
+        return self._to_record(
+            record_id=ids[0],
+            content=(results.get("documents") or [""])[0],
+            meta=(results.get("metadatas") or [{}])[0],
+        )
+
+    def delete_conclusion(self, record_id: str) -> bool:
+        """
+        This function deletes a single conclusion by id. Returns True when a record
+        was present and removed.
+        """
+        with self._write_lock:
+            if self.get_conclusion(record_id=record_id) is None:
+                return False
+            self._collection.delete(ids=[record_id])
+        logger.info("Deleted conclusion %s", record_id)
+        return True
+
+    def update_conclusion(self, record_id: str, content: str | None = None,
+                          kind: str | None = None, premises: list[str] | None = None) -> bool:
+        """
+        This function updates a conclusion's content (re-embedding it), kind and/or
+        premises. Returns True when the record exists and was updated.
+        """
+        with self._write_lock:
+            existing: dict[str, Any] | None = self.get_conclusion(record_id=record_id)
+            if existing is None:
+                return False
+
+            meta: dict[str, Any] = {
+                "peer": existing["peer"],
+                "kind": kind if kind in KINDS else existing["kind"],
+                "premises": json.dumps(premises if premises is not None else existing["premises"]),
+                "ts": time.time(),
+                "times_seen": int(existing.get("times_seen", 1)),
+                "source": existing.get("source", "derived"),
+            }
+            if content is not None and content.strip():
+                # Updating the document re-computes the embedding
+                self._collection.update(ids=[record_id], documents=[content.strip()], metadatas=[meta])
+            else:
+                self._collection.update(ids=[record_id], metadatas=[meta])
+        logger.info("Updated conclusion %s", record_id)
+        return True
+
+    def add_manual_conclusion(self, peer: str, kind: str, content: str,
+                              premises: list[str] | None = None) -> str | None:
+        """
+        This function adds an operator-authored conclusion, bypassing deduplication,
+        and tags it with source="manual". Returns the new record id or None on
+        invalid input.
+        """
+        content = (content or "").strip()
+        if peer not in PEERS or kind not in KINDS or not content:
+            return None
+        record_id: str = str(uuid.uuid4())
+        with self._write_lock:
+            self._collection.add(
+                ids=[record_id],
+                documents=[content],
+                metadatas=[{
+                    "peer": peer,
+                    "kind": kind,
+                    "premises": json.dumps(premises or []),
+                    "ts": time.time(),
+                    "times_seen": 1,
+                    "source": "manual",
+                }],
+            )
+        logger.info("Added manual conclusion %s for peer '%s'", record_id, peer)
+        return record_id
+
+    def delete_all_for_peer(self, peer: str) -> int:
+        """
+        This function deletes every conclusion stored for a peer. Returns the number
+        of records removed.
+        """
+        if peer not in PEERS:
+            return 0
+        with self._write_lock:
+            results: dict[str, Any] = self._collection.get(where={"peer": peer})
+            ids: list[str] = results.get("ids", []) or []
+            if ids:
+                self._collection.delete(ids=ids)
+        logger.info("Wiped %d conclusion(s) for peer '%s'", len(ids), peer)
+        return len(ids)
+
+    def export(self, peer: str | None = None) -> list[dict[str, Any]]:
+        """
+        This function exports conclusions (with ids and metadata) for backup or
+        transfer, optionally limited to a single peer.
+        """
+        where: dict[str, Any] | None = self._build_where(peer=peer, kinds=None)
+        results: dict[str, Any] = self._collection.get(where=where)
+        ids: list[str] = results.get("ids", []) or []
+        documents: list[str] = results.get("documents", []) or []
+        metadatas: list[dict[str, Any]] = results.get("metadatas", []) or []
+        return [
+            self._to_record(record_id=record_id, content=content, meta=meta)
+            for record_id, content, meta in zip(ids, documents, metadatas)
+        ]
+
+    def import_records(self, records: list[dict[str, Any]]) -> int:
+        """
+        This function imports previously exported conclusions, generating new ids and
+        skipping invalid entries. Returns the number imported.
+        """
+        imported: int = 0
+        with self._write_lock:
+            for record in records:
+                peer: str = record.get("peer", "")
+                kind: str = record.get("kind", "")
+                content: str = (record.get("content") or "").strip()
+                if peer not in PEERS or kind not in KINDS or not content:
+                    continue
+                premises: Any = record.get("premises", [])
+                if not isinstance(premises, list):
+                    premises = []
+                self._collection.add(
+                    ids=[str(uuid.uuid4())],
+                    documents=[content],
+                    metadatas=[{
+                        "peer": peer,
+                        "kind": kind,
+                        "premises": json.dumps(premises),
+                        "ts": float(record.get("ts", time.time())) or time.time(),
+                        "times_seen": int(record.get("times_seen", 1)),
+                        "source": record.get("source", "derived"),
+                    }],
+                )
+                imported += 1
+        logger.info("Imported %d conclusion(s)", imported)
+        return imported
+
+    def _build_where(self, peer: str | None, kinds: list[str] | None) -> dict[str, Any] | None:
+        """
+        This function builds a Chroma where filter from a peer and/or kinds.
+        """
+        conditions: list[dict[str, Any]] = []
+        if peer in PEERS:
+            conditions.append({"peer": peer})
+        if kinds:
+            valid: list[str] = [k for k in kinds if k in KINDS]
+            if valid:
+                conditions.append({"kind": {"$in": valid}})
+        if len(conditions) == 1:
+            return conditions[0]
+        if len(conditions) > 1:
+            return {"$and": conditions}
+        return None
+
+    @staticmethod
+    def _to_record(record_id: str, content: str, meta: dict[str, Any]) -> dict[str, Any]:
+        """
+        This function converts a stored row into a uniform admin record dict.
+        """
+        try:
+            premises: list[str] = json.loads(meta.get("premises", "[]"))
+            if not isinstance(premises, list):
+                premises = []
+        except (json.JSONDecodeError, TypeError):
+            premises = []
+        return {
+            "id": record_id,
+            "content": content,
+            "peer": meta.get("peer", ""),
+            "kind": meta.get("kind", ""),
+            "premises": premises,
+            "times_seen": int(meta.get("times_seen", 1)),
+            "ts": float(meta.get("ts", 0.0)),
+            "source": meta.get("source", "derived"),
+        }

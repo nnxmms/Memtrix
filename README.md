@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-2.8.0-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-2.11.0-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 [Website](https://memtrix.me) · [Documentation](https://memtrix.me/docs.html) · [GitHub](https://github.com/nnxmms/Memtrix)
@@ -121,6 +121,20 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
 
 🔒 **Security Hardened**<br>
 <sub>Non-root, read-only filesystem, all capabilities dropped, isolated workspaces.</sub>
+
+</td>
+</tr>
+<tr>
+<td>
+
+🖥️ **Web Control Panel**<br>
+<sub>Configure everything from the browser — validated edits, live connection tests, safe restarts, secrets & full memory administration.</sub>
+
+</td>
+<td>
+
+🧩 **Shared Vector Store**<br>
+<sub>Reasoning memory runs as a dedicated ChromaDB service shared safely by the agent and the web panel.</sub>
 
 </td>
 </tr>
@@ -306,16 +320,40 @@ User: "Remember that cake recipe I told you about?"
 
 <br>
 
-## 👤 Persona System
+## 🖥️ Web Control Panel
 
-Memtrix's identity is defined by markdown files in `workspace/`:
+A production-ready browser UI for configuring everything Memtrix offers, served by a dedicated, hardened FastAPI container with a React/TypeScript single-page app. It runs alongside the agent and shares the same `config.json` and memory store.
 
-| File | Purpose |
+```bash
+docker compose up -d            # starts the agent, the web panel, and the chroma service
+open http://127.0.0.1:8800      # the control panel (localhost only by default)
+```
+
+| Capability | What you can do |
 |:--|:--|
-| `AGENT.md` | System prompt template — wires everything together |
-| `BEHAVIOR.md` | Communication style, tone, and habits |
-| `SOUL.md` | Core values and personality |
-| `USER.md` | Compact profile card about you (auto-maintained by reasoning memory) |
+| **Configuration** | Edit the main agent, providers, models, channels, sub-agents, and memory settings. Every change is validated server-side before it touches `config.json` — malformed configs are rejected with field-level errors and never saved. |
+| **Connection tests** | Live-test provider and channel credentials before saving. `$PLACEHOLDER` secrets are resolved automatically for the test. |
+| **Apply & Restart** | Validate and restart the agent with one click. The restart is requested via a sentinel file watched by a supervisor entrypoint (no Docker socket), and progress streams to the UI over Server-Sent Events. |
+| **Secrets** | View (decrypted, masked with reveal) and change secrets for both the local `.env` backend and Bitwarden Secrets Manager. |
+| **Memory admin** | Browse per-peer conclusions with semantic search, edit/delete records, add manual ones, wipe a peer, edit & freeze peer cards, pause/resume background reasoning, and export/import the whole store as JSON. |
+
+### Architecture
+
+The reasoning-memory store runs as a separate **`chroma`** service that both the agent and the web panel connect to via `chromadb.HttpClient` (configured by `CHROMA_URL`). This eliminates SQLite single-writer corruption when both processes read and write concurrently; writes are additionally coordinated with file locks.
+
+### Security
+
+The web container drops all Linux capabilities, runs read-only and non-root with `no-new-privileges`, and binds only to `127.0.0.1`. Place it behind a reverse proxy for authentication and TLS. An optional shared-secret header gates the API directly when you set `MEMTRIX_WEB_TOKEN` (enter the same value under **Panel Settings** in the UI).
+
+| Variable | Default | Purpose |
+|:--|:--|:--|
+| `MEMTRIX_WEB_HOST` | `0.0.0.0` | Bind address inside the container (published only to localhost) |
+| `MEMTRIX_WEB_PORT` | `8800` | Port the panel listens on |
+| `MEMTRIX_WEB_TOKEN` | _(unset)_ | Optional shared-secret required in the `X-Memtrix-Token` header |
+| `CHROMA_URL` | `http://chroma:8000` | Shared ChromaDB endpoint for the reasoning store |
+
+<br>
+
 | `MEMORY.md` | Compact profile card about the agent (auto-maintained by reasoning memory) |
 
 These files are injected into the system prompt via placeholders (`{{BEHAVIOR}}`, `{{SOUL}}`, etc.). `BEHAVIOR.md` and `SOUL.md` are **live-editable by Memtrix itself** — when you tell it to behave differently or reshape who it is, it updates the appropriate file and the system prompt is rebuilt immediately. `USER.md` and `MEMORY.md` are curated automatically by the reasoning memory and are **write-protected** — `write_core_file` rejects edits to them at the code level.

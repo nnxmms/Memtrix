@@ -4,6 +4,11 @@ workspace/
 agents/
 .env
 
+# Node / frontend (Web Control Panel)
+node_modules/
+*.tsbuildinfo
+frontend/dist/
+
 # Website (generated/local files)
 website/.env
 website/nginx.conf

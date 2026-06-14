@@ -1,0 +1,497 @@
+import { useCallback, useEffect, useState } from "react";
+import {
+  Download,
+  Pause,
+  Pencil,
+  Play,
+  Plus,
+  Search,
+  Snowflake,
+  Trash2,
+  Upload,
+} from "lucide-react";
+import {
+  api,
+  ApiError,
+  type Conclusion,
+  type PeerCard,
+  type PeerSummary,
+} from "../api";
+import { Badge, Card, Empty, Field, PageHeader, Spinner } from "../components/ui";
+import { Modal } from "../components/Modal";
+import { useToast } from "../components/Toast";
+
+export function MemoryAdminPage() {
+  const toast = useToast();
+  const [peers, setPeers] = useState<PeerSummary[]>([]);
+  const [activePeer, setActivePeer] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [deriverPaused, setDeriverPaused] = useState(false);
+
+  const loadPeers = useCallback(async () => {
+    try {
+      const [list, deriver] = await Promise.all([api.listPeers(), api.getDeriver()]);
+      setPeers(list);
+      setDeriverPaused(deriver.paused);
+      setActivePeer((cur) => cur || list[0]?.peer || "");
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Failed to load memory.");
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    loadPeers();
+  }, [loadPeers]);
+
+  const toggleDeriver = async () => {
+    try {
+      const res = await api.setDeriver(!deriverPaused);
+      setDeriverPaused(res.paused);
+      toast.success(res.paused ? "Background reasoning paused." : "Background reasoning resumed.");
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Failed to toggle deriver.");
+    }
+  };
+
+  const doExport = async () => {
+    try {
+      const records = await api.exportMemory();
+      const blob = new Blob([JSON.stringify(records, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "memtrix-memory-export.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Export failed.");
+    }
+  };
+
+  const doImport = async (file: File) => {
+    try {
+      const records = JSON.parse(await file.text());
+      if (!Array.isArray(records)) throw new Error("File must contain a JSON array.");
+      const res = await api.importMemory(records);
+      toast.success(res.message);
+      await loadPeers();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Import failed.");
+    }
+  };
+
+  if (loading) return <Spinner />;
+
+  return (
+    <div>
+      <PageHeader
+        title="Memory Admin"
+        subtitle="Inspect and curate the agent's reasoning memory and peer cards."
+      />
+
+      <div className="toolbar">
+        <button className="btn btn-secondary btn-sm" onClick={toggleDeriver}>
+          {deriverPaused ? <Play size={15} /> : <Pause size={15} />}
+          {deriverPaused ? "Resume reasoning" : "Pause reasoning"}
+        </button>
+        <button className="btn btn-secondary btn-sm" onClick={doExport}>
+          <Download size={15} /> Export
+        </button>
+        <label className="btn btn-secondary btn-sm" style={{ cursor: "pointer" }}>
+          <Upload size={15} /> Import
+          <input
+            type="file"
+            accept="application/json"
+            style={{ display: "none" }}
+            onChange={(e) => e.target.files?.[0] && doImport(e.target.files[0])}
+          />
+        </label>
+        {deriverPaused && <Badge kind="warning">Reasoning paused</Badge>}
+      </div>
+
+      {peers.length === 0 ? (
+        <Card>
+          <Empty>No peers in memory yet.</Empty>
+        </Card>
+      ) : (
+        <>
+          <div className="tabs">
+            {peers.map((p) => (
+              <button
+                key={p.peer}
+                className={`tab${activePeer === p.peer ? " active" : ""}`}
+                onClick={() => setActivePeer(p.peer)}
+              >
+                {p.peer}
+                <Badge kind="neutral">{p.count}</Badge>
+                {p.frozen && <Snowflake size={13} color="var(--accent)" />}
+              </button>
+            ))}
+          </div>
+
+          {activePeer && (
+            <PeerPanel peer={activePeer} onChanged={loadPeers} />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function PeerPanel({ peer, onChanged }: { peer: string; onChanged: () => void }) {
+  const toast = useToast();
+  const [card, setCard] = useState<PeerCard | null>(null);
+  const [conclusions, setConclusions] = useState<Conclusion[]>([]);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<Conclusion | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Conclusion | null>(null);
+  const [confirmWipe, setConfirmWipe] = useState(false);
+
+  const loadData = useCallback(
+    async (q = "") => {
+      setLoading(true);
+      try {
+        const [c, list] = await Promise.all([
+          api.getCard(peer),
+          api.listConclusions({ peer, q: q || undefined, limit: 200 }),
+        ]);
+        setCard(c);
+        setConclusions(list);
+      } catch (e) {
+        toast.error(e instanceof ApiError ? e.message : "Failed to load peer data.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [peer]
+  );
+
+  useEffect(() => {
+    setQuery("");
+    loadData();
+  }, [loadData]);
+
+  const toggleFreeze = async () => {
+    if (!card) return;
+    try {
+      await api.setFreeze(peer, !card.frozen);
+      toast.success(!card.frozen ? "Peer card frozen." : "Peer card unfrozen.");
+      await loadData(query);
+      onChanged();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Failed to toggle freeze.");
+    }
+  };
+
+  const saveCard = async (text: string) => {
+    try {
+      await api.putCard(peer, text);
+      toast.success("Peer card saved.");
+      await loadData(query);
+      onChanged();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Failed to save card.");
+    }
+  };
+
+  const deleteOne = async (c: Conclusion) => {
+    try {
+      await api.deleteConclusion(c.id);
+      toast.success("Conclusion deleted.");
+      setConfirmDelete(null);
+      await loadData(query);
+      onChanged();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Delete failed.");
+    }
+  };
+
+  const wipe = async () => {
+    try {
+      const res = await api.wipePeer(peer);
+      toast.success(res.message);
+      setConfirmWipe(false);
+      await loadData();
+      onChanged();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Wipe failed.");
+    }
+  };
+
+  if (loading) return <Spinner />;
+
+  return (
+    <>
+      {card && <PeerCardEditor card={card} onSave={saveCard} onToggleFreeze={toggleFreeze} />}
+
+      <Card
+        title="Conclusions"
+        desc="Individual reasoning records derived from conversations."
+      >
+        <div className="row-between" style={{ marginBottom: 14, gap: 12 }}>
+          <div className="search-box">
+            <Search size={15} color="var(--text-muted)" />
+            <input
+              className="input"
+              placeholder="Semantic search…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && loadData(query)}
+            />
+          </div>
+          <div className="btn-row">
+            <button className="btn btn-secondary btn-sm" onClick={() => setAdding(true)}>
+              <Plus size={15} /> Add
+            </button>
+            <button className="btn btn-danger btn-sm" onClick={() => setConfirmWipe(true)}>
+              <Trash2 size={15} /> Wipe peer
+            </button>
+          </div>
+        </div>
+
+        {conclusions.length === 0 ? (
+          <Empty>No conclusions{query ? " match your search" : ""}.</Empty>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style={{ width: 110 }}>Kind</th>
+                  <th>Content</th>
+                  <th style={{ width: 80 }}>Source</th>
+                  <th style={{ width: 90 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {conclusions.map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      <Badge kind="accent">{c.kind}</Badge>
+                    </td>
+                    <td>{c.content}</td>
+                    <td>
+                      <Badge kind={c.source === "manual" ? "warning" : "neutral"}>
+                        {c.source}
+                      </Badge>
+                    </td>
+                    <td>
+                      <div className="cell-actions">
+                        <button
+                          className="btn btn-icon"
+                          title="Edit"
+                          onClick={() => setEditing(c)}
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          className="btn btn-icon danger"
+                          title="Delete"
+                          onClick={() => setConfirmDelete(c)}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {(editing || adding) && (
+        <ConclusionModal
+          peer={peer}
+          conclusion={editing}
+          onClose={() => {
+            setEditing(null);
+            setAdding(false);
+          }}
+          onSaved={async () => {
+            setEditing(null);
+            setAdding(false);
+            await loadData(query);
+            onChanged();
+          }}
+        />
+      )}
+
+      <Modal
+        open={confirmDelete !== null}
+        title="Delete conclusion?"
+        desc="This permanently removes the record from memory."
+        onClose={() => setConfirmDelete(null)}
+      >
+        <div className="modal-actions">
+          <button className="btn btn-secondary" onClick={() => setConfirmDelete(null)}>
+            Cancel
+          </button>
+          <button className="btn btn-danger" onClick={() => confirmDelete && deleteOne(confirmDelete)}>
+            <Trash2 size={16} /> Delete
+          </button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={confirmWipe}
+        title={`Wipe all memory for ${peer}?`}
+        desc="This permanently deletes every conclusion for this peer. The peer card is not affected."
+        onClose={() => setConfirmWipe(false)}
+      >
+        <div className="modal-actions">
+          <button className="btn btn-secondary" onClick={() => setConfirmWipe(false)}>
+            Cancel
+          </button>
+          <button className="btn btn-danger" onClick={wipe}>
+            <Trash2 size={16} /> Wipe everything
+          </button>
+        </div>
+      </Modal>
+    </>
+  );
+}
+
+function PeerCardEditor({
+  card,
+  onSave,
+  onToggleFreeze,
+}: {
+  card: PeerCard;
+  onSave: (text: string) => void;
+  onToggleFreeze: () => void;
+}) {
+  const [text, setText] = useState(card.text);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    setText(card.text);
+    setDirty(false);
+  }, [card]);
+
+  return (
+    <Card
+      title="Peer card"
+      desc={`The agent's working summary of this peer (${text.length}/${card.max_chars} chars).`}
+    >
+      <textarea
+        className="textarea mono"
+        rows={8}
+        value={text}
+        maxLength={card.max_chars}
+        onChange={(e) => {
+          setText(e.target.value);
+          setDirty(true);
+        }}
+      />
+      <div className="row-between" style={{ marginTop: 14 }}>
+        <button
+          className={`btn btn-sm ${card.frozen ? "btn-primary" : "btn-secondary"}`}
+          onClick={onToggleFreeze}
+        >
+          <Snowflake size={15} /> {card.frozen ? "Frozen — unfreeze" : "Freeze card"}
+        </button>
+        <button
+          className="btn btn-primary btn-sm"
+          disabled={!dirty}
+          onClick={() => onSave(text)}
+        >
+          Save card
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+const KINDS = ["fact", "preference", "trait", "goal", "skill", "relationship", "event", "other"];
+
+function ConclusionModal({
+  peer,
+  conclusion,
+  onClose,
+  onSaved,
+}: {
+  peer: string;
+  conclusion: Conclusion | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+  const [content, setContent] = useState(conclusion?.content ?? "");
+  const [kind, setKind] = useState(conclusion?.kind ?? KINDS[0]);
+  const [premises, setPremises] = useState((conclusion?.premises ?? []).join("\n"));
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    if (!content.trim()) return;
+    setSaving(true);
+    const premiseList = premises
+      .split("\n")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    try {
+      if (conclusion) {
+        await api.updateConclusion(conclusion.id, { content, kind, premises: premiseList });
+        toast.success("Conclusion updated.");
+      } else {
+        await api.addConclusion({ peer, kind, content, premises: premiseList });
+        toast.success("Conclusion added.");
+      }
+      onSaved();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Save failed.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      title={conclusion ? "Edit conclusion" : "Add conclusion"}
+      desc="Manually authored records are kept verbatim and skip de-duplication."
+      onClose={onClose}
+    >
+      <Field label="Kind">
+        <select className="select" value={kind} onChange={(e) => setKind(e.target.value)}>
+          {KINDS.map((k) => (
+            <option key={k} value={k}>
+              {k}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Content">
+        <textarea
+          className="textarea"
+          rows={3}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="A concise statement about the peer."
+        />
+      </Field>
+      <Field label="Premises" hint="Optional supporting evidence, one per line.">
+        <textarea
+          className="textarea"
+          rows={3}
+          value={premises}
+          onChange={(e) => setPremises(e.target.value)}
+        />
+      </Field>
+      <div className="modal-actions">
+        <button className="btn btn-secondary" onClick={onClose}>
+          Cancel
+        </button>
+        <button className="btn btn-primary" onClick={submit} disabled={saving || !content.trim()}>
+          Save
+        </button>
+      </div>
+    </Modal>
+  );
+}

@@ -148,6 +148,55 @@ class BitwardenSecrets:
             project_ids,
         )
 
+    def list_secrets(self) -> list[dict[str, str]]:
+        """
+        This function returns metadata for every secret the access token can read
+        as a list of {"id", "key"} dicts (values are NOT included).
+        """
+        listing: Any = self._client.secrets().list(self._organization_id)
+        return [{"id": str(item.id), "key": str(item.key)} for item in listing.data.data]
+
+    def get_secret(self, secret_id: str) -> dict[str, str]:
+        """
+        This function returns a single secret's full detail as a dict with
+        "id", "key", "value" and "note".
+        """
+        retrieved: Any = self._client.secrets().get(secret_id)
+        item: Any = retrieved.data
+        return {
+            "id": str(item.id),
+            "key": str(item.key),
+            "value": str(item.value),
+            "note": str(getattr(item, "note", "") or ""),
+        }
+
+    def upsert_secret(self, key: str, value: str, note: str = "") -> None:
+        """
+        This function updates an existing secret with the given key, or creates it
+        when no secret with that key exists yet.
+        """
+        listing: Any = self._client.secrets().list(self._organization_id)
+        existing_id: str | None = None
+        for item in listing.data.data:
+            if str(item.key) == key:
+                existing_id = str(item.id)
+                break
+
+        if existing_id is None:
+            self.create_secret(key=key, value=value, note=note)
+            return
+
+        project_ids: list[str] = [self._project_id] if self._project_id else []
+        # SDK signature is update(organization_id, id, key, value, note, project_ids).
+        self._client.secrets().update(
+            self._organization_id,
+            existing_id,
+            key,
+            value,
+            note,
+            project_ids,
+        )
+
 
 def load_bitwarden_secrets(config: dict[str, Any]) -> dict[str, str]:
     """

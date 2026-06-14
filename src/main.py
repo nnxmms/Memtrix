@@ -10,7 +10,7 @@ from src import __version__
 from src.config import CONFIG_PATH
 from src.memtrix import Memtrix
 from src import bitwarden
-from src.secrets import clear_secrets_from_env, resolve_secrets
+from src.secrets import clear_secrets_from_env, load_secrets_file, resolve_secrets
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -42,6 +42,10 @@ def main() -> None:
     # Load and validate config
     with open(file=CONFIG_PATH, mode="r") as f:
         config: dict[str, Any] = json.load(fp=f)
+
+    # Load secrets edited through the web panel (data/secrets.env) into the
+    # environment without overriding real environment variables
+    load_secrets_file()
 
     # Fetch secrets from Bitwarden when that backend is enabled
     bitwarden_secrets: dict[str, str] | None = None
