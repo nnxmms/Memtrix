@@ -423,7 +423,7 @@ All configuration lives in `data/config.json`. Secrets are stored in `.env` and 
 }
 ```
 
-Values starting with `$` are resolved from environment variables at startup (prefixed with `MEMTRIX_SECRET_`). For example, `$MATRIX_ACCESS_TOKEN` reads from `MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN` in `.env`.
+Values starting with `$` are resolved at startup. By default they read from environment variables (prefixed with `MEMTRIX_SECRET_`) — for example, `$MATRIX_ACCESS_TOKEN` reads from `MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN` in `.env`. If the optional Bitwarden backend is enabled, placeholders resolve from Bitwarden Secrets Manager first (by the placeholder name, e.g. `MATRIX_ACCESS_TOKEN`), falling back to the environment.
 
 </details>
 
@@ -484,7 +484,8 @@ Content from external sources is clearly marked so the LLM can distinguish trust
 ### Secret Management
 
 - Secrets (access tokens, API keys) live in `.env` and are injected at container startup
-- Secrets are resolved once at boot and cleared from the process environment
+- Optionally, secrets can be stored in **Bitwarden Secrets Manager** instead — then the only secret on the host is a single Bitwarden access token (`BWS_ACCESS_TOKEN`), and everything else is fetched at startup
+- Secrets are resolved once at boot and cleared from the process environment (including the Bitwarden token)
 - SearXNG gets a randomly generated secret key during setup — no hardcoded defaults in production
 
 <br>

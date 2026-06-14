@@ -1,5 +1,6 @@
 aiohttp
 beautifulsoup4
+bitwarden-sdk
 chromadb
 einops
 matrix-nio

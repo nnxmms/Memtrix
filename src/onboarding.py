@@ -16,6 +16,7 @@ from rich.table import Table
 
 from src.config import CONFIG_PATH
 from src.providers.utils import get_requirements
+from src.bitwarden import BitwardenSecrets
 
 # Rich console
 console: Console = Console()
@@ -56,6 +57,11 @@ class Onboarding:
         # Secrets collected during onboarding, printed as .env block at the end
         # Each entry is (env_var, value, description)
         self._env_secrets: list[tuple[str, str, str]] = []
+
+        # Bitwarden secrets backend state (configured in _setup_secrets_backend)
+        self._use_bitwarden: bool = False
+        self._bitwarden: BitwardenSecrets | None = None
+        self._bitwarden_token: str = ""
 
     def _save_config(self) -> None:
         """
@@ -508,6 +514,103 @@ class Onboarding:
 
         self.config["main-agent"]["channel"] = channel
 
+    def _setup_secrets_backend(self) -> None:
+        """
+        This function optionally configures Bitwarden Secrets Manager as the
+        secrets backend. When enabled, all collected secrets are stored in
+        Bitwarden at the end of onboarding and only the access token is written
+        to the .env file.
+        """
+        _say(
+            message="Where should I keep your [bold]secrets[/bold] (API keys, Matrix tokens)?\n\n"
+            "By default they're written to a local [bold].env[/bold] file.\n"
+            "Alternatively, I can use [bold]Bitwarden Secrets Manager[/bold] — then the only "
+            "secret on this machine is a single Bitwarden access token, and everything else "
+            "is fetched from Bitwarden at startup."
+        )
+
+        if not Confirm.ask(" [cyan]>[/cyan] Use Bitwarden Secrets Manager?", default=False):
+            return
+
+        while True:
+            _say(
+                message="Great! I need a [bold]machine account access token[/bold] with "
+                "[bold]read-write[/bold] access so I can store your secrets.\n"
+                "You can create one in the Bitwarden Secrets Manager under "
+                "[dim]Machine accounts → Access tokens[/dim]."
+            )
+            token: str = Prompt.ask(" [cyan]>[/cyan] Bitwarden access token", password=True).strip()
+            if not token:
+                _say(message="[bold red]Token can't be empty.[/bold red] Let's try again.")
+                continue
+
+            organization_id: str = Prompt.ask(" [cyan]>[/cyan] Organization ID").strip()
+            if not organization_id:
+                _say(message="[bold red]Organization ID can't be empty.[/bold red] Let's try again.")
+                continue
+
+            # Self-hosted support: optional custom endpoints
+            api_url: str | None = None
+            identity_url: str | None = None
+            if Confirm.ask(" [cyan]>[/cyan] Using a self-hosted Bitwarden server?", default=False):
+                api_url = Prompt.ask(" [cyan]>[/cyan] API URL", default="https://api.bitwarden.eu").strip() or None
+                identity_url = Prompt.ask(" [cyan]>[/cyan] Identity URL", default="https://identity.bitwarden.eu").strip() or None
+
+            # Attempt to connect and verify
+            client: BitwardenSecrets = BitwardenSecrets(
+                organization_id=organization_id,
+                api_url=api_url,
+                identity_url=identity_url,
+            )
+            try:
+                client.connect(access_token=token)
+                if not client.test_connection():
+                    raise RuntimeError("could not list secrets for this organization")
+            except Exception as exc:
+                _say(message=f"[bold red]Connection failed:[/bold red] {exc}\n\nLet's try again.")
+                if not Confirm.ask(" [cyan]>[/cyan] Retry Bitwarden setup?", default=True):
+                    _say(message="[yellow]Skipping Bitwarden — secrets will be written to .env instead.[/yellow]")
+                    return
+                continue
+
+            # Choose a project to store secrets in
+            project_id: str | None = None
+            try:
+                projects: list[tuple[str, str]] = client.list_projects()
+            except Exception:
+                projects = []
+
+            if len(projects) == 1:
+                project_id = projects[0][0]
+                _say(message=f"Using Bitwarden project [bold]{projects[0][1]}[/bold].")
+            elif len(projects) > 1:
+                _say(message="Which [bold]project[/bold] should I store your secrets in?")
+                table: Table = Table(show_header=True, header_style="bold cyan")
+                table.add_column("#")
+                table.add_column("Project")
+                for idx, (_, name) in enumerate(projects, start=1):
+                    table.add_row(str(idx), name)
+                console.print(table)
+                choice: str = Prompt.ask(
+                    " [cyan]>[/cyan] Project",
+                    choices=[str(i) for i in range(1, len(projects) + 1)],
+                )
+                project_id = projects[int(choice) - 1][0]
+
+            # Persist non-secret backend configuration
+            self.config["secrets"] = {
+                "backend": "bitwarden",
+                "organization_id": organization_id,
+                "project_id": project_id,
+                "api_url": api_url,
+                "identity_url": identity_url,
+            }
+            self._use_bitwarden = True
+            self._bitwarden = client
+            self._bitwarden_token = token
+            _say(message="[green]Bitwarden Secrets Manager is configured![/green]")
+            return
+
     def _setup_name(self) -> None:
         """
         This function asks the user to pick a name for the main agent.
@@ -535,6 +638,9 @@ class Onboarding:
 
         # Ask for a name for the main agent
         self._setup_name()
+
+        # Choose a secrets backend (env file or Bitwarden Secrets Manager)
+        self._setup_secrets_backend()
 
         # Setup model providers
         self.setup_new_provider()
@@ -565,7 +671,51 @@ class Onboarding:
                 f.write(content)
 
         # Print .env block with all collected secrets
-        if self._env_secrets:
+        if self._use_bitwarden and self._bitwarden is not None:
+            # Store every collected secret in Bitwarden, keyed by the placeholder
+            # name (the env var without the MEMTRIX_SECRET_ prefix).
+            created: list[str] = []
+            failed: list[tuple[str, str]] = []
+            for key, value, description in self._env_secrets:
+                bw_key: str = key[len("MEMTRIX_SECRET_"):] if key.startswith("MEMTRIX_SECRET_") else key
+                try:
+                    self._bitwarden.create_secret(key=bw_key, value=value, note=description)
+                    created.append(bw_key)
+                except Exception as exc:
+                    failed.append((bw_key, str(exc)))
+
+            # Only the Bitwarden access token is written to .env
+            env_content: str = (
+                "# Memtrix secrets — generated by onboarding\n\n"
+                "# Bitwarden Secrets Manager access token\n"
+                f"BWS_ACCESS_TOKEN={self._bitwarden_token}\n"
+            )
+            env_path: str = os.path.join(os.path.dirname(CONFIG_PATH), ".env.generated")
+            with open(file=env_path, mode="w") as f:
+                f.write(env_content)
+
+            if created:
+                table: Table = Table(show_header=True, header_style="bold cyan", title="Secrets stored in Bitwarden")
+                table.add_column("Secret key")
+                for bw_key in created:
+                    table.add_row(bw_key)
+                console.print(table)
+
+            if failed:
+                fail_lines: str = "\n".join(f"  • {k}: {e}" for k, e in failed)
+                _say(
+                    message="[bold red]Some secrets could not be stored in Bitwarden:[/bold red]\n"
+                    f"{fail_lines}\n\nPlease add them manually before starting Memtrix."
+                )
+
+            _say(
+                message="[bold green]All done![/bold green] :sparkles: Your configuration has been saved.\n\n"
+                "Your secrets are stored in [bold]Bitwarden[/bold]. Only the access token "
+                "lives in your [bold].env[/bold] file, which will be placed in the project root automatically.\n\n"
+                "Start Memtrix by running:\n\n"
+                "  [bold]docker compose up[/bold]"
+            )
+        elif self._env_secrets:
             env_lines: list[str] = ["# Memtrix secrets — generated by onboarding", ""]
             for key, value, description in self._env_secrets:
                 env_lines.append(f"# {description}")

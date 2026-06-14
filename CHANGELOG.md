@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.9.0
+
+- Optional Bitwarden Secrets Manager backend — onboarding can now store all secrets (Matrix tokens, provider API keys) in Bitwarden Secrets Manager instead of a local `.env`. When enabled, the only secret on the host is a single `BWS_ACCESS_TOKEN`; everything else is fetched from Bitwarden at startup. Supports Bitwarden cloud and self-hosted servers.
+- Auto-provisioning during setup — when you opt in, onboarding verifies your machine-account access token, lets you pick a Bitwarden project, and automatically creates each collected secret in Bitwarden. Only the access token is written to `.env`.
+- Secrets resolution order — `$PLACEHOLDER` values now resolve from Bitwarden first (by placeholder name), then fall back to `MEMTRIX_SECRET_*` environment variables. The Bitwarden token is cleared from the process environment after boot, just like other secrets.
+
 ## 2.8.0
 
 - Choose local or external Matrix homeserver — onboarding now lets you connect to the bundled local Conduit homeserver or an external/already-hosted Matrix server (your own Synapse, matrix.org, etc.). For external servers you provide the homeserver URL, the bot user ID, and an access token, which are verified via `/whoami` before saving.

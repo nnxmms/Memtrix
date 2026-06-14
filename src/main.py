@@ -9,6 +9,7 @@ from typing import Any
 from src import __version__
 from src.config import CONFIG_PATH
 from src.memtrix import Memtrix
+from src import bitwarden
 from src.secrets import clear_secrets_from_env, resolve_secrets
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -42,8 +43,16 @@ def main() -> None:
     with open(file=CONFIG_PATH, mode="r") as f:
         config: dict[str, Any] = json.load(fp=f)
 
-    # Resolve $PLACEHOLDER secrets from environment variables
-    config: dict[str, Any] = resolve_secrets(config=config)
+    # Fetch secrets from Bitwarden when that backend is enabled
+    bitwarden_secrets: dict[str, str] | None = None
+    if bitwarden.is_enabled(config=config):
+        logger.info("Secrets backend: Bitwarden Secrets Manager")
+        bitwarden_secrets = bitwarden.load_bitwarden_secrets(config=config)
+    else:
+        logger.info("Secrets backend: environment variables")
+
+    # Resolve $PLACEHOLDER secrets from Bitwarden (if enabled) or environment variables
+    config: dict[str, Any] = resolve_secrets(config=config, bitwarden=bitwarden_secrets)
 
     # Clear secrets from environment so they can't be leaked via `env` or /proc
     clear_secrets_from_env()
