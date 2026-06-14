@@ -177,10 +177,14 @@ Built-in tools are automatically discovered at startup:
 |:--|:--|
 | `get_current_time` | Returns the current date and time |
 | `read_core_file` | Reads a core persona file (BEHAVIOR, SOUL, USER, MEMORY) |
-| `write_core_file` | Updates a core persona file (enforces read-before-write) |
+| `write_core_file` | Updates a writable persona file (BEHAVIOR, SOUL only; enforces read-before-write) |
 | `read_memory_file` | Reads today's daily memory journal |
 | `write_memory_file` | Updates today's daily memory journal |
 | `search_memory` | Semantic search across all daily memories via embeddings |
+| `memory_profile` | Returns the compact profile cards for the user and the agent (no LLM) |
+| `memory_search` | Semantic search over reasoned conclusions about the user and agent |
+| `memory_context` | Synthesizes a natural-language answer from reasoned memory |
+| `memory_conclude` | Stores a single high-signal durable fact immediately |
 | `web_search` | Searches the web via local SearXNG instance |
 | `fetch_url` | Fetches and extracts readable text from a URL |
 | `read_file` | Reads a file from the workspace (text and PDF supported) |
@@ -198,7 +202,7 @@ Built-in tools are automatically discovered at startup:
 | `delete_agent` | Permanently deletes a sub-agent and all its data |
 | `ask_agent` | Asks another agent a question and returns their response |
 
-> Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt.
+> Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt. `USER.md` and `MEMORY.md` are profile cards owned by the reasoning memory and cannot be written by the agent at all.
 
 <details>
 <summary><b>Adding a Custom Tool</b></summary>
@@ -236,9 +240,11 @@ It's automatically discovered and available to the LLM on the next restart.
 
 ## 🧠 Memory System
 
-Memtrix has a two-tier memory architecture:
+Memtrix combines a journal-based memory with a reasoning layer:
 
-**Core Memory** (`MEMORY.md`) — A curated, compact summary of the most important long-term knowledge. Key facts, recurring themes, lasting context. Memtrix actively maintains and prunes this file. Think of it as the **brain**.
+**Reasoning Memory** — A background **deriver** thread continuously reasons over each conversation and distills durable conclusions about both the user and the agent itself: explicit observations, certain deductions, and observed patterns. Conclusions are vector-indexed locally (ChromaDB, `data/representations`) and the most relevant ones are injected into the prompt before each reply, so Memtrix recalls durable facts across sessions. Inspired by [Honcho](https://honcho.dev), but implemented entirely on-device — no external service.
+
+**Profile Cards** (`USER.md` about you, `MEMORY.md` about the agent) — Compact, always-current cards that the deriver curates automatically and keeps within a character budget. They are injected into every system prompt and are no longer hand-edited by the agent.
 
 **Daily Journals** (`memory/yyyy-mm-dd.md`) — Chronological, append-only logs of each day's conversations:
 
@@ -260,6 +266,31 @@ Memtrix has a two-tier memory architecture:
 ## Notes
 - Anything else worth remembering.
 ```
+
+### Reasoning Memory Tools
+
+When `recall_mode` is `tools` or `hybrid`, Memtrix can query its reasoning memory directly:
+
+- `memory_profile` — read the compact profile cards (fast, no LLM).
+- `memory_search` — semantically search reasoned conclusions for ranked excerpts.
+- `memory_context` — ask a natural-language question and get a synthesized answer grounded in memory.
+- `memory_conclude` — store a single high-signal durable fact immediately.
+
+The reasoning memory is configured via the optional `memory` section in `config.json`:
+
+| Key | Default | Description |
+|:--|:--|:--|
+| `backend` | `native` | Memory backend (`native` only for now) |
+| `recall_mode` | `hybrid` | `hybrid` (inject + tools), `context` (inject only), `tools` (tools only), or `off` |
+| `write_frequency` | `async` | When the deriver flushes: `async`, `turn`, `session`, or a token count |
+| `reasoning_level` | `low` | Reasoning depth: `minimal`, `low`, `medium`, `high`, `max` |
+| `reasoning_model` | `null` | Optional model override for reasoning (must share the main provider) |
+| `batch_tokens` | `1000` | Approx. tokens accumulated before a background reasoning pass |
+| `peer_card_max_chars` | `1500` | Hard character budget for each profile card |
+| `dual_peer` | `true` | Model both the user and the agent (vs. user only) |
+| `inject_top_k` | `5` | How many conclusions to inject into the prompt per turn |
+
+The section is optional — omit it and Memtrix runs on these defaults.
 
 ### Semantic Search (RAG)
 
@@ -284,10 +315,10 @@ Memtrix's identity is defined by markdown files in `workspace/`:
 | `AGENT.md` | System prompt template — wires everything together |
 | `BEHAVIOR.md` | Communication style, tone, and habits |
 | `SOUL.md` | Core values and personality |
-| `USER.md` | Everything Memtrix knows about you |
-| `MEMORY.md` | Distilled long-term memory |
+| `USER.md` | Compact profile card about you (auto-maintained by reasoning memory) |
+| `MEMORY.md` | Compact profile card about the agent (auto-maintained by reasoning memory) |
 
-These files are injected into the system prompt via placeholders (`{{BEHAVIOR}}`, `{{SOUL}}`, etc.) and are **live-editable by Memtrix itself**. When you tell it to behave differently or share personal details, it updates the appropriate file — with the system prompt rebuilt immediately after.
+These files are injected into the system prompt via placeholders (`{{BEHAVIOR}}`, `{{SOUL}}`, etc.). `BEHAVIOR.md` and `SOUL.md` are **live-editable by Memtrix itself** — when you tell it to behave differently or reshape who it is, it updates the appropriate file and the system prompt is rebuilt immediately. `USER.md` and `MEMORY.md` are curated automatically by the reasoning memory and are **write-protected** — `write_core_file` rejects edits to them at the code level.
 
 <br>
 
@@ -473,6 +504,7 @@ All file and directory tools enforce:
 - **Core file protection** — system files (`AGENT.md`, `SOUL.md`, etc.) are only accessible through dedicated core file tools with a strict allowlist
 - **Memory directory protection** — `memory/` is off-limits to general file tools; only the memory tools can access it
 - **Read-before-write enforcement** — per-room tracking ensures the LLM reads a file before it can modify it
+- **Profile-card write protection** — `USER.md` and `MEMORY.md` are owned by the reasoning memory; `write_core_file` refuses to edit them
 
 ### Prompt Injection Mitigation
 
@@ -503,6 +535,8 @@ Memtrix/
 │   ├── commands.py                   # Slash command registry
 │   ├── secrets.py                    # Secret resolution + sanitization
 │   ├── memory_index.py               # ChromaDB + local embeddings (RAG)
+│   ├── representation.py             # Reasoning-memory store (conclusions + profile cards)
+│   ├── deriver.py                    # Background reasoning thread
 │   ├── config.py                     # Config path constant
 │   ├── onboarding.py                 # Interactive setup wizard (Rich TUI)
 │   ├── channels/
@@ -521,6 +555,10 @@ Memtrix/
 │   │   ├── core_file_tools.py        # Read/write persona files
 │   │   ├── memory_file_tools.py      # Read/write daily journals
 │   │   ├── search_memory_tool.py     # Semantic memory search
+│   │   ├── memory_profile_tool.py    # Read reasoned profile cards
+│   │   ├── memory_search_tool.py     # Search reasoned conclusions
+│   │   ├── memory_context_tool.py    # Synthesized answer from memory
+│   │   ├── memory_conclude_tool.py   # Store a durable fact
 │   │   ├── web_search_tool.py        # Web search via SearXNG
 │   │   ├── fetch_url_tool.py         # URL content extraction
 │   │   ├── read_file_tool.py         # Read files (text + PDF extraction)

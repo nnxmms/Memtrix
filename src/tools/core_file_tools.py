@@ -5,8 +5,12 @@ from typing import Any
 
 from src.tools.base import BaseTool
 
-# Only these files can be read/written by the core file tools
+# Files that can be read via the core file tools
 ALLOWED_FILES: set[str] = {"BEHAVIOR.md", "SOUL.md", "USER.md", "MEMORY.md"}
+
+# Files the agent may write. USER.md and MEMORY.md are profile cards owned and
+# auto-curated by the reasoning memory (deriver), so the agent must not edit them.
+WRITABLE_FILES: set[str] = {"BEHAVIOR.md", "SOUL.md"}
 
 
 class ReadCoreFileTool(BaseTool):
@@ -64,13 +68,13 @@ class WriteCoreFileTool(BaseTool):
         self._workspace_dir: str = workspace_dir
         super().__init__(
             name="write_core_file",
-            description="Write the complete updated content to a core persona file. You MUST call read_core_file first for the same file. Provide the FULL file content, not a diff.",
+            description="Write the complete updated content to a core persona file. You MUST call read_core_file first for the same file. Provide the FULL file content, not a diff. Writable files: BEHAVIOR.md, SOUL.md. USER.md and MEMORY.md are auto-maintained by reasoning memory and cannot be written.",
             parameters={
                 "type": "object",
                 "properties": {
                     "filename": {
                         "type": "string",
-                        "description": "The core file to write (BEHAVIOR.md, SOUL.md, USER.md, or MEMORY.md)."
+                        "description": "The core file to write (BEHAVIOR.md or SOUL.md)."
                     },
                     "content": {
                         "type": "string",
@@ -90,6 +94,9 @@ class WriteCoreFileTool(BaseTool):
 
         if filename not in ALLOWED_FILES:
             return f"Error: '{filename}' is not a core file. Allowed: {', '.join(sorted(ALLOWED_FILES))}"
+
+        if filename not in WRITABLE_FILES:
+            return f"Error: '{filename}' is a profile card maintained automatically by reasoning memory and cannot be edited. Use memory_conclude to record durable facts. Writable: {', '.join(sorted(WRITABLE_FILES))}"
 
         # Enforce read-before-write
         room_id: str = kwargs.get("_room_id", "")

@@ -1,1 +1,1 @@
-// Information about the user you are talking to go here
+// Compact profile card about the user. Auto-maintained by reasoning memory — keep it short and current. Do not hand-edit.

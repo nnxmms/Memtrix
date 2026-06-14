@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.10.0
+
+- Native reasoning memory — Memtrix now has a built-in "memory that reasons" layer inspired by Honcho, implemented entirely locally with no external service. A background **deriver** thread continuously reasons over each conversation and distills durable conclusions about both the user and the agent itself: explicit observations, certain deductions, and observed patterns. Conclusions are vector-indexed in a local ChromaDB store (`data/representations`) using the same on-device `nomic-embed-text-v1.5` embedder.
+- Dual-peer profile cards — `USER.md` (about the user) and `MEMORY.md` (about the agent) are now compact, always-current profile cards that the deriver curates automatically and that stay injected into the system prompt. They are no longer hand-edited by the agent; the deriver re-curates them and enforces a character budget so they stay small. `write_core_file` now **rejects writes to `USER.md` and `MEMORY.md` at the code level** (only `BEHAVIOR.md` and `SOUL.md` remain writable), so the agent can't clobber the auto-maintained cards.
+- Automatic recall injection — before each reply, relevant reasoned conclusions are retrieved and injected transiently into the prompt (not persisted to session history), so the agent recalls durable facts across sessions without bloating session files.
+- Four native memory tools (gated by `recall_mode`) — `memory_profile` (read profile cards, no LLM), `memory_search` (semantic search over conclusions), `memory_context` (synthesized natural-language answer from memory), and `memory_conclude` (store a single high-signal durable fact immediately).
+- Configurable via a new `memory` config section — `recall_mode` (`hybrid`/`context`/`tools`/`off`), `write_frequency` (`async`/`turn`/`session`/N), `reasoning_level` (`minimal`…`max`), optional `reasoning_model`, `batch_tokens`, `peer_card_max_chars`, `dual_peer`, and `inject_top_k`. The section is optional and falls back to sensible defaults, so existing deployments keep working.
+- Main-agent scope for v1 — reasoning memory and its tools are enabled for the main agent only; sub-agents are unaffected. The existing daily memory journal and `search_memory` remain unchanged and complementary.
+
 ## 2.9.0
 
 - Optional Bitwarden Secrets Manager backend — onboarding can now store all secrets (Matrix tokens, provider API keys) in Bitwarden Secrets Manager instead of a local `.env`. When enabled, the only secret on the host is a single `BWS_ACCESS_TOKEN`; everything else is fetched from Bitwarden at startup. Supports Bitwarden cloud and self-hosted servers.

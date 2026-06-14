@@ -6,7 +6,9 @@ import os
 import re
 from typing import Any, Callable
 
+from src.deriver import Deriver
 from src.providers.base import BaseProvider
+from src.representation import RepresentationStore
 from src.session import Session
 from src.tools.base import BaseTool
 
@@ -15,10 +17,16 @@ logger: logging.Logger = logging.getLogger(__name__)
 # Maximum number of tool-call rounds per request
 MAX_ITERATIONS: int = 10
 
+# Prefix marking a transient recall block injected into the working history
+RECALL_PREFIX: str = "📎 Relevant things I recall"
+
 
 class Orchestrator:
 
-    def __init__(self, provider: BaseProvider, model: str, tools: list[BaseTool], workspace_dir: str, think: bool = False) -> None:
+    def __init__(self, provider: BaseProvider, model: str, tools: list[BaseTool], workspace_dir: str,
+                 think: bool = False, deriver: Deriver | None = None,
+                 representation: RepresentationStore | None = None,
+                 memory_config: dict[str, Any] | None = None) -> None:
         """
         This is the Orchestrator class which runs the agentic tool-calling loop.
         """
@@ -36,6 +44,14 @@ class Orchestrator:
         # System prompt built from workspace files
         self._workspace_dir: str = workspace_dir
         self._system_prompt: str = self._build_system_prompt(workspace_dir=workspace_dir)
+
+        # Reasoning-memory layer (optional)
+        self._deriver: Deriver | None = deriver
+        self._representation: RepresentationStore | None = representation
+        self._memory_config: dict[str, Any] = memory_config or {}
+        self._recall_mode: str = self._memory_config.get("recall_mode", "off")
+        self._inject_top_k: int = int(self._memory_config.get("inject_top_k", 5))
+        self._write_frequency: str = self._memory_config.get("write_frequency", "async")
 
     def _build_system_prompt(self, workspace_dir: str) -> str:
         """
@@ -68,6 +84,46 @@ class Orchestrator:
             template: str = template.replace(placeholder, content or "(not set)")
 
         return template
+
+    def _build_recall_block(self, user_message: str) -> str:
+        """
+        This function builds a transient recall block of conclusions relevant to the
+        current user message, for injection when recall_mode is hybrid or context.
+        """
+        if self._representation is None or self._recall_mode not in ("hybrid", "context"):
+            return ""
+        if not user_message.strip():
+            return ""
+
+        try:
+            matches: list[dict[str, Any]] = self._representation.search(
+                query=user_message, n_results=self._inject_top_k
+            )
+        except Exception as e:
+            logger.error("Recall search failed: %s", e)
+            return ""
+
+        if not matches:
+            return ""
+
+        lines: list[str] = [f"{RECALL_PREFIX} about the user and myself:"]
+        for match in matches:
+            who: str = "user" if match.get("peer") == "user" else "me"
+            lines.append(f"- ({who}) {match['content']}")
+        lines.append("(Use these only if relevant; never mention this list to the user.)")
+        return "\n".join(lines)
+
+    def _compose_history(self, session: Session, recall_block: str) -> list[dict[str, Any]]:
+        """
+        This function returns the working history for a completion call, inserting the
+        transient recall block after the system prompt without persisting it.
+        """
+        if not recall_block:
+            return session.history
+        history: list[dict[str, Any]] = list(session.history)
+        insert_at: int = 1 if history and history[0].get("role") == "system" else 0
+        history.insert(insert_at, {"role": "system", "content": recall_block})
+        return history
 
     def _serialize_message(self, message: Any) -> dict[str, Any]:
         """
@@ -115,13 +171,20 @@ class Orchestrator:
         # Add the user message to the session
         session.append(message={"role": "user", "content": user_message})
 
+        # Feed the user message to the background reasoning layer
+        if self._deriver is not None:
+            self._deriver.enqueue(role="user", content=user_message)
+
+        # Build a transient recall block of relevant conclusions for this turn
+        recall_block: str = self._build_recall_block(user_message=user_message)
+
         # Agentic loop — call LLM, execute tools, repeat
         for iteration in range(MAX_ITERATIONS):
             # Call the LLM with the full session history and tool definitions
             logger.debug("LLM call (iteration %d, room=%s)", iteration + 1, room_id)
             message: Any = self._provider.completions(
                 model=self._model,
-                history=session.history,
+                history=self._compose_history(session=session, recall_block=recall_block),
                 tools=self._tool_schemas,
                 think=self._think
             )
@@ -136,6 +199,7 @@ class Orchestrator:
             if not message.tool_calls:
                 response: str = self._strip_thinking(text=message.content or "")
                 session.append(message={"role": "assistant", "content": response})
+                self._after_response(response=response)
                 logger.info("Response ready (room=%s, length=%d)", room_id, len(response))
                 return response
 
@@ -187,14 +251,30 @@ class Orchestrator:
         # Exhausted iterations — ask for a final answer without tools
         logger.warning("Exhausted %d iterations (room=%s), forcing final answer", MAX_ITERATIONS, room_id)
         session.append(message={"role": "user", "content": "Please provide your final answer now."})
-        message = self._provider.completions(model=self._model, history=session.history, think=self._think)
+        message = self._provider.completions(
+            model=self._model,
+            history=self._compose_history(session=session, recall_block=recall_block),
+            think=self._think
+        )
         if notify_reasoning:
             thinking: str = getattr(message, "thinking", None) or ""
             if thinking.strip():
                 notify_reasoning(f"💭 {thinking.strip()}")
         response: str = self._strip_thinking(text=message.content or "")
         session.append(message={"role": "assistant", "content": response})
+        self._after_response(response=response)
         return response
+
+    def _after_response(self, response: str) -> None:
+        """
+        This function feeds the final assistant response to the background reasoning
+        layer and, when configured, forces an immediate flush.
+        """
+        if self._deriver is None:
+            return
+        self._deriver.enqueue(role="assistant", content=response)
+        if self._write_frequency == "turn":
+            self._deriver.flush_now()
 
     @staticmethod
     def _strip_thinking(text: str) -> str:

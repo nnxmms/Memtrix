@@ -701,10 +701,19 @@ class AgentManager:
         # Resolve workspace
         workspace_dir: str = agent_config["workspace"]
 
-        # Discover tools scoped to this agent's workspace (exclude agent management tools)
+        # Discover tools scoped to this agent's workspace (exclude agent management
+        # and reasoning-memory tools; reasoning memory is main-agent only for now)
         tools: list[BaseTool] = discover_tools(
             workspace_dir=workspace_dir,
-            exclude={"create_agent_tool.py", "list_agents_tool.py", "delete_agent_tool.py"}
+            exclude={
+                "create_agent_tool.py",
+                "list_agents_tool.py",
+                "delete_agent_tool.py",
+                "memory_profile_tool.py",
+                "memory_search_tool.py",
+                "memory_context_tool.py",
+                "memory_conclude_tool.py",
+            }
         )
 
         # Wire ask_agent tool with agent manager and caller identity

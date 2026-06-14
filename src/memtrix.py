@@ -12,13 +12,23 @@ from src.channels.cli import CLIChannel
 from src.channels.matrix import MatrixChannel
 from src.commands import Commands
 from src.config import CONFIG_PATH, CONFIG_LOCK
+from src.deriver import Deriver
 from src.memory_index import MemoryIndex
 from src.orchestrator import Orchestrator
 from src.providers.base import BaseProvider
+from src.representation import RepresentationStore, resolve_memory_config
 from src.session import Session
 from src.tools import discover_tools
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+# Reasoning-memory tool files, gated behind recall_mode
+MEMORY_TOOL_FILES: set[str] = {
+    "memory_profile_tool.py",
+    "memory_search_tool.py",
+    "memory_context_tool.py",
+    "memory_conclude_tool.py",
+}
 
 
 class Memtrix:
@@ -82,12 +92,49 @@ class Memtrix:
 
         # Discover tools and create the orchestrator
         workspace_dir: str = self._config["workspace-directory"]
-        tools: list[BaseTool] = discover_tools(workspace_dir=workspace_dir)
         think: bool = model_config.get("think", False)
+
+        # Resolve reasoning-memory configuration
+        mem_cfg: dict[str, Any] = resolve_memory_config(config=self._config)
+
+        # Reasoning model: default to the main model; allow an override on the same provider
+        reasoning_model: str = self._model
+        rm_name: Any = mem_cfg.get("reasoning_model")
+        if rm_name and rm_name in self._config.get("models", {}):
+            rm_cfg: dict[str, Any] = self._config["models"][rm_name]
+            if rm_cfg.get("provider") == provider_instance:
+                reasoning_model = rm_cfg.get("model", self._model)
+            else:
+                logger.warning(
+                    "memory.reasoning_model '%s' uses a different provider; falling back to the main model",
+                    rm_name,
+                )
+
+        # Build the representation store and background deriver when enabled
+        representation: RepresentationStore | None = None
+        deriver: Deriver | None = None
+        if mem_cfg["enabled"]:
+            representation = RepresentationStore.get_instance(workspace_dir=workspace_dir)
+            deriver = Deriver(provider=self._provider, model=reasoning_model, store=representation, config=mem_cfg)
+            deriver.start()
+            logger.info("Reasoning memory enabled (recall_mode=%s)", mem_cfg["recall_mode"])
+
+        # Discover tools, excluding the reasoning-memory tools unless tool access is enabled
+        tool_exclude: set[str] = set()
+        if not (mem_cfg["enabled"] and mem_cfg["recall_mode"] in ("tools", "hybrid")):
+            tool_exclude |= MEMORY_TOOL_FILES
+        tools: list[BaseTool] = discover_tools(workspace_dir=workspace_dir, exclude=tool_exclude)
 
         # Eagerly initialize the memory index so existing files are indexed at startup
         index: MemoryIndex = MemoryIndex.get_instance(workspace_dir=workspace_dir)
         index.start_periodic_sync()
+
+        # Wire reasoning-memory dependencies into the memory tools
+        for tool in tools:
+            if representation is not None and hasattr(tool, "set_representation"):
+                tool.set_representation(store=representation)
+            if hasattr(tool, "set_dialectic"):
+                tool.set_dialectic(provider=self._provider, model=reasoning_model)
 
         logger.info("Discovered %d tools", len(tools))
 
@@ -96,7 +143,10 @@ class Memtrix:
             model=self._model,
             tools=tools,
             workspace_dir=workspace_dir,
-            think=think
+            think=think,
+            deriver=deriver,
+            representation=representation,
+            memory_config=mem_cfg,
         )
 
         logger.info("Orchestrator initialized (model=%s, think=%s)", self._model, think)

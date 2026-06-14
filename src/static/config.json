@@ -12,6 +12,17 @@
     "agents": {},
     "registration_token": "$REGISTRATION_TOKEN",
     "workspace-directory": "/home/memtrix/workspace",
+    "memory": {
+        "backend": "native",
+        "recall_mode": "hybrid",
+        "write_frequency": "async",
+        "reasoning_level": "low",
+        "reasoning_model": null,
+        "batch_tokens": 1000,
+        "peer_card_max_chars": 1500,
+        "dual_peer": true,
+        "inject_top_k": 5
+    },
     "providers": {},
     "models": {},
     "channels": {}
