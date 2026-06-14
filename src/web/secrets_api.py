@@ -73,13 +73,14 @@ def _bitwarden_client(config: dict[str, Any]) -> Any:
     return client
 
 
-@router.get("", response_model=SecretListResponse)
-def list_secrets() -> SecretListResponse:
+def resolve_secret_map(config: dict[str, Any]) -> dict[str, str]:
     """
-    This endpoint returns every secret referenced by the config along with its
-    current value. Values are returned decrypted; the client masks them by default.
+    This function returns a placeholder -> value mapping for every secret the
+    config references, using the active backend. For Bitwarden it fetches all
+    secrets; for the env backend it reads the managed secrets file and falls back
+    to MEMTRIX_SECRET_* environment variables. Best-effort: failures yield an empty
+    or partial map rather than raising, so callers degrade gracefully.
     """
-    config: dict[str, Any] = load_config()
     backend: str = _backend(config=config)
 
     placeholders: set[str] = set()
@@ -103,6 +104,22 @@ def list_secrets() -> SecretListResponse:
                 env_value: str | None = os.environ.get(SECRET_PREFIX + name)
                 if env_value is not None:
                     values[name] = env_value
+    return values
+
+
+@router.get("", response_model=SecretListResponse)
+def list_secrets() -> SecretListResponse:
+    """
+    This endpoint returns every secret referenced by the config along with its
+    current value. Values are returned decrypted; the client masks them by default.
+    """
+    config: dict[str, Any] = load_config()
+    backend: str = _backend(config=config)
+
+    placeholders: set[str] = set()
+    _collect_placeholders(obj=config, acc=placeholders)
+
+    values: dict[str, str] = resolve_secret_map(config=config)
 
     secrets: list[SecretInfo] = []
     for name in sorted(placeholders):

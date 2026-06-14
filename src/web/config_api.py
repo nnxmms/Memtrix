@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, status
 
 from src.config import load_config, save_config
-from src.secrets import SECRET_PREFIX, read_managed_secrets
+from src.secrets import SECRET_PREFIX
 from src.verification import test_channel, test_provider, validate_config
 from src.web.schemas import (
     ConfigPayload,
@@ -16,6 +16,7 @@ from src.web.schemas import (
     TestTarget,
     ValidateResponse,
 )
+from src.web.secrets_api import resolve_secret_map
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -114,10 +115,13 @@ def test_channel_endpoint(target: TestTarget) -> TestResult:
 def _resolve_params(params: dict[str, Any]) -> dict[str, Any]:
     """
     This function resolves any $PLACEHOLDER secret references in flat connectivity
-    test parameters so live tests use real credentials. Unknown placeholders are
-    left untouched (best-effort, never raises).
+    test parameters so live tests use real credentials. It is backend-aware: it
+    resolves from Bitwarden when that is the active backend, otherwise from the
+    managed secrets file and MEMTRIX_SECRET_* environment variables. Unknown
+    placeholders are left untouched (best-effort, never raises).
     """
-    values: dict[str, str] = read_managed_secrets()
+    config: dict[str, Any] = load_config()
+    values: dict[str, str] = resolve_secret_map(config=config)
     resolved: dict[str, Any] = {}
     for key, value in params.items():
         if isinstance(value, str) and value.startswith("$") and len(value) > 1:

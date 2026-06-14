@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.11.1
+
+- Fix "Test connection" in the Web Control Panel failing with an authorization error for Matrix (and other secret-bearing) channels/providers — the connectivity test resolved `$PLACEHOLDER` secrets only from the local `data/secrets.env` file and `MEMTRIX_SECRET_*` environment variables, never from Bitwarden. When Bitwarden was the active backend (or the value wasn't in the managed file), the literal string `$MATRIX_ACCESS_TOKEN` was sent to the homeserver and rejected as unauthorized. Test resolution is now backend-aware and reuses the same logic as the secrets list (Bitwarden `fetch_all()` when active, otherwise managed file + environment), so pressing Test connection without editing anything uses the real stored token.
+
 ## 2.11.0
 
 - Web Control Panel — a production-ready web UI for configuring everything Memtrix offers, served by a dedicated, hardened FastAPI container and built as a React/TypeScript single-page app. The panel runs alongside the agent (bound to `127.0.0.1:8800` by default) and shares the same config and memory store.
