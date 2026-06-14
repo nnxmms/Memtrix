@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.12.0
+
+- New `/costs` slash command — reports OpenRouter credit usage for every configured OpenRouter provider (deduplicated by API key), including **credits used today** (current UTC day), this week, this month, and all-time, plus any configured credit limit and remaining balance. Credits are US dollars. The command queries `GET https://openrouter.ai/api/v1/key` with the provider's API key and is only available when at least one OpenRouter provider is configured. Network and authorization errors are reported gracefully.
+- New `/new` slash command — an alias for `/clear` that starts a fresh session for the current room. Works for the main agent and sub-agents.
+
 ## 2.11.1
 
 - Fix "Test connection" in the Web Control Panel failing with an authorization error for Matrix (and other secret-bearing) channels/providers — the connectivity test resolved `$PLACEHOLDER` secrets only from the local `data/secrets.env` file and `MEMTRIX_SECRET_*` environment variables, never from Bitwarden. When Bitwarden was the active backend (or the value wasn't in the managed file), the literal string `$MATRIX_ACCESS_TOKEN` was sent to the homeserver and rejected as unauthorized. Test resolution is now backend-aware and reuses the same logic as the secrets list (Bitwarden `fetch_all()` when active, otherwise managed file + environment), so pressing Test connection without editing anything uses the real stored token.

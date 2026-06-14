@@ -745,7 +745,7 @@ class AgentManager:
 
         # Import Commands locally to avoid circular imports
         from src.commands import Commands
-        agent_commands: Commands = Commands(agent_config=agent_config, config_path=["agents", name])
+        agent_commands: Commands = Commands(agent_config=agent_config, config_path=["agents", name], providers=self._config.get("providers", {}))
         self._commands[name] = agent_commands
 
         # Build handler for this agent
@@ -755,7 +755,7 @@ class AgentManager:
 
             # Handle /clear
             session_key: str = f"{name}:{room_id}"
-            if raw_body.strip().lower() == "/clear":
+            if raw_body.strip().lower() in ("/clear", "/new"):
                 session: Session = Session(sessions_dir=sessions_dir)
                 self._sessions[session_key] = session
                 agent_config.setdefault("sessions", {})

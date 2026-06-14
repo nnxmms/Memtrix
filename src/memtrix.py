@@ -53,7 +53,7 @@ class Memtrix:
         self._deriver: Deriver | None = None
 
         # Slash commands
-        self._commands: Commands = Commands(agent_config=config["main-agent"], config_path=["main-agent"])
+        self._commands: Commands = Commands(agent_config=config["main-agent"], config_path=["main-agent"], providers=config.get("providers", {}))
 
         # Agent manager for sub-agents
         self._agent_manager: AgentManager | None = None
@@ -242,7 +242,7 @@ class Memtrix:
         raw_body: str = user_input.split(sep="\n", maxsplit=1)[1] if user_input.startswith("[Channel:") else user_input
 
         # Handle /clear — needs access to sessions and room_id
-        if raw_body.strip().lower() == "/clear":
+        if raw_body.strip().lower() in ("/clear", "/new"):
             return self._clear_session(room_id=room_id)
 
         # Check for slash commands

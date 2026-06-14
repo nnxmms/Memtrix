@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-2.11.1-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-2.12.0-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 [Website](https://memtrix.me) · [Documentation](https://memtrix.me/docs.html) · [GitHub](https://github.com/nnxmms/Memtrix)
@@ -439,8 +439,10 @@ Each Matrix room gets its own independent conversation session. Multiple rooms =
 | Command | Action |
 |:--|:--|
 | `/clear` | Start a fresh session in the current room |
+| `/new` | Alias for `/clear` |
 | `/verbose on\|off` | Toggle real-time tool execution notifications |
 | `/reasoning on\|off` | Toggle display of model reasoning/thinking |
+| `/costs` | Show OpenRouter credit usage (today/week/month/all-time). OpenRouter only |
 | `/help` | List available commands |
 
 <br>

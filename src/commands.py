@@ -3,21 +3,26 @@
 from typing import Any, Callable
 
 from src.config import update_config
+from src.usage import format_costs
 
 
 class Commands:
 
-    def __init__(self, agent_config: dict[str, Any], config_path: list[str]) -> None:
+    def __init__(self, agent_config: dict[str, Any], config_path: list[str], providers: dict[str, Any] | None = None) -> None:
         """
         This is the Commands class which handles slash-commands.
         agent_config is the agent's own config section (e.g. config["main-agent"] or config["agents"]["dave"]).
         config_path is the key path to that section in config.json (e.g. ["main-agent"] or ["agents", "dave"]).
+        providers is the resolved config["providers"] map, used by /costs.
         """
         # Registry of command handlers
         self._commands: dict[str, Callable[[list[str]], str]] = {}
 
         # Key path to the agent's config section for persistence
         self._config_path: list[str] = config_path
+
+        # Resolved providers map (for cost reporting)
+        self._providers: dict[str, Any] = providers or {}
 
         # Register built-in commands
         self._register_builtins()
@@ -33,9 +38,14 @@ class Commands:
         This function registers the built-in slash commands.
         """
         self._commands["clear"] = self._cmd_clear
+        self._commands["new"] = self._cmd_clear
         self._commands["verbose"] = self._cmd_verbose
         self._commands["reasoning"] = self._cmd_reasoning
         self._commands["help"] = self._cmd_help
+
+        # /costs only makes sense when at least one OpenRouter provider is configured
+        if any(isinstance(p, dict) and p.get("type") == "openrouter" for p in self._providers.values()):
+            self._commands["costs"] = self._cmd_costs
 
     def register(self, name: str, handler: Callable[[list[str]], str]) -> None:
         """
@@ -121,6 +131,13 @@ class Commands:
         This function is a placeholder — /clear is handled by Memtrix directly.
         """
         return "Session cleared."
+
+    def _cmd_costs(self, args: list[str]) -> str:
+        """
+        This function reports OpenRouter credit usage for the configured providers,
+        including credits used today (current UTC day). Credits are US dollars.
+        """
+        return format_costs(providers=self._providers)
 
     def _cmd_help(self, args: list[str]) -> str:
         """
