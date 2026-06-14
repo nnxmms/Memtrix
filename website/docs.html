@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Memtrix Docs</title>
-  <meta name="description" content="Documentation for Memtrix — a self-hosted, privacy-first personal AI agent.">
+  <meta name="description" content="Documentation for Memtrix - a self-hosted, privacy-first personal AI agent.">
   <link rel="icon" type="image/png" sizes="32x32" href="static/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="static/favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="static/logo-180.png">
@@ -15,31 +15,33 @@
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: #0f1117;
-      --bg-sidebar: #0c0d12;
-      --bg-card: #151820;
-      --bg-code: #1a1d27;
-      --bg-code-inline: #1e2130;
-      --bg-callout-tip: #0a2e1e;
-      --bg-callout-note: #0f1a3a;
-      --bg-callout-warn: #2e1f0a;
-      --border: #1e2030;
+      --bg: #08090c;
+      --bg-sidebar: #0a0c10;
+      --bg-card: #0f1217;
+      --bg-code: #0c0e13;
+      --bg-code-inline: #14171e;
+      --bg-callout-tip: #06150f;
+      --bg-callout-note: #080f1d;
+      --bg-callout-warn: #16100a;
+      --border: #1b1f28;
+      --border-br: #272c38;
       --border-active: #00e89d;
-      --text: #e2e2e8;
-      --text-dim: #8a8a9e;
-      --text-muted: #55556a;
+      --text: #c7ccd6;
+      --text-dim: #8a8f9c;
+      --text-muted: #5a606e;
       --accent: #00e89d;
       --accent-dim: #00e89d44;
-      --accent-bg: #00e89d0d;
+      --accent-bg: #00e89d12;
+      --accent-line: #00e89d2e;
       --purple: #a78bfa;
       --orange: #f0a050;
       --blue: #60a5fa;
       --red: #f87171;
-      --sidebar-w: 260px;
-      --toc-w: 200px;
+      --sidebar-w: 268px;
+      --toc-w: 210px;
       --header-h: 56px;
       --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+      --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
     }
 
     html { scroll-behavior: smooth; scroll-padding-top: 80px; overflow-x: hidden; }
@@ -50,7 +52,18 @@
       line-height: 1.7;
       -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 64px 64px;
+      background-attachment: fixed;
     }
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background: radial-gradient(circle at 50% -10%, transparent 0%, var(--bg) 65%);
+    }
+    ::selection { background: var(--accent); color: #04130d; }
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
@@ -59,7 +72,7 @@
       position: fixed;
       top: 0; left: 0; right: 0;
       height: var(--header-h);
-      background: #0c0d12ee;
+      background: #08090cdd;
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--border);
@@ -71,32 +84,39 @@
     .doc-header-brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 9px;
+      font-family: var(--font-mono);
       font-weight: 700;
-      font-size: 1rem;
-      color: var(--text);
+      font-size: .98rem;
+      color: var(--text-br, #eef1f5);
       min-width: var(--sidebar-w);
     }
-    .doc-header-brand img { width: 26px; height: 26px; border-radius: 6px; }
+    .doc-header-brand img { width: 24px; height: 24px; border-radius: 6px; }
+    .doc-header-brand .ver {
+      font-family: var(--font-mono); font-weight: 500; font-size: .64rem;
+      color: var(--accent); border: 1px solid var(--accent-line);
+      background: var(--accent-bg); padding: 1px 6px; border-radius: 5px;
+    }
     .doc-header-nav {
       display: flex;
-      gap: 6px;
-      margin-left: 32px;
+      gap: 4px;
+      margin-left: 28px;
+      font-family: var(--font-mono);
     }
     .doc-header-nav a {
-      color: var(--text-dim);
-      font-size: .82rem;
-      font-weight: 500;
-      padding: 6px 14px;
+      color: var(--text-muted);
+      font-size: .78rem;
+      font-weight: 400;
+      padding: 6px 12px;
       border-radius: 6px;
-      transition: color .2s, background .2s;
+      transition: color .15s, background .15s;
     }
     .doc-header-nav a:hover, .doc-header-nav a.active {
       color: var(--text);
       background: #ffffff08;
       text-decoration: none;
     }
-    .doc-header-nav a.active { border-bottom: 2px solid var(--accent); }
+    .doc-header-nav a.active { color: var(--accent); }
     .doc-header-right {
       margin-left: auto;
       display: flex;
@@ -105,7 +125,8 @@
     }
     .doc-header-right a {
       color: var(--text-dim);
-      font-size: .82rem;
+      font-family: var(--font-mono);
+      font-size: .78rem;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -114,31 +135,28 @@
     .doc-header-right a:hover { color: var(--text); text-decoration: none; }
     .doc-header-right svg { width: 16px; height: 16px; }
 
-    .search-box {
+    .doc-status {
       display: flex;
       align-items: center;
       gap: 8px;
-      background: #ffffff06;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 6px 14px;
-      color: var(--text-muted);
-      font-size: .82rem;
-      cursor: pointer;
-      transition: border-color .2s;
-      min-width: 200px;
+      background: var(--accent-bg);
+      border: 1px solid var(--accent-line);
+      border-radius: 7px;
+      padding: 5px 12px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: .72rem;
     }
-    .search-box:hover { border-color: #2a2d40; }
-    .search-box svg { width: 14px; height: 14px; opacity: .5; }
-    .search-box kbd {
-      margin-left: auto;
-      font-family: var(--font-sans);
-      font-size: .7rem;
-      background: #ffffff0a;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 1px 6px;
-      color: var(--text-muted);
+    .doc-status .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 0 var(--accent);
+      animation: pulse 2.4s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 #00e89d66; }
+      70% { box-shadow: 0 0 0 6px #00e89d00; }
+      100% { box-shadow: 0 0 0 0 #00e89d00; }
     }
 
     .mobile-toggle {
@@ -176,18 +194,21 @@
 
     .sidebar-group { margin-bottom: 24px; }
     .sidebar-group-label {
+      font-family: var(--font-mono);
       font-size: .7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .12em;
+      font-weight: 500;
+      letter-spacing: .02em;
       color: var(--text-muted);
       padding: 0 12px;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
+      text-transform: lowercase;
     }
+    .sidebar-group-label::before { content: '// '; color: var(--border-br); }
     .sidebar-link {
       display: block;
       padding: 6px 12px;
-      font-size: .85rem;
+      font-family: var(--font-mono);
+      font-size: .82rem;
       color: var(--text-dim);
       border-radius: 6px;
       transition: color .15s, background .15s;
@@ -199,6 +220,7 @@
       background: var(--accent-bg);
       font-weight: 500;
     }
+    .sidebar-link.active::before { content: '› '; }
 
     /* ── Main Content ── */
     .doc-main {
@@ -224,22 +246,25 @@
     .doc-toc::-webkit-scrollbar { width: 3px; }
     .doc-toc::-webkit-scrollbar-thumb { background: #2a2d40; border-radius: 4px; }
     .toc-title {
-      font-size: .72rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .1em;
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      font-weight: 500;
+      letter-spacing: .02em;
       color: var(--text-muted);
       margin-bottom: 12px;
       display: flex;
       align-items: center;
       gap: 6px;
+      text-transform: lowercase;
     }
+    .toc-title::before { content: '//'; color: var(--border-br); }
     .toc-link {
       display: block;
       padding: 3px 0 3px 12px;
-      font-size: .78rem;
+      font-family: var(--font-mono);
+      font-size: .76rem;
       color: var(--text-muted);
-      border-left: 2px solid transparent;
+      border-left: 2px solid var(--border);
       transition: color .15s, border-color .15s;
       line-height: 1.5;
     }
@@ -249,38 +274,48 @@
 
     /* ── Typography ── */
     .doc-breadcrumb {
-      font-size: .8rem;
-      color: var(--accent);
-      font-weight: 500;
-      margin-bottom: 8px;
+      font-family: var(--font-mono);
+      font-size: .74rem;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-bottom: 12px;
+      text-transform: lowercase;
     }
+    .doc-breadcrumb::before { content: '// '; color: var(--accent); }
     .doc-main h1 {
-      font-size: 2rem;
+      font-family: var(--font-mono);
+      font-size: 1.95rem;
       font-weight: 700;
       letter-spacing: -0.02em;
       margin-bottom: 16px;
-      line-height: 1.2;
+      line-height: 1.15;
+      color: var(--text-br, #eef1f5);
     }
     .doc-main .lead {
-      font-size: 1.05rem;
+      font-size: 1.04rem;
       color: var(--text-dim);
-      margin-bottom: 32px;
+      margin-bottom: 36px;
       line-height: 1.7;
     }
     .doc-main h2 {
-      font-size: 1.45rem;
-      font-weight: 700;
+      font-family: var(--font-mono);
+      font-size: 1.35rem;
+      font-weight: 600;
       margin-top: 56px;
       margin-bottom: 16px;
       padding-bottom: 8px;
       border-bottom: 1px solid var(--border);
       letter-spacing: -0.01em;
+      color: var(--text-br, #eef1f5);
     }
+    .doc-main h2::before { content: '> '; color: var(--accent); }
     .doc-main h3 {
-      font-size: 1.15rem;
+      font-family: var(--font-mono);
+      font-size: 1.08rem;
       font-weight: 600;
       margin-top: 36px;
       margin-bottom: 12px;
+      color: var(--text-br, #eef1f5);
     }
     .doc-main h4 {
       font-size: 1rem;
@@ -352,27 +387,44 @@
       padding: 4px 10px;
       cursor: pointer;
       transition: color .2s, border-color .2s;
-      font-family: var(--font-sans);
+      font-family: var(--font-mono);
     }
-    .copy-btn:hover { color: var(--text); border-color: #3a3d50; }
+    .copy-btn:hover { color: var(--text); border-color: var(--border-br); }
 
     /* ── Callouts ── */
     .callout {
-      border-radius: 10px;
-      padding: 16px 18px;
+      border-radius: 8px;
+      padding: 15px 18px;
       margin-bottom: 20px;
       font-size: .88rem;
-      border-left: 3px solid;
+      border: 1px solid var(--border);
+      border-left: 2px solid;
       display: flex;
-      gap: 12px;
+      gap: 14px;
     }
-    .callout-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+    .callout-tag {
+      flex-shrink: 0;
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 5px;
+      height: fit-content;
+      margin-top: 1px;
+    }
+    .callout-tag::before { content: '['; opacity: .5; }
+    .callout-tag::after { content: ']'; opacity: .5; }
     .callout-body { flex: 1; }
     .callout-body strong { display: block; margin-bottom: 4px; }
     .callout-body code { font-size: .8em; }
-    .callout.tip { background: var(--bg-callout-tip); border-color: #00e89d88; }
-    .callout.note { background: var(--bg-callout-note); border-color: #60a5fa88; }
-    .callout.warn { background: var(--bg-callout-warn); border-color: #f0a05088; }
+    .callout.tip { background: var(--bg-callout-tip); border-left-color: var(--accent); }
+    .callout.tip .callout-tag { color: var(--accent); background: var(--accent-bg); }
+    .callout.note { background: var(--bg-callout-note); border-left-color: var(--blue); }
+    .callout.note .callout-tag { color: var(--blue); background: #60a5fa14; }
+    .callout.warn { background: var(--bg-callout-warn); border-left-color: var(--orange); }
+    .callout.warn .callout-tag { color: var(--orange); background: #f0a05014; }
 
     /* ── Tables ── */
     table {
@@ -388,9 +440,10 @@
     }
     th {
       font-weight: 600;
-      font-size: .78rem;
-      text-transform: uppercase;
-      letter-spacing: .05em;
+      font-family: var(--font-mono);
+      font-size: .72rem;
+      text-transform: lowercase;
+      letter-spacing: .02em;
       color: var(--text-dim);
       background: #ffffff04;
     }
@@ -408,15 +461,16 @@
     }
     .step::before {
       counter-increment: step;
-      content: counter(step);
+      content: counter(step, decimal-leading-zero);
       flex-shrink: 0;
       width: 32px;
       height: 32px;
-      border-radius: 50%;
+      border-radius: 7px;
       background: var(--accent-bg);
-      border: 1px solid var(--accent-dim);
+      border: 1px solid var(--accent-line);
       color: var(--accent);
-      font-size: .82rem;
+      font-family: var(--font-mono);
+      font-size: .76rem;
       font-weight: 600;
       display: flex;
       align-items: center;
@@ -441,14 +495,17 @@
     }
     .nav-card:hover { border-color: var(--accent-dim); transform: translateY(-2px); text-decoration: none; }
     .nav-card-label {
-      font-size: .7rem;
+      font-family: var(--font-mono);
+      font-size: .68rem;
       color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: .1em;
-      margin-bottom: 4px;
+      text-transform: lowercase;
+      letter-spacing: .02em;
+      margin-bottom: 6px;
     }
+    .nav-card-label::before { content: '// '; color: var(--border-br); }
     .nav-card-title {
-      font-size: .92rem;
+      font-family: var(--font-mono);
+      font-size: .9rem;
       font-weight: 600;
       color: var(--text);
     }
@@ -490,7 +547,7 @@
       }
       .mobile-toggle { display: block; }
       .doc-header-nav { display: none; }
-      .search-box { display: none; }
+      .doc-status { display: none; }
       .nav-cards { grid-template-columns: 1fr; }
       .doc-header-brand { min-width: auto; }
 
@@ -628,8 +685,8 @@
     <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
-    <img src="static/logo.png" alt="Memtrix" width="26" height="26">
-    Memtrix
+    <img src="static/logo.png" alt="Memtrix" width="24" height="24">
+    memtrix<span class="ver">v2.12.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -645,10 +702,8 @@
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 8H1M8 1l-7 7 7 7"/></svg>
       Website
     </a>
-    <div class="search-box" onclick="document.getElementById('searchInput').focus()">
-      <svg fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>
-      <span>Search...</span>
-      <kbd>⌘K</kbd>
+    <div class="doc-status">
+      <span class="dot"></span>agent online
     </div>
     <a href="https://github.com/nnxmms/Memtrix" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -708,7 +763,7 @@
     <div class="doc-page" id="page-overview">
       <div class="doc-breadcrumb">Overview</div>
       <h1>Memtrix</h1>
-      <p class="lead">A self-hosted, privacy-first personal AI agent with persistent memory and agentic tool use. Not a chatbot — an <strong>agent</strong>.</p>
+      <p class="lead">A self-hosted, privacy-first personal AI agent with persistent memory and agentic tool use. Not a chatbot - an <strong>agent</strong>.</p>
 
       <p>Memtrix runs entirely on your hardware. It communicates through the Matrix protocol, remembers every conversation through semantic search, executes tools autonomously, and evolves its personality based on your interactions.</p>
 
@@ -717,24 +772,24 @@
       <ul>
         <li>Search the web and fetch URLs</li>
         <li>Manage files, clone repos, download content</li>
-        <li>Remember everything — daily journals, semantic search, and a reasoning-memory layer that distills durable facts about you</li>
+        <li>Remember everything - daily journals, semantic search, and a reasoning-memory layer that distills durable facts about you</li>
         <li>Create specialist sub-agents with their own identity and memory</li>
         <li>Update its own personality and knowledge of you over time</li>
       </ul>
       <p>An optional <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a> at <code>localhost:8800</code> lets you configure everything, manage secrets, and browse memory from your browser.</p>
 
       <h2 id="ov-who">Who is it for?</h2>
-      <p>Developers and power users who want a personal AI assistant they control completely — no cloud dependency, no data leaving your machine, no subscriptions.</p>
+      <p>Developers and power users who want a personal AI assistant they control completely - no cloud dependency, no data leaving your machine, no subscriptions.</p>
 
       <h2 id="ov-different">What makes it different?</h2>
       <ul>
-        <li><strong>Self-hosted</strong> — LLM, homeserver, search engine, vector DB — everything on your hardware</li>
-        <li><strong>Multi-provider</strong> — local models via Ollama or 200+ cloud models via OpenRouter</li>
-        <li><strong>Persistent memory</strong> — daily-journal RAG plus a reasoning-memory layer (auto-curated peer cards &amp; conclusions), all on-device</li>
-        <li><strong>Agentic</strong> — iterative reasoning loop with 26 auto-discovered tools</li>
-        <li><strong>Multi-agent</strong> — create specialist sub-agents that can consult each other</li>
-        <li><strong>Web Control Panel</strong> — configure, test connections, manage secrets, and curate memory from the browser</li>
-        <li><strong>Security hardened</strong> — non-root, read-only filesystem, all capabilities dropped</li>
+        <li><strong>Self-hosted</strong> - LLM, homeserver, search engine, vector DB - everything on your hardware</li>
+        <li><strong>Multi-provider</strong> - local models via Ollama or 200+ cloud models via OpenRouter</li>
+        <li><strong>Persistent memory</strong> - daily-journal RAG plus a reasoning-memory layer (auto-curated peer cards &amp; conclusions), all on-device</li>
+        <li><strong>Agentic</strong> - iterative reasoning loop with 26 auto-discovered tools</li>
+        <li><strong>Multi-agent</strong> - create specialist sub-agents that can consult each other</li>
+        <li><strong>Web Control Panel</strong> - configure, test connections, manage secrets, and curate memory from the browser</li>
+        <li><strong>Security hardened</strong> - non-root, read-only filesystem, all capabilities dropped</li>
       </ul>
 
       <h2 id="ov-need">What you need</h2>
@@ -748,7 +803,7 @@
       </table>
 
       <div class="callout tip">
-        <span class="callout-icon">💡</span>
+        <span class="callout-tag tip">tip</span>
         <div class="callout-body">Memtrix downloads the embedding model (~100 MB) on first launch. Subsequent starts reuse the cached model in <code>data/models/</code>.</div>
       </div>
 
@@ -759,7 +814,7 @@ git clone https://github.com/nnxmms/Memtrix.git && cd memtrix
 <span style="color:var(--text-muted)"># Create directories, build image, start Conduit</span>
 ./setup.sh
 
-<span style="color:var(--text-muted)"># Interactive wizard — configure LLM, model, channel</span>
+<span style="color:var(--text-muted)"># Interactive wizard - configure LLM, model, channel</span>
 ./onboard.sh
 
 <span style="color:var(--text-muted)"># Launch everything</span>
@@ -785,16 +840,16 @@ docker compose up -d</code></pre>
     <div class="doc-page" id="page-features">
       <div class="doc-breadcrumb">Overview</div>
       <h1>Features</h1>
-      <p class="lead">Everything Memtrix brings to the table — from persistent memory to multi-agent orchestration.</p>
+      <p class="lead">Everything Memtrix brings to the table - from persistent memory to multi-agent orchestration.</p>
 
       <h2 id="ft-selfhosted">Fully Self-Hosted</h2>
-      <p>Every component runs on your hardware. The LLM (via Ollama or OpenRouter), the Matrix homeserver (Conduit), the search engine (SearXNG), the vector store (the <code>chroma</code> service) — nothing phones home.</p>
+      <p>Every component runs on your hardware. The LLM (via Ollama or OpenRouter), the Matrix homeserver (Conduit), the search engine (SearXNG), the vector store (the <code>chroma</code> service) - nothing phones home.</p>
 
       <h2 id="ft-memory">Persistent Memory</h2>
       <p>Memtrix layers two complementary memory systems:</p>
       <ul>
-        <li><strong>Daily Journals</strong> (<code>memory/yyyy-mm-dd.md</code>) — chronological logs searchable via on-device RAG embeddings</li>
-        <li><strong>Reasoning Memory</strong> — a background deriver distills conversations into typed conclusions and auto-curated peer cards (<code>USER.md</code>, <code>MEMORY.md</code>)</li>
+        <li><strong>Daily Journals</strong> (<code>memory/yyyy-mm-dd.md</code>) - chronological logs searchable via on-device RAG embeddings</li>
+        <li><strong>Reasoning Memory</strong> - a background deriver distills conversations into typed conclusions and auto-curated peer cards (<code>USER.md</code>, <code>MEMORY.md</code>)</li>
       </ul>
       <p>Semantic search is powered by <code>nomic-embed-text-v1.5</code> running entirely on-device. No external API calls. See <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>.</p>
 
@@ -811,7 +866,7 @@ docker compose up -d</code></pre>
       <p>Memtrix's identity is defined by markdown files. It freely edits <code>SOUL.md</code> and <code>BEHAVIOR.md</code> as it learns your preferences, while <code>USER.md</code> and <code>MEMORY.md</code> are auto-curated by the reasoning-memory deriver. Its personality genuinely grows with every conversation.</p>
 
       <h2 id="ft-agents">Multi-Agent System</h2>
-      <p>Create specialist sub-agents with their own identity, memory, Matrix presence, and workspace. Agents communicate via <code>ask_agent</code> — the main agent can consult sub-agents, and sub-agents can consult each other or the main agent.</p>
+      <p>Create specialist sub-agents with their own identity, memory, Matrix presence, and workspace. Agents communicate via <code>ask_agent</code> - the main agent can consult sub-agents, and sub-agents can consult each other or the main agent.</p>
 
       <h2 id="ft-matrix">Matrix Chat Protocol</h2>
       <p>Communicates through the Matrix protocol via a local Conduit homeserver. Use Element, FluffyChat, or any Matrix client. Each room maintains its own conversation session.</p>
@@ -820,17 +875,17 @@ docker compose up -d</code></pre>
       <p>Defense-in-depth: non-root container, read-only filesystem, all capabilities dropped, no shell access for the LLM, SSRF protection, human-in-the-loop for destructive operations, path traversal prevention, and prompt injection mitigation.</p>
 
       <h2 id="ft-search">Private Web Search</h2>
-      <p>Built-in SearXNG instance for privacy-respecting web searches. Fetch, read, and summarize any URL — all self-hosted, no tracking.</p>
+      <p>Built-in SearXNG instance for privacy-respecting web searches. Fetch, read, and summarize any URL - all self-hosted, no tracking.</p>
 
       <h2 id="ft-reactions">Message Reactions</h2>
-      <p>Memtrix can react to your messages with emoji in Matrix — just like a human would. The LLM decides when and what to react with naturally.</p>
+      <p>Memtrix can react to your messages with emoji in Matrix - just like a human would. The LLM decides when and what to react with naturally.</p>
     </div>
 
     <!-- ═══════════════════════════════════════ ARCHITECTURE ═══════════════════════════════════════ -->
     <div class="doc-page" id="page-architecture">
       <div class="doc-breadcrumb">Overview</div>
       <h1>Architecture</h1>
-      <p class="lead">How the pieces fit together — every component runs locally in Docker.</p>
+      <p class="lead">How the pieces fit together - every component runs locally in Docker.</p>
 
       <div class="diagram"><pre><code>     ┌──────────────────┐        ┌──────────────────────┐
      │  Element Desktop │        │   Web Browser        │
@@ -858,13 +913,13 @@ docker compose up -d</code></pre>
       <table>
         <thead><tr><th>Component</th><th>Role</th></tr></thead>
         <tbody>
-          <tr><td><strong>Memtrix</strong></td><td>Python agent — orchestrates LLM calls, tool execution, memory, sessions, sub-agents</td></tr>
-          <tr><td><strong>web</strong></td><td>FastAPI backend + React control panel (localhost:8800) — edit config, manage secrets, browse memory, restart</td></tr>
-          <tr><td><strong>chroma</strong></td><td>Standalone ChromaDB service — shared vector store for all agents, reached via <code>CHROMA_URL</code></td></tr>
-          <tr><td><strong>Conduit</strong></td><td>Lightweight Matrix homeserver (local-only, no federation) — optional when using an external homeserver</td></tr>
+          <tr><td><strong>Memtrix</strong></td><td>Python agent - orchestrates LLM calls, tool execution, memory, sessions, sub-agents</td></tr>
+          <tr><td><strong>web</strong></td><td>FastAPI backend + React control panel (localhost:8800) - edit config, manage secrets, browse memory, restart</td></tr>
+          <tr><td><strong>chroma</strong></td><td>Standalone ChromaDB service - shared vector store for all agents, reached via <code>CHROMA_URL</code></td></tr>
+          <tr><td><strong>Conduit</strong></td><td>Lightweight Matrix homeserver (local-only, no federation) - optional when using an external homeserver</td></tr>
           <tr><td><strong>SearXNG</strong></td><td>Privacy-respecting metasearch engine for web access</td></tr>
           <tr><td><strong>Ollama</strong></td><td>Local LLM inference (runs separately on host)</td></tr>
-          <tr><td><strong>OpenRouter</strong></td><td>Cloud LLM gateway — OpenAI, Anthropic, Google, and more</td></tr>
+          <tr><td><strong>OpenRouter</strong></td><td>Cloud LLM gateway - OpenAI, Anthropic, Google, and more</td></tr>
         </tbody>
       </table>
 
@@ -904,17 +959,17 @@ docker compose up -d</code></pre>
     <div class="doc-page active" id="page-getting-started">
       <div class="doc-breadcrumb">First steps</div>
       <h1>Getting Started</h1>
-      <p class="lead">Install Memtrix, run onboarding, and chat with your AI agent — all in about 5 minutes. By the end you will have a running Matrix homeserver, configured LLM, and a working chat session.</p>
+      <p class="lead">Install Memtrix, run onboarding, and chat with your AI agent - all in about 5 minutes. By the end you will have a running Matrix homeserver, configured LLM, and a working chat session.</p>
 
       <h2 id="gs-need">What you need</h2>
       <ul>
-        <li><strong>Docker &amp; Docker Compose</strong> — version 2.0+ recommended</li>
-        <li><strong>An LLM provider</strong> — either <a href="https://ollama.ai">Ollama</a> running locally, or an <a href="https://openrouter.ai">OpenRouter</a> API key</li>
-        <li><strong>A Matrix client</strong> — <a href="https://element.io/download">Element Desktop</a> is recommended</li>
+        <li><strong>Docker &amp; Docker Compose</strong> - version 2.0+ recommended</li>
+        <li><strong>An LLM provider</strong> - either <a href="https://ollama.ai">Ollama</a> running locally, or an <a href="https://openrouter.ai">OpenRouter</a> API key</li>
+        <li><strong>A Matrix client</strong> - <a href="https://element.io/download">Element Desktop</a> is recommended</li>
       </ul>
 
       <div class="callout tip">
-        <span class="callout-icon">💡</span>
+        <span class="callout-tag tip">tip</span>
         <div class="callout-body">Check Docker is installed with <code>docker --version</code> and <code>docker compose version</code>. Linux users not in the <code>docker</code> group should prefix commands with <code>sudo</code>.</div>
       </div>
 
@@ -936,7 +991,7 @@ docker compose up -d</code></pre>
             <pre><code>./setup.sh</code></pre>
             <p>This creates directories (<code>data/</code>, <code>workspace/</code>, <code>agents/</code>), copies default config and persona files, generates secrets for SearXNG and Conduit, builds the Docker image, and starts the Conduit homeserver.</p>
             <div class="callout note">
-              <span class="callout-icon">📘</span>
+              <span class="callout-tag note">note</span>
               <div class="callout-body">Setup waits up to 60 seconds for Conduit to be ready. You'll see a "Conduit is ready" message when it's done.</div>
             </div>
           </div>
@@ -949,14 +1004,14 @@ docker compose up -d</code></pre>
             <pre><code>./onboard.sh</code></pre>
             <p>The interactive wizard walks you through:</p>
             <ol>
-              <li><strong>Naming your agent</strong> — give it a custom name (default: "Memtrix")</li>
-              <li><strong>Configuring an LLM provider</strong> — choose Ollama or OpenRouter, enter connection details</li>
-              <li><strong>Setting up a model</strong> — pick which model to use (e.g. <code>llama3</code>, <code>claude-sonnet-4-20250514</code>)</li>
-              <li><strong>Configuring the channel</strong> — choose Matrix or CLI, register Matrix accounts</li>
+              <li><strong>Naming your agent</strong> - give it a custom name (default: "Memtrix")</li>
+              <li><strong>Configuring an LLM provider</strong> - choose Ollama or OpenRouter, enter connection details</li>
+              <li><strong>Setting up a model</strong> - pick which model to use (e.g. <code>llama3</code>, <code>claude-sonnet-4-20250514</code>)</li>
+              <li><strong>Configuring the channel</strong> - choose Matrix or CLI, register Matrix accounts</li>
             </ol>
             <div class="callout tip">
-              <span class="callout-icon">💡</span>
-              <div class="callout-body">The wizard auto-registers three Matrix accounts on Conduit: an admin, the bot, and your user account. It prints the credentials — save them.</div>
+              <span class="callout-tag tip">tip</span>
+              <div class="callout-body">The wizard auto-registers three Matrix accounts on Conduit: an admin, the bot, and your user account. It prints the credentials - save them.</div>
             </div>
           </div>
         </div>
@@ -969,8 +1024,8 @@ docker compose up -d</code></pre>
             <p>This starts all services: <code>memtrix</code> (the agent), <code>web</code> (the control panel on <code>localhost:8800</code>), <code>chroma</code> (the shared vector store), <code>conduit</code> (the Matrix homeserver), and <code>searxng</code> (web search). Check logs with:</p>
             <pre><code>docker compose logs -f memtrix</code></pre>
             <div class="callout tip">
-              <span class="callout-icon">💡</span>
-              <div class="callout-body">Prefer a UI? Open <a href="http://localhost:8800">http://localhost:8800</a> to reach the <strong>Web Control Panel</strong> — edit configuration, test connections, manage secrets, and browse memory without touching JSON. See the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a> guide.</div>
+              <span class="callout-tag tip">tip</span>
+              <div class="callout-body">Prefer a UI? Open <a href="http://localhost:8800">http://localhost:8800</a> to reach the <strong>Web Control Panel</strong> - edit configuration, test connections, manage secrets, and browse memory without touching JSON. See the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a> guide.</div>
             </div>
           </div>
         </div>
@@ -992,7 +1047,7 @@ docker compose up -d</code></pre>
       </div>
 
       <div class="callout note">
-        <span class="callout-icon">📘</span>
+        <span class="callout-tag note">note</span>
         <div class="callout-body"><strong>First startup:</strong> Memtrix downloads the embedding model (~100 MB) on first launch. This can take a couple of minutes. Subsequent starts reuse <code>data/cache/</code>.</div>
       </div>
 
@@ -1040,7 +1095,7 @@ docker compose up -d</code></pre>
         <li>Sub-agent naming conventions</li>
         <li>Persona file templates</li>
       </ul>
-      <p>Default is "Memtrix" — but you can name it anything.</p>
+      <p>Default is "Memtrix" - but you can name it anything.</p>
 
       <h2 id="ob-provider">Step 2: Configure a provider</h2>
       <p>Providers are dynamically discovered from <code>src/providers/</code>. Built-in options:</p>
@@ -1048,29 +1103,29 @@ docker compose up -d</code></pre>
       <h3>Ollama (local)</h3>
       <p>For running models on your own hardware.</p>
       <ul>
-        <li><strong>Required:</strong> <code>base_url</code> — URL of your Ollama instance (e.g. <code>http://host.docker.internal:11434</code>)</li>
+        <li><strong>Required:</strong> <code>base_url</code> - URL of your Ollama instance (e.g. <code>http://host.docker.internal:11434</code>)</li>
         <li>Make sure Ollama is running and has a model pulled (<code>ollama pull llama3</code>)</li>
       </ul>
 
       <h3>OpenRouter (cloud)</h3>
       <p>For accessing 200+ cloud models.</p>
       <ul>
-        <li><strong>Required:</strong> <code>api_key</code> — your OpenRouter API key</li>
+        <li><strong>Required:</strong> <code>api_key</code> - your OpenRouter API key</li>
         <li>Get one at <a href="https://openrouter.ai/keys">openrouter.ai/keys</a></li>
       </ul>
 
       <div class="callout tip">
-        <span class="callout-icon">💡</span>
-        <div class="callout-body">Secret values (API keys, tokens) are stored as <code>$PLACEHOLDER</code> references in config and resolved at runtime — never written in plain text in <code>config.json</code>. They can come from the <code>.env</code> file, the managed <code>data/secrets.env</code> file, or Bitwarden Secrets Manager. See <a onclick="navigate('secrets')" style="cursor:pointer;color:var(--accent)">Secrets &amp; Bitwarden</a>.</div>
+        <span class="callout-tag tip">tip</span>
+        <div class="callout-body">Secret values (API keys, tokens) are stored as <code>$PLACEHOLDER</code> references in config and resolved at runtime - never written in plain text in <code>config.json</code>. They can come from the <code>.env</code> file, the managed <code>data/secrets.env</code> file, or Bitwarden Secrets Manager. See <a onclick="navigate('secrets')" style="cursor:pointer;color:var(--accent)">Secrets &amp; Bitwarden</a>.</div>
       </div>
 
-      <p>You can configure multiple providers — the wizard will ask if you want to add more.</p>
+      <p>You can configure multiple providers - the wizard will ask if you want to add more.</p>
 
       <h2 id="ob-model">Step 3: Set up a model</h2>
       <p>Select a provider, enter the model name (e.g. <code>llama3</code>, <code>anthropic/claude-sonnet-4-20250514</code>), and give it an instance name for reference.</p>
 
       <div class="callout tip">
-        <span class="callout-icon">💡</span>
+        <span class="callout-tag tip">tip</span>
         <div class="callout-body">For best results, use a model that supports tool calling. Recommended: <code>llama3</code> (Ollama) or <code>anthropic/claude-sonnet-4-20250514</code> (OpenRouter).</div>
       </div>
 
@@ -1091,20 +1146,20 @@ docker compose up -d</code></pre>
       <h3>External homeserver</h3>
       <p>Already have a Matrix account (e.g. on matrix.org or your own server)? Point Memtrix at any homeserver instead of Conduit:</p>
       <ul>
-        <li><strong>Homeserver URL</strong> — e.g. <code>https://matrix.org</code></li>
-        <li><strong>Bot user ID &amp; access token</strong> — an existing account Memtrix logs in as</li>
-        <li><strong>Your user ID</strong> — so the bot knows who to talk to</li>
+        <li><strong>Homeserver URL</strong> - e.g. <code>https://matrix.org</code></li>
+        <li><strong>Bot user ID &amp; access token</strong> - an existing account Memtrix logs in as</li>
+        <li><strong>Your user ID</strong> - so the bot knows who to talk to</li>
       </ul>
       <div class="callout note">
-        <span class="callout-icon">📘</span>
+        <span class="callout-tag note">note</span>
         <div class="callout-body">When using an external homeserver you can stop the bundled <code>conduit</code> service. The bot's full Matrix ID is stored in config and its access token is saved as a <code>$PLACEHOLDER</code> secret.</div>
       </div>
 
       <h2 id="ob-output">What onboarding produces</h2>
       <ul>
-        <li><code>data/config.json</code> — full configuration with all providers, models, channels</li>
-        <li><code>.env</code> — all secrets (API keys, access tokens, registration token)</li>
-        <li><code>workspace/AGENT.md</code> — system prompt updated with your agent's name</li>
+        <li><code>data/config.json</code> - full configuration with all providers, models, channels</li>
+        <li><code>.env</code> - all secrets (API keys, access tokens, registration token)</li>
+        <li><code>workspace/AGENT.md</code> - system prompt updated with your agent's name</li>
       </ul>
     </div>
 
@@ -1112,42 +1167,42 @@ docker compose up -d</code></pre>
     <div class="doc-page" id="page-first-conversation">
       <div class="doc-breadcrumb">First steps</div>
       <h1>First Conversation</h1>
-      <p class="lead">What to expect when you send your first message — and how Memtrix learns about you.</p>
+      <p class="lead">What to expect when you send your first message - and how Memtrix learns about you.</p>
 
       <h2 id="fc-start">Starting a chat</h2>
-      <p>After setup, open Element and invite the bot to a room. Memtrix auto-joins room invites. Each room gets its own independent conversation session — multiple rooms mean multiple contexts.</p>
+      <p>After setup, open Element and invite the bot to a room. Memtrix auto-joins room invites. Each room gets its own independent conversation session - multiple rooms mean multiple contexts.</p>
 
       <h2 id="fc-happens">What happens behind the scenes</h2>
       <p>When you send a message, Memtrix:</p>
       <ol>
-        <li><strong>Builds the system prompt</strong> — injects <code>SOUL.md</code>, <code>BEHAVIOR.md</code>, <code>USER.md</code>, and <code>MEMORY.md</code> into the <code>AGENT.md</code> template</li>
-        <li><strong>Recalls memory</strong> — silently pulls relevant context from daily journals and the reasoning-memory store (peer cards &amp; conclusions)</li>
+        <li><strong>Builds the system prompt</strong> - injects <code>SOUL.md</code>, <code>BEHAVIOR.md</code>, <code>USER.md</code>, and <code>MEMORY.md</code> into the <code>AGENT.md</code> template</li>
+        <li><strong>Recalls memory</strong> - silently pulls relevant context from daily journals and the reasoning-memory store (peer cards &amp; conclusions)</li>
         <li><strong>Calls the LLM</strong> with conversation history and all 26 tool schemas</li>
         <li><strong>Executes tools</strong> if the LLM requests them (web search, memory lookup, etc.)</li>
         <li><strong>Responds</strong> with the final answer</li>
-        <li><strong>Learns in the background</strong> — after replying, the reasoning-memory deriver updates the auto-curated peer cards (<code>USER.md</code>, <code>MEMORY.md</code>) and records conclusions, while daily journals capture the raw exchange</li>
+        <li><strong>Learns in the background</strong> - after replying, the reasoning-memory deriver updates the auto-curated peer cards (<code>USER.md</code>, <code>MEMORY.md</code>) and records conclusions, while daily journals capture the raw exchange</li>
       </ol>
 
       <div class="callout note">
-        <span class="callout-icon">📘</span>
-        <div class="callout-body">Recall happens through tools like <code>memory_context</code>, <code>memory_search</code>, and <code>search_memory</code> during reasoning. The peer cards <code>USER.md</code> and <code>MEMORY.md</code> are <em>curated automatically by the deriver</em> — the agent reads them but does not overwrite them directly. See <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>.</div>
+        <span class="callout-tag note">note</span>
+        <div class="callout-body">Recall happens through tools like <code>memory_context</code>, <code>memory_search</code>, and <code>search_memory</code> during reasoning. The peer cards <code>USER.md</code> and <code>MEMORY.md</code> are <em>curated automatically by the deriver</em> - the agent reads them but does not overwrite them directly. See <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>.</div>
       </div>
 
       <h2 id="fc-verbose">Verbose &amp; reasoning modes</h2>
       <p>Want to see what's happening under the hood?</p>
       <ul>
-        <li><code>/verbose on</code> — shows tool call notifications in real-time</li>
-        <li><code>/reasoning on</code> — shows the LLM's thinking process</li>
+        <li><code>/verbose on</code> - shows tool call notifications in real-time</li>
+        <li><code>/reasoning on</code> - shows the LLM's thinking process</li>
       </ul>
       <p>Both are off by default. Turn them on to watch Memtrix's thought process.</p>
 
       <h2 id="fc-tips">First conversation tips</h2>
       <ul>
-        <li>Introduce yourself — Memtrix will save your name and details to <code>USER.md</code></li>
-        <li>Tell it about your preferences — it updates <code>BEHAVIOR.md</code> if you correct its style</li>
-        <li>Ask it to search the web — confirms tools are working</li>
+        <li>Introduce yourself - Memtrix will save your name and details to <code>USER.md</code></li>
+        <li>Tell it about your preferences - it updates <code>BEHAVIOR.md</code> if you correct its style</li>
+        <li>Ask it to search the web - confirms tools are working</li>
         <li>Try <code>/help</code> to see available commands</li>
-        <li>The more you talk, the better it gets — memory and persona evolve continuously</li>
+        <li>The more you talk, the better it gets - memory and persona evolve continuously</li>
       </ul>
     </div>
 
@@ -1176,7 +1231,7 @@ docker compose up -d</code></pre>
       <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> Example conversation</div>
       <pre><code><span style="color:var(--blue)">You:</span>    Create me a cooking expert. Call him Dennis.
 
-<span style="color:var(--accent)">Memtrix:</span> ⚠️ Create a new sub-agent?
+<span style="color:var(--accent)">Memtrix:</span> [confirm] Create a new sub-agent?
 
          Name: Dennis
          Expertise: Cooking and recipe specialist
@@ -1189,12 +1244,12 @@ docker compose up -d</code></pre>
          Invite him to a room to start chatting.</code></pre>
 
       <div class="callout note">
-        <span class="callout-icon">📘</span>
-        <div class="callout-body">Agent creation requires your confirmation (human-in-the-loop). The name must be a real human name (2–24 characters, letters/spaces/hyphens). A slug is derived internally for directories and config keys.</div>
+        <span class="callout-tag note">note</span>
+        <div class="callout-body">Agent creation requires your confirmation (human-in-the-loop). The name must be a real human name (2-24 characters, letters/spaces/hyphens). A slug is derived internally for directories and config keys.</div>
       </div>
 
       <h2 id="ag-chat">Chatting with a sub-agent</h2>
-      <p>Invite the agent's Matrix user (e.g. <code>@dennis:memtrix.local</code>) to a room and chat like you would with Memtrix. Dennis has his own memory — he'll remember your conversations and preferences independently.</p>
+      <p>Invite the agent's Matrix user (e.g. <code>@dennis:memtrix.local</code>) to a room and chat like you would with Memtrix. Dennis has his own memory - he'll remember your conversations and preferences independently.</p>
 
       <h2 id="ag-inter">Inter-agent communication</h2>
       <p>Agents can consult each other using the <code>ask_agent</code> tool:</p>
@@ -1224,9 +1279,9 @@ docker compose up -d</code></pre>
 
       <h2 id="ag-manage">Managing sub-agents</h2>
       <ul>
-        <li><code>list_agents</code> — see all registered sub-agents and their status</li>
-        <li><code>delete_agent</code> — permanently remove a sub-agent (workspace, memory, sessions all cleaned up)</li>
-        <li><code>ask_agent</code> — query another agent by name</li>
+        <li><code>list_agents</code> - see all registered sub-agents and their status</li>
+        <li><code>delete_agent</code> - permanently remove a sub-agent (workspace, memory, sessions all cleaned up)</li>
+        <li><code>ask_agent</code> - query another agent by name</li>
       </ul>
 
       <h2 id="ag-memory-exchange">Memory exchange</h2>
@@ -1237,18 +1292,18 @@ docker compose up -d</code></pre>
     <div class="doc-page" id="page-persona">
       <div class="doc-breadcrumb">Guides</div>
       <h1>Persona System</h1>
-      <p class="lead">How Memtrix defines its identity — and how it evolves over time.</p>
+      <p class="lead">How Memtrix defines its identity - and how it evolves over time.</p>
 
       <h2 id="ps-files">Persona files</h2>
       <p>Memtrix's identity is defined by markdown files in <code>workspace/</code>:</p>
       <table>
         <thead><tr><th>File</th><th>Purpose</th></tr></thead>
         <tbody>
-          <tr><td><code>AGENT.md</code></td><td>System prompt template — wires everything together via <code>{{PLACEHOLDER}}</code> markers</td></tr>
-          <tr><td><code>BEHAVIOR.md</code></td><td>Communication style, tone, and habits — agent-writable</td></tr>
-          <tr><td><code>SOUL.md</code></td><td>Core values and personality — agent-writable</td></tr>
-          <tr><td><code>USER.md</code></td><td>Everything Memtrix knows about you — auto-curated peer card (deriver-managed)</td></tr>
-          <tr><td><code>MEMORY.md</code></td><td>Distilled long-term memory, the "brain" — auto-curated peer card (deriver-managed)</td></tr>
+          <tr><td><code>AGENT.md</code></td><td>System prompt template - wires everything together via <code>{{PLACEHOLDER}}</code> markers</td></tr>
+          <tr><td><code>BEHAVIOR.md</code></td><td>Communication style, tone, and habits - agent-writable</td></tr>
+          <tr><td><code>SOUL.md</code></td><td>Core values and personality - agent-writable</td></tr>
+          <tr><td><code>USER.md</code></td><td>Everything Memtrix knows about you - auto-curated peer card (deriver-managed)</td></tr>
+          <tr><td><code>MEMORY.md</code></td><td>Distilled long-term memory, the "brain" - auto-curated peer card (deriver-managed)</td></tr>
         </tbody>
       </table>
 
@@ -1256,15 +1311,15 @@ docker compose up -d</code></pre>
       <p><code>AGENT.md</code> contains placeholders like <code>{{BEHAVIOR}}</code>, <code>{{SOUL}}</code>, <code>{{USER}}</code>, <code>{{MEMORY}}</code>. At system prompt construction time, the orchestrator reads each file and replaces the placeholder with its contents.</p>
 
       <h2 id="ps-live">Live updates</h2>
-      <p><code>BEHAVIOR.md</code> and <code>SOUL.md</code> are <strong>live-editable by Memtrix itself</strong>. When you tell it to behave differently or correct its style, it updates them with <code>write_core_file</code> — and the system prompt is rebuilt immediately after.</p>
+      <p><code>BEHAVIOR.md</code> and <code>SOUL.md</code> are <strong>live-editable by Memtrix itself</strong>. When you tell it to behave differently or correct its style, it updates them with <code>write_core_file</code> - and the system prompt is rebuilt immediately after.</p>
 
       <div class="callout warn">
-        <span class="callout-icon">⚠️</span>
-        <div class="callout-body"><strong>USER.md and MEMORY.md are protected.</strong> Since the reasoning-memory system was introduced, these two files are <em>peer cards curated automatically by the deriver</em>. The agent reads them but <code>write_core_file</code> rejects direct writes to them — this keeps the user model and long-term brain consistent and tamper-resistant. See <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>.</div>
+        <span class="callout-tag warn">warn</span>
+        <div class="callout-body"><strong>USER.md and MEMORY.md are protected.</strong> Since the reasoning-memory system was introduced, these two files are <em>peer cards curated automatically by the deriver</em>. The agent reads them but <code>write_core_file</code> rejects direct writes to them - this keeps the user model and long-term brain consistent and tamper-resistant. See <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>.</div>
       </div>
 
       <div class="callout warn">
-        <span class="callout-icon">⚠️</span>
+        <span class="callout-tag warn">warn</span>
         <div class="callout-body"><strong>Read-before-write:</strong> Memtrix must read a writable core file before writing to it (enforced at code level, not just in the prompt). This prevents blind overwrites.</div>
       </div>
 
@@ -1280,7 +1335,7 @@ docker compose up -d</code></pre>
       </ul>
       <p>Its behavior (from <code>BEHAVIOR.md</code>) is:</p>
       <ul>
-        <li>Keep it short, casual — like texting a friend</li>
+        <li>Keep it short, casual - like texting a friend</li>
         <li>No emojis, no "As an AI..." disclaimers</li>
         <li>Have opinions, be measured</li>
         <li>Ask questions only when necessary</li>
@@ -1292,15 +1347,15 @@ docker compose up -d</code></pre>
     <div class="doc-page" id="page-memory">
       <div class="doc-breadcrumb">Guides</div>
       <h1>Memory &amp; RAG</h1>
-      <p class="lead">Memtrix remembers across sessions through a layered memory system — auto-curated peer cards, distilled conclusions, and searchable daily journals powered by on-device embeddings.</p>
+      <p class="lead">Memtrix remembers across sessions through a layered memory system - auto-curated peer cards, distilled conclusions, and searchable daily journals powered by on-device embeddings.</p>
 
       <div class="callout note">
-        <span class="callout-icon">📘</span>
+        <span class="callout-tag note">note</span>
         <div class="callout-body">This page covers the <strong>daily-journal RAG</strong> layer. The newer <strong>reasoning-memory</strong> layer (the deriver, peer cards, and conclusions) is documented on the <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a> page.</div>
       </div>
 
       <h2 id="mm-core">Core Memory</h2>
-      <p><code>MEMORY.md</code> is a curated, compact summary of the most important long-term knowledge — key facts, recurring themes, lasting context. It is the agent's <strong>brain</strong>, maintained automatically by the reasoning-memory deriver (not edited directly by the agent's write tools).</p>
+      <p><code>MEMORY.md</code> is a curated, compact summary of the most important long-term knowledge - key facts, recurring themes, lasting context. It is the agent's <strong>brain</strong>, maintained automatically by the reasoning-memory deriver (not edited directly by the agent's write tools).</p>
 
       <h2 id="mm-daily">Daily Journals</h2>
       <p>Files in <code>memory/yyyy-mm-dd.md</code> are chronological, append-only logs of each day's conversations:</p>
@@ -1322,7 +1377,7 @@ docker compose up -d</code></pre>
 - Anything else worth remembering.</code></pre>
 
       <h2 id="mm-rag">Semantic Search (RAG)</h2>
-      <p>Daily journals are embedded using <a href="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5">nomic-embed-text-v1.5</a> via <code>sentence-transformers</code> and stored in ChromaDB. The model runs entirely on-device — no external API calls.</p>
+      <p>Daily journals are embedded using <a href="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5">nomic-embed-text-v1.5</a> via <code>sentence-transformers</code> and stored in ChromaDB. The model runs entirely on-device - no external API calls.</p>
       <ul>
         <li><strong>Embedding dimensions:</strong> 768→256 (Matryoshka truncation for efficiency)</li>
         <li><strong>Sync interval:</strong> every 300 seconds</li>
@@ -1340,30 +1395,30 @@ docker compose up -d</code></pre>
       <h2 id="mm-auto">Automatic memory management</h2>
       <p>Memtrix manages memory without you asking. After each exchange:</p>
       <ul>
-        <li><strong>Daily journal</strong> — today's <code>memory/yyyy-mm-dd.md</code> is appended with a summary of what was discussed, learned, decided, and requested</li>
-        <li><strong>Embedding sync</strong> — new journal entries are embedded and added to the vector store for future recall</li>
-        <li><strong>Peer cards</strong> — the reasoning-memory deriver updates <code>USER.md</code> and <code>MEMORY.md</code> in the background (see <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>)</li>
-        <li><strong>Behavior</strong> — <code>BEHAVIOR.md</code> is updated if you correct the agent's communication style</li>
+        <li><strong>Daily journal</strong> - today's <code>memory/yyyy-mm-dd.md</code> is appended with a summary of what was discussed, learned, decided, and requested</li>
+        <li><strong>Embedding sync</strong> - new journal entries are embedded and added to the vector store for future recall</li>
+        <li><strong>Peer cards</strong> - the reasoning-memory deriver updates <code>USER.md</code> and <code>MEMORY.md</code> in the background (see <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>)</li>
+        <li><strong>Behavior</strong> - <code>BEHAVIOR.md</code> is updated if you correct the agent's communication style</li>
       </ul>
-      <p>These operations are silent — you only see them if <code>/verbose</code> is enabled.</p>
+      <p>These operations are silent - you only see them if <code>/verbose</code> is enabled.</p>
     </div>
 
     <!-- ═══════════════════════════════════════ REASONING MEMORY ═══════════════════════════════════════ -->
     <div class="doc-page" id="page-reasoning-memory">
       <div class="doc-breadcrumb">Guides</div>
       <h1>Reasoning Memory</h1>
-      <p class="lead">A background reasoning layer that turns raw conversation into durable, structured knowledge — auto-curated peer cards plus a searchable store of typed conclusions about you and the agent itself.</p>
+      <p class="lead">A background reasoning layer that turns raw conversation into durable, structured knowledge - auto-curated peer cards plus a searchable store of typed conclusions about you and the agent itself.</p>
 
       <div class="callout note">
-        <span class="callout-icon">📘</span>
+        <span class="callout-tag note">note</span>
         <div class="callout-body">Reasoning memory complements the <a onclick="navigate('memory')" style="cursor:pointer;color:var(--accent)">daily-journal RAG</a>. Journals are a verbatim log; reasoning memory is the distilled understanding derived <em>from</em> conversations.</div>
       </div>
 
       <h2 id="rm-peers">Peers: the user and the agent</h2>
       <p>Reasoning memory models two <strong>peers</strong>:</p>
       <ul>
-        <li><strong>user</strong> — everything the agent learns about you</li>
-        <li><strong>agent</strong> — the agent's evolving understanding of itself (only when <code>dual_peer</code> is enabled)</li>
+        <li><strong>user</strong> - everything the agent learns about you</li>
+        <li><strong>agent</strong> - the agent's evolving understanding of itself (only when <code>dual_peer</code> is enabled)</li>
       </ul>
       <p>Each peer has a finite, always-injected <strong>peer card</strong> and a growing store of <strong>conclusions</strong>.</p>
 
@@ -1375,10 +1430,10 @@ docker compose up -d</code></pre>
           <tr><td>agent</td><td><code>MEMORY.md</code></td><td>The agent's distilled long-term "brain"</td></tr>
         </tbody>
       </table>
-      <p>Peer cards are <strong>always injected</strong> into the system prompt, capped at <code>peer_card_max_chars</code> (default 1,500). They are re-curated from accumulated conclusions every few reasoning passes — so they stay compact and current instead of growing forever.</p>
+      <p>Peer cards are <strong>always injected</strong> into the system prompt, capped at <code>peer_card_max_chars</code> (default 1,500). They are re-curated from accumulated conclusions every few reasoning passes - so they stay compact and current instead of growing forever.</p>
 
       <div class="callout warn">
-        <span class="callout-icon">⚠️</span>
+        <span class="callout-tag warn">warn</span>
         <div class="callout-body">Peer cards are <strong>deriver-owned</strong>. The agent reads them but <code>write_core_file</code> rejects direct writes to <code>USER.md</code> and <code>MEMORY.md</code>. To edit them by hand, use the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a> or freeze the card (below).</div>
       </div>
 
@@ -1395,7 +1450,7 @@ docker compose up -d</code></pre>
       <p>Conclusions also carry a <strong>provenance</strong>: <code>derived</code> (produced by the deriver) or <code>manual</code> (added by the agent via <code>memory_conclude</code> or by you in the panel). Near-duplicate conclusions are merged automatically using embedding similarity.</p>
 
       <h2 id="rm-deriver">The deriver</h2>
-      <p>The <strong>deriver</strong> is a background worker thread. It never blocks your reply — it works after the conversation continues.</p>
+      <p>The <strong>deriver</strong> is a background worker thread. It never blocks your reply - it works after the conversation continues.</p>
       <div class="steps">
         <div class="step">
           <div></div>
@@ -1408,7 +1463,7 @@ docker compose up -d</code></pre>
           <div></div>
           <div class="step-content">
             <h4>Reason</h4>
-            <p>The deriver asks the model (the main model, or <code>reasoning_model</code> if set) to extract typed conclusions. <code>reasoning_level</code> controls how many items are requested per kind — from <code>minimal</code> (2) up to <code>max</code> (12).</p>
+            <p>The deriver asks the model (the main model, or <code>reasoning_model</code> if set) to extract typed conclusions. <code>reasoning_level</code> controls how many items are requested per kind - from <code>minimal</code> (2) up to <code>max</code> (12).</p>
           </div>
         </div>
         <div class="step">
@@ -1446,14 +1501,14 @@ docker compose up -d</code></pre>
         <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
         <tbody>
           <tr><td><code>memory_profile</code></td><td>Returns the compact profile cards (durable facts about the user and the agent). Fast, no search.</td></tr>
-          <tr><td><code>memory_search</code></td><td>Searches reasoned conclusions and returns the most relevant excerpts — for "what do you know about…" recall.</td></tr>
-          <tr><td><code>memory_context</code></td><td>Answers a natural-language question grounded in reasoned memory — for nuanced questions like "what tone does the user prefer?".</td></tr>
+          <tr><td><code>memory_search</code></td><td>Searches reasoned conclusions and returns the most relevant excerpts - for "what do you know about…" recall.</td></tr>
+          <tr><td><code>memory_context</code></td><td>Answers a natural-language question grounded in reasoned memory - for nuanced questions like "what tone does the user prefer?".</td></tr>
           <tr><td><code>memory_conclude</code></td><td>Immediately stores a high-signal durable fact (a stated preference, correction, or key context). Used sparingly.</td></tr>
         </tbody>
       </table>
 
       <h2 id="rm-config">Configuration</h2>
-      <p>All options live under the <code>memory</code> key in <code>config.json</code>. Defaults are safe — installs without a <code>memory</code> section keep working.</p>
+      <p>All options live under the <code>memory</code> key in <code>config.json</code>. Defaults are safe - installs without a <code>memory</code> section keep working.</p>
 
       <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg> data/config.json</div>
       <pre><code>{
@@ -1474,7 +1529,7 @@ docker compose up -d</code></pre>
         <thead><tr><th>Key</th><th>Default</th><th>Description</th></tr></thead>
         <tbody>
           <tr><td><code>backend</code></td><td><code>native</code></td><td><code>native</code> enables reasoning memory; <code>off</code> disables it</td></tr>
-          <tr><td><code>recall_mode</code></td><td><code>hybrid</code></td><td>How memory is recalled — see the recall table above</td></tr>
+          <tr><td><code>recall_mode</code></td><td><code>hybrid</code></td><td>How memory is recalled - see the recall table above</td></tr>
           <tr><td><code>write_frequency</code></td><td><code>async</code></td><td><code>async</code> derives in the background; <code>turn</code> flushes after every turn</td></tr>
           <tr><td><code>reasoning_level</code></td><td><code>low</code></td><td>Depth of extraction (items per kind: 2 / 4 / 6 / 8 / 12)</td></tr>
           <tr><td><code>reasoning_model</code></td><td><code>null</code></td><td>Use a different model instance for derivation, or the main model</td></tr>
@@ -1486,18 +1541,18 @@ docker compose up -d</code></pre>
       </table>
 
       <div class="callout tip">
-        <span class="callout-icon">💡</span>
-        <div class="callout-body">A smaller, cheaper model is often a good <code>reasoning_model</code> — derivation runs frequently in the background, so cost and latency add up. Set <code>reasoning_level</code> higher only if you want richer extraction.</div>
+        <span class="callout-tag tip">tip</span>
+        <div class="callout-body">A smaller, cheaper model is often a good <code>reasoning_model</code> - derivation runs frequently in the background, so cost and latency add up. Set <code>reasoning_level</code> higher only if you want richer extraction.</div>
       </div>
 
       <h2 id="rm-controls">Freezing &amp; pausing</h2>
       <ul>
-        <li><strong>Freeze a card</strong> — set <code>freeze_user_card</code> or <code>freeze_agent_card</code> to <code>true</code> to stop the deriver re-curating that peer card (handy after a manual edit you want to keep). Conclusions still accumulate.</li>
-        <li><strong>Pause the deriver</strong> — pause all background reasoning entirely (pending messages are retained, nothing is reasoned). Exposed as a toggle in the Web Control Panel's memory admin.</li>
+        <li><strong>Freeze a card</strong> - set <code>freeze_user_card</code> or <code>freeze_agent_card</code> to <code>true</code> to stop the deriver re-curating that peer card (handy after a manual edit you want to keep). Conclusions still accumulate.</li>
+        <li><strong>Pause the deriver</strong> - pause all background reasoning entirely (pending messages are retained, nothing is reasoned). Exposed as a toggle in the Web Control Panel's memory admin.</li>
       </ul>
 
       <div class="callout note">
-        <span class="callout-icon">📘</span>
+        <span class="callout-tag note">note</span>
         <div class="callout-body">The <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a> lets you browse, search, edit, add, and delete conclusions, view and edit peer cards, freeze cards, pause the deriver, and export/import the whole store.</div>
       </div>
     </div>
@@ -1506,10 +1561,10 @@ docker compose up -d</code></pre>
     <div class="doc-page" id="page-web-panel">
       <div class="doc-breadcrumb">Guides</div>
       <h1>Web Control Panel</h1>
-      <p class="lead">A local web app for running Memtrix without touching JSON — edit configuration, test connections, manage secrets, browse and curate memory, and apply changes with a safe restart. It runs as the <code>web</code> service and is reachable at <a href="http://localhost:8800">localhost:8800</a>.</p>
+      <p class="lead">A local web app for running Memtrix without touching JSON - edit configuration, test connections, manage secrets, browse and curate memory, and apply changes with a safe restart. It runs as the <code>web</code> service and is reachable at <a href="http://localhost:8800">localhost:8800</a>.</p>
 
       <div class="callout warn">
-        <span class="callout-icon">⚠️</span>
+        <span class="callout-tag warn">warn</span>
         <div class="callout-body">The panel is bound to your machine and protected by a token. It is <strong>not</strong> meant to be exposed to the public internet. See <a href="#wp-security">Security</a> below.</div>
       </div>
 
@@ -1544,7 +1599,7 @@ docker compose up -d</code></pre>
       <ul>
         <li>Edit individual values or whole sections (providers, models, channels, the <code>memory</code> block, agents, and more)</li>
         <li>Changes are <strong>validated</strong> before they are saved, so a typo can't break your config</li>
-        <li>Secret fields are shown as <code>$PLACEHOLDER</code> references — actual values live in your secret store, never in <code>config.json</code></li>
+        <li>Secret fields are shown as <code>$PLACEHOLDER</code> references - actual values live in your secret store, never in <code>config.json</code></li>
       </ul>
 
       <h2 id="wp-test">Connection tests</h2>
@@ -1558,15 +1613,15 @@ docker compose up -d</code></pre>
         </tbody>
       </table>
       <div class="callout tip">
-        <span class="callout-icon">💡</span>
-        <div class="callout-body">Connection tests resolve <code>$PLACEHOLDER</code> secrets the same way the running agent does — including from Bitwarden when that backend is active — so a passing test reflects what the agent will actually use.</div>
+        <span class="callout-tag tip">tip</span>
+        <div class="callout-body">Connection tests resolve <code>$PLACEHOLDER</code> secrets the same way the running agent does - including from Bitwarden when that backend is active - so a passing test reflects what the agent will actually use.</div>
       </div>
 
       <h2 id="wp-secrets">Secrets management</h2>
       <p>View which secrets are configured and set or rotate their values without editing files by hand:</p>
       <ul>
         <li>Lists every <code>$PLACEHOLDER</code> referenced by your config and whether it currently resolves</li>
-        <li>Set or update a secret — it is written to the managed <code>data/secrets.env</code> file (or your active backend)</li>
+        <li>Set or update a secret - it is written to the managed <code>data/secrets.env</code> file (or your active backend)</li>
         <li>Values are never echoed back in plain text once stored</li>
       </ul>
       <p>See <a onclick="navigate('secrets')" style="cursor:pointer;color:var(--accent)">Secrets &amp; Bitwarden</a> for how secrets are resolved.</p>
@@ -1574,20 +1629,20 @@ docker compose up -d</code></pre>
       <h2 id="wp-memory">Memory administration</h2>
       <p>The panel is a full front-end for the <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">reasoning-memory</a> store:</p>
       <ul>
-        <li><strong>Browse &amp; search conclusions</strong> — filter by peer (user / agent), read what the agent has concluded</li>
-        <li><strong>Add a conclusion</strong> — inject a durable fact manually (stored with <code>manual</code> provenance)</li>
-        <li><strong>Edit or delete</strong> — fix a wrong conclusion, or clear all conclusions for a peer</li>
-        <li><strong>Peer cards</strong> — view and edit <code>USER.md</code> / <code>MEMORY.md</code> directly</li>
-        <li><strong>Freeze a card</strong> — stop the deriver re-curating a peer card after a manual edit</li>
-        <li><strong>Pause the deriver</strong> — halt background reasoning while you make changes</li>
-        <li><strong>Export / import</strong> — back up the entire memory store to a file and restore it later</li>
+        <li><strong>Browse &amp; search conclusions</strong> - filter by peer (user / agent), read what the agent has concluded</li>
+        <li><strong>Add a conclusion</strong> - inject a durable fact manually (stored with <code>manual</code> provenance)</li>
+        <li><strong>Edit or delete</strong> - fix a wrong conclusion, or clear all conclusions for a peer</li>
+        <li><strong>Peer cards</strong> - view and edit <code>USER.md</code> / <code>MEMORY.md</code> directly</li>
+        <li><strong>Freeze a card</strong> - stop the deriver re-curating a peer card after a manual edit</li>
+        <li><strong>Pause the deriver</strong> - halt background reasoning while you make changes</li>
+        <li><strong>Export / import</strong> - back up the entire memory store to a file and restore it later</li>
       </ul>
 
       <h2 id="wp-restart">Apply &amp; restart</h2>
       <p>Some changes (new provider, model swap, channel change) require a restart. The panel triggers a safe restart and <strong>streams live progress</strong> back to your browser so you can watch the agent come back up.</p>
       <div class="callout note">
-        <span class="callout-icon">📘</span>
-        <div class="callout-body">The restart is handled by the container's supervisor — the process is replaced cleanly without tearing down the whole container, and the panel stays available throughout.</div>
+        <span class="callout-tag note">note</span>
+        <div class="callout-body">The restart is handled by the container's supervisor - the process is replaced cleanly without tearing down the whole container, and the panel stays available throughout.</div>
       </div>
 
       <h2 id="wp-env">Environment variables</h2>
@@ -1596,21 +1651,21 @@ docker compose up -d</code></pre>
         <tbody>
           <tr><td><code>MEMTRIX_WEB_HOST</code></td><td><code>0.0.0.0</code></td><td>Bind address inside the container (compose maps it to <code>localhost</code>)</td></tr>
           <tr><td><code>MEMTRIX_WEB_PORT</code></td><td><code>8800</code></td><td>Port the panel listens on</td></tr>
-          <tr><td><code>MEMTRIX_WEB_TOKEN</code></td><td><em>(unset)</em></td><td>Bearer token required for all panel API calls — set this to protect the panel</td></tr>
+          <tr><td><code>MEMTRIX_WEB_TOKEN</code></td><td><em>(unset)</em></td><td>Bearer token required for all panel API calls - set this to protect the panel</td></tr>
           <tr><td><code>CHROMA_URL</code></td><td><code>http://chroma:8000</code></td><td>Shared vector store, so the panel and agent read/write the same memory</td></tr>
         </tbody>
       </table>
 
       <h2 id="wp-security">Security</h2>
       <ul>
-        <li><strong>Local by default</strong> — the published port is bound to <code>localhost</code>, not exposed to your network</li>
-        <li><strong>Token-gated</strong> — set <code>MEMTRIX_WEB_TOKEN</code> so only holders of the token can call the API</li>
-        <li><strong>Same hardened container</strong> — runs read-only, non-root, with dropped capabilities like the rest of the stack</li>
-        <li><strong>No secret leakage</strong> — secret values are write-only through the API and never returned in plain text</li>
+        <li><strong>Local by default</strong> - the published port is bound to <code>localhost</code>, not exposed to your network</li>
+        <li><strong>Token-gated</strong> - set <code>MEMTRIX_WEB_TOKEN</code> so only holders of the token can call the API</li>
+        <li><strong>Same hardened container</strong> - runs read-only, non-root, with dropped capabilities like the rest of the stack</li>
+        <li><strong>No secret leakage</strong> - secret values are write-only through the API and never returned in plain text</li>
       </ul>
       <div class="callout warn">
-        <span class="callout-icon">⚠️</span>
-        <div class="callout-body">If you ever expose the panel beyond <code>localhost</code> (e.g. over a VPN or reverse proxy), you <strong>must</strong> set <code>MEMTRIX_WEB_TOKEN</code> and terminate TLS in front of it. The panel can change configuration and read memory — treat its token like a password.</div>
+        <span class="callout-tag warn">warn</span>
+        <div class="callout-body">If you ever expose the panel beyond <code>localhost</code> (e.g. over a VPN or reverse proxy), you <strong>must</strong> set <code>MEMTRIX_WEB_TOKEN</code> and terminate TLS in front of it. The panel can change configuration and read memory - treat its token like a password.</div>
       </div>
     </div>
 
@@ -1651,10 +1706,10 @@ docker compose up -d</code></pre>
 
       <h2 id="ct-interface">BaseTool interface</h2>
       <ul>
-        <li><code>name</code> — unique tool name (used by the LLM to call it)</li>
-        <li><code>description</code> — explains what the tool does (guides the LLM)</li>
-        <li><code>parameters</code> — JSON Schema defining the tool's input</li>
-        <li><code>execute(**kwargs)</code> — called when the LLM invokes the tool, returns a string result</li>
+        <li><code>name</code> - unique tool name (used by the LLM to call it)</li>
+        <li><code>description</code> - explains what the tool does (guides the LLM)</li>
+        <li><code>parameters</code> - JSON Schema defining the tool's input</li>
+        <li><code>execute(**kwargs)</code> - called when the LLM invokes the tool, returns a string result</li>
       </ul>
 
       <h2 id="ct-injected">Injected parameters</h2>
@@ -1697,7 +1752,7 @@ docker compose up -d</code></pre>
     <div class="doc-page" id="page-configuration">
       <div class="doc-breadcrumb">Reference</div>
       <h1>Configuration</h1>
-      <p class="lead">All configuration lives in <code>data/config.json</code>. Secrets are stored separately — in <code>.env</code>, the managed <code>data/secrets.env</code> file, or Bitwarden — and injected at runtime. You can edit everything by hand, or use the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a>.</p>
+      <p class="lead">All configuration lives in <code>data/config.json</code>. Secrets are stored separately - in <code>.env</code>, the managed <code>data/secrets.env</code> file, or Bitwarden - and injected at runtime. You can edit everything by hand, or use the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a>.</p>
 
       <h2 id="cf-structure">Config structure</h2>
       <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg> data/config.json</div>
@@ -1755,8 +1810,8 @@ docker compose up -d</code></pre>
 }</code></pre>
 
       <div class="callout note">
-        <span class="callout-icon">📘</span>
-        <div class="callout-body">The <code>memory</code> block configures the reasoning-memory system — every key is explained on the <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a> page. The <code>secrets</code> block selects where secrets are read from — see <a onclick="navigate('secrets')" style="cursor:pointer;color:var(--accent)">Secrets &amp; Bitwarden</a>.</div>
+        <span class="callout-tag note">note</span>
+        <div class="callout-body">The <code>memory</code> block configures the reasoning-memory system - every key is explained on the <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a> page. The <code>secrets</code> block selects where secrets are read from - see <a onclick="navigate('secrets')" style="cursor:pointer;color:var(--accent)">Secrets &amp; Bitwarden</a>.</div>
       </div>
 
       <h2 id="cf-secrets">Secret management</h2>
@@ -1769,7 +1824,7 @@ docker compose up -d</code></pre>
           <tr><td><code>$REGISTRATION_TOKEN</code></td><td><code>MEMTRIX_SECRET_REGISTRATION_TOKEN</code></td></tr>
         </tbody>
       </table>
-      <p>Secrets are resolved once at boot and then <strong>cleared from the process environment</strong> — they can't leak via <code>/proc</code> or subprocess inspection. Full details, including the Bitwarden backend, are on the <a onclick="navigate('secrets')" style="cursor:pointer;color:var(--accent)">Secrets &amp; Bitwarden</a> page.</p>
+      <p>Secrets are resolved once at boot and then <strong>cleared from the process environment</strong> - they can't leak via <code>/proc</code> or subprocess inspection. Full details, including the Bitwarden backend, are on the <a onclick="navigate('secrets')" style="cursor:pointer;color:var(--accent)">Secrets &amp; Bitwarden</a> page.</p>
 
       <h2 id="cf-main">Main agent config</h2>
       <table>
@@ -1799,7 +1854,7 @@ docker compose up -d</code></pre>
         <thead><tr><th>Key</th><th>Type</th><th>Description</th></tr></thead>
         <tbody>
           <tr><td><code>type</code></td><td>string</td><td><code>matrix</code> or <code>cli</code></td></tr>
-          <tr><td><code>homeserver</code></td><td>string</td><td>Homeserver URL — <code>http://conduit:6167</code> for the bundled server, or any external URL such as <code>https://matrix.org</code></td></tr>
+          <tr><td><code>homeserver</code></td><td>string</td><td>Homeserver URL - <code>http://conduit:6167</code> for the bundled server, or any external URL such as <code>https://matrix.org</code></td></tr>
           <tr><td><code>user_id</code></td><td>string</td><td>The bot's full Matrix ID (e.g. <code>@memtrix:memtrix.local</code> or <code>@mybot:matrix.org</code>)</td></tr>
           <tr><td><code>access_token</code></td><td>string</td><td>The bot's access token, stored as a <code>$PLACEHOLDER</code> secret</td></tr>
         </tbody>
@@ -1826,7 +1881,7 @@ docker compose up -d</code></pre>
     <div class="doc-page" id="page-secrets">
       <div class="doc-breadcrumb">Reference</div>
       <h1>Secrets &amp; Bitwarden</h1>
-      <p class="lead">API keys and access tokens never live in <code>config.json</code>. They are stored as <code>$PLACEHOLDER</code> references and resolved at boot from one of three backends — a managed file, the environment, or Bitwarden Secrets Manager.</p>
+      <p class="lead">API keys and access tokens never live in <code>config.json</code>. They are stored as <code>$PLACEHOLDER</code> references and resolved at boot from one of three backends - a managed file, the environment, or Bitwarden Secrets Manager.</p>
 
       <h2 id="sc-placeholders">How placeholders work</h2>
       <p>Anywhere a secret is needed, the config holds a reference like <code>$OPENROUTER_API_KEY</code> instead of the real value:</p>
@@ -1836,23 +1891,23 @@ docker compose up -d</code></pre>
       <h2 id="sc-order">Resolution order</h2>
       <p>For each placeholder, Memtrix looks in this order:</p>
       <ol>
-        <li><strong>Bitwarden</strong> — if the Bitwarden backend is active, the secret map is checked first (e.g. <code>$MATRIX_ACCESS_TOKEN</code> → the <code>MATRIX_ACCESS_TOKEN</code> secret)</li>
-        <li><strong>Environment / managed file</strong> — the variable <code>MEMTRIX_SECRET_&lt;NAME&gt;</code> (loaded from <code>data/secrets.env</code> or the real environment)</li>
-        <li><strong>Empty</strong> — if nothing matches, it resolves to an empty string</li>
+        <li><strong>Bitwarden</strong> - if the Bitwarden backend is active, the secret map is checked first (e.g. <code>$MATRIX_ACCESS_TOKEN</code> → the <code>MATRIX_ACCESS_TOKEN</code> secret)</li>
+        <li><strong>Environment / managed file</strong> - the variable <code>MEMTRIX_SECRET_&lt;NAME&gt;</code> (loaded from <code>data/secrets.env</code> or the real environment)</li>
+        <li><strong>Empty</strong> - if nothing matches, it resolves to an empty string</li>
       </ol>
 
       <div class="callout note">
-        <span class="callout-icon">📘</span>
+        <span class="callout-tag note">note</span>
         <div class="callout-body">The lookup name is the placeholder prefixed with <code>MEMTRIX_SECRET_</code>. So <code>$REGISTRATION_TOKEN</code> is read from <code>MEMTRIX_SECRET_REGISTRATION_TOKEN</code>. The one exception is the Bitwarden access token itself, which uses <code>BWS_ACCESS_TOKEN</code> unprefixed.</div>
       </div>
 
       <h2 id="sc-managed">Managed file backend (default)</h2>
-      <p>By default, secrets are kept in <code>data/secrets.env</code> — a simple <code>KEY=value</code> file holding the prefixed variables:</p>
+      <p>By default, secrets are kept in <code>data/secrets.env</code> - a simple <code>KEY=value</code> file holding the prefixed variables:</p>
       <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg> data/secrets.env</div>
       <pre><code>MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN=syt_...
 MEMTRIX_SECRET_OPENROUTER_API_KEY=sk-or-...
 MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
-      <p>You rarely edit this by hand — onboarding writes it, and the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a> lets you set or rotate values safely (write-only; values are never echoed back).</p>
+      <p>You rarely edit this by hand - onboarding writes it, and the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a> lets you set or rotate values safely (write-only; values are never echoed back).</p>
 
       <h2 id="sc-bitwarden">Bitwarden Secrets Manager</h2>
       <p>For a centralized, auditable secret store, point Memtrix at <a href="https://bitwarden.com/products/secrets-manager/">Bitwarden Secrets Manager</a>. Add a <code>secrets</code> block to <code>config.json</code>:</p>
@@ -1872,12 +1927,12 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
           <tr><td><code>backend</code></td><td>yes</td><td><code>bitwarden</code> to enable, <code>env</code> for the managed file</td></tr>
           <tr><td><code>organization_id</code></td><td>yes</td><td>Your Bitwarden organization UUID</td></tr>
           <tr><td><code>project_id</code></td><td>optional</td><td>Scope secrets to a specific project</td></tr>
-          <tr><td><code>api_url</code></td><td>optional</td><td>API endpoint — defaults to the EU region (<code>https://api.bitwarden.eu</code>)</td></tr>
-          <tr><td><code>identity_url</code></td><td>optional</td><td>Identity endpoint — defaults to <code>https://identity.bitwarden.eu</code></td></tr>
+          <tr><td><code>api_url</code></td><td>optional</td><td>API endpoint - defaults to the EU region (<code>https://api.bitwarden.eu</code>)</td></tr>
+          <tr><td><code>identity_url</code></td><td>optional</td><td>Identity endpoint - defaults to <code>https://identity.bitwarden.eu</code></td></tr>
         </tbody>
       </table>
       <div class="callout tip">
-        <span class="callout-icon">💡</span>
+        <span class="callout-tag tip">tip</span>
         <div class="callout-body">Using the US region? Set <code>api_url</code> to <code>https://api.bitwarden.com</code> and <code>identity_url</code> to <code>https://identity.bitwarden.com</code>.</div>
       </div>
 
@@ -1885,8 +1940,8 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
       <p>Authentication uses a Bitwarden <strong>machine-account access token</strong>, provided via the <code>BWS_ACCESS_TOKEN</code> environment variable (it is the one secret not prefixed with <code>MEMTRIX_SECRET_</code>). Memtrix logs in with it, fetches all secrets in the project, and resolves placeholders by name.</p>
 
       <div class="callout note">
-        <span class="callout-icon">📘</span>
-        <div class="callout-body">Store each secret in Bitwarden with a <strong>key matching the placeholder name</strong> (without the <code>$</code>) — e.g. a secret named <code>OPENROUTER_API_KEY</code> resolves <code>$OPENROUTER_API_KEY</code>. Use the panel's <strong>Test Bitwarden</strong> button to verify the token and organization before applying.</div>
+        <span class="callout-tag note">note</span>
+        <div class="callout-body">Store each secret in Bitwarden with a <strong>key matching the placeholder name</strong> (without the <code>$</code>) - e.g. a secret named <code>OPENROUTER_API_KEY</code> resolves <code>$OPENROUTER_API_KEY</code>. Use the panel's <strong>Test Bitwarden</strong> button to verify the token and organization before applying.</div>
       </div>
 
       <h2 id="sc-tips">Best practices</h2>
@@ -1894,7 +1949,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
         <li>Keep <code>data/secrets.env</code> and <code>.env</code> out of version control (they are git-ignored)</li>
         <li>Rotate tokens through the Web Control Panel rather than editing files</li>
         <li>For multi-host or team setups, prefer Bitwarden so secrets are centralized and revocable</li>
-        <li>Never paste secrets into <code>config.json</code> — always use a <code>$PLACEHOLDER</code></li>
+        <li>Never paste secrets into <code>config.json</code> - always use a <code>$PLACEHOLDER</code></li>
       </ul>
     </div>
 
@@ -1907,18 +1962,18 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
       <table>
         <thead><tr><th>Command</th><th>Arguments</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>/clear</code></td><td>—</td><td>Start a fresh session in the current room. Also clears inter-agent sessions.</td></tr>
-          <tr><td><code>/new</code></td><td>—</td><td>Alias for <code>/clear</code> — begins a new conversation in the current room.</td></tr>
+          <tr><td><code>/clear</code></td><td>-</td><td>Start a fresh session in the current room. Also clears inter-agent sessions.</td></tr>
+          <tr><td><code>/new</code></td><td>-</td><td>Alias for <code>/clear</code> - begins a new conversation in the current room.</td></tr>
           <tr><td><code>/verbose</code></td><td><code>on</code> | <code>off</code></td><td>Toggle real-time tool execution notifications. Persists to config.</td></tr>
           <tr><td><code>/reasoning</code></td><td><code>on</code> | <code>off</code></td><td>Toggle display of model reasoning/thinking. Persists to config.</td></tr>
-          <tr><td><code>/costs</code></td><td>—</td><td>Show OpenRouter credit usage — today, this week, this month, and all-time. Only available when an OpenRouter provider is configured.</td></tr>
-          <tr><td><code>/help</code></td><td>—</td><td>List all available commands.</td></tr>
+          <tr><td><code>/costs</code></td><td>-</td><td>Show OpenRouter credit usage - today, this week, this month, and all-time. Only available when an OpenRouter provider is configured.</td></tr>
+          <tr><td><code>/help</code></td><td>-</td><td>List all available commands.</td></tr>
         </tbody>
       </table>
 
       <div class="callout note">
-        <span class="callout-icon">📘</span>
-        <div class="callout-body"><code>/verbose</code> and <code>/reasoning</code> are per-agent — using them in a sub-agent's room only affects that agent. <code>/costs</code> only appears when at least one OpenRouter provider is set up.</div>
+        <span class="callout-tag note">note</span>
+        <div class="callout-body"><code>/verbose</code> and <code>/reasoning</code> are per-agent - using them in a sub-agent's room only affects that agent. <code>/costs</code> only appears when at least one OpenRouter provider is set up.</div>
       </div>
 
       <h2 id="cm-costs">Checking costs</h2>
@@ -1934,7 +1989,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
          Limit:       $50.0000 ($8.7720 remaining)</code></pre>
 
       <div class="callout note">
-        <span class="callout-icon">📘</span>
+        <span class="callout-tag note">note</span>
         <div class="callout-body">Credits are reported in US dollars. "Today" resets at <strong>UTC midnight</strong>. Free-tier keys show a <em>Tier: free</em> note, and keys without a spend cap show <em>Limit: unlimited</em>.</div>
       </div>
     </div>
@@ -1943,7 +1998,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
     <div class="doc-page" id="page-tools-ref">
       <div class="doc-breadcrumb">Reference</div>
       <h1>Tools Reference</h1>
-      <p class="lead">All 26 built-in tools, auto-discovered at startup. Drop a new file in <code>src/tools/</code> to add your own — see <a onclick="navigate('custom-tools')" style="cursor:pointer;color:var(--accent)">Custom Tools</a>.</p>
+      <p class="lead">All 26 built-in tools, auto-discovered at startup. Drop a new file in <code>src/tools/</code> to add your own - see <a onclick="navigate('custom-tools')" style="cursor:pointer;color:var(--accent)">Custom Tools</a>.</p>
 
       <h2 id="tr-time">Time</h2>
       <table>
@@ -1977,7 +2032,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
       <table>
         <thead><tr><th>Tool</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>memory_profile</code></td><td>Returns the compact peer cards — durable facts about the user and the agent. Fast, no search</td></tr>
+          <tr><td><code>memory_profile</code></td><td>Returns the compact peer cards - durable facts about the user and the agent. Fast, no search</td></tr>
           <tr><td><code>memory_search</code></td><td>Searches reasoned conclusions and returns the most relevant excerpts</td></tr>
           <tr><td><code>memory_context</code></td><td>Answers a natural-language question grounded in reasoned memory</td></tr>
           <tr><td><code>memory_conclude</code></td><td>Stores a high-signal durable fact in reasoned memory</td></tr>
@@ -2029,7 +2084,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
       </table>
 
       <div class="callout warn">
-        <span class="callout-icon">⚠️</span>
+        <span class="callout-tag warn">warn</span>
         <div class="callout-body"><strong>Read-before-write:</strong> Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level.</div>
       </div>
     </div>
@@ -2038,63 +2093,63 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
     <div class="doc-page" id="page-security">
       <div class="doc-breadcrumb">Reference</div>
       <h1>Security</h1>
-      <p class="lead">Defense-in-depth — multiple independent layers that each limit what the system and the LLM can do.</p>
+      <p class="lead">Defense-in-depth - multiple independent layers that each limit what the system and the LLM can do.</p>
 
       <h2 id="sc-container">Container Isolation</h2>
       <ul>
-        <li><strong>Non-root user</strong> — runs as <code>memtrix</code> (UID 1000), never root</li>
-        <li><strong>Read-only filesystem</strong> — immutable root via <code>read_only: true</code>; only <code>workspace/</code>, <code>data/</code>, and <code>/tmp</code> are writable</li>
-        <li><strong>All capabilities dropped</strong> — <code>cap_drop: ALL</code> with <code>no-new-privileges: true</code></li>
-        <li><strong>No shell tools</strong> — <code>curl</code>, <code>wget</code>, and other network utilities are not installed in the image</li>
-        <li><strong>Internal-only networking</strong> — the agent, Conduit, SearXNG, and chroma sit on a private Docker network; the bot itself publishes no ports. Only the Web Control Panel is published, bound to <code>localhost:8800</code></li>
+        <li><strong>Non-root user</strong> - runs as <code>memtrix</code> (UID 1000), never root</li>
+        <li><strong>Read-only filesystem</strong> - immutable root via <code>read_only: true</code>; only <code>workspace/</code>, <code>data/</code>, and <code>/tmp</code> are writable</li>
+        <li><strong>All capabilities dropped</strong> - <code>cap_drop: ALL</code> with <code>no-new-privileges: true</code></li>
+        <li><strong>No shell tools</strong> - <code>curl</code>, <code>wget</code>, and other network utilities are not installed in the image</li>
+        <li><strong>Internal-only networking</strong> - the agent, Conduit, SearXNG, and chroma sit on a private Docker network; the bot itself publishes no ports. Only the Web Control Panel is published, bound to <code>localhost:8800</code></li>
       </ul>
 
       <div class="callout note">
-        <span class="callout-icon">📘</span>
+        <span class="callout-tag note">note</span>
         <div class="callout-body">The <code>web</code> control-panel service shares the same hardening (read-only root, non-root, dropped capabilities) and is gated by <code>MEMTRIX_WEB_TOKEN</code>. See <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel → Security</a>.</div>
       </div>
 
       <h2 id="sc-noexec">No Arbitrary Code Execution</h2>
-      <p>The LLM has <strong>no shell access</strong>. There is no <code>run_command</code> tool — every action goes through a purpose-built tool with its own validation.</p>
+      <p>The LLM has <strong>no shell access</strong>. There is no <code>run_command</code> tool - every action goes through a purpose-built tool with its own validation.</p>
 
       <h2 id="sc-ssrf">SSRF Protection</h2>
       <p>All outbound tools (<code>fetch_url</code>, <code>download_file</code>, <code>git_clone</code>) validate URLs against:</p>
       <ul>
         <li>A hostname blocklist of internal Docker service names (<code>conduit</code>, <code>searxng</code>, <code>chroma</code>, <code>localhost</code>, etc.)</li>
-        <li>DNS resolution — hostnames are resolved and IPs checked against private, loopback, link-local, and reserved ranges</li>
+        <li>DNS resolution - hostnames are resolved and IPs checked against private, loopback, link-local, and reserved ranges</li>
       </ul>
 
       <h2 id="sc-hitl">Human-in-the-Loop</h2>
       <p>Sensitive operations require explicit approval:</p>
       <ul>
-        <li><strong>File downloads</strong> — user sees URL and destination, must confirm</li>
-        <li><strong>File overwrites</strong> — overwriting existing files requires approval</li>
-        <li><strong>Agent creation</strong> — user must confirm name and expertise</li>
+        <li><strong>File downloads</strong> - user sees URL and destination, must confirm</li>
+        <li><strong>File overwrites</strong> - overwriting existing files requires approval</li>
+        <li><strong>Agent creation</strong> - user must confirm name and expertise</li>
       </ul>
-      <p>During inter-agent calls, <code>confirm_with_user()</code> returns <code>false</code> (deny) when no human callback is available — no auto-approval of destructive operations.</p>
+      <p>During inter-agent calls, <code>confirm_with_user()</code> returns <code>false</code> (deny) when no human callback is available - no auto-approval of destructive operations.</p>
 
       <h2 id="sc-fs">File System Protection</h2>
       <ul>
-        <li><strong>Path traversal prevention</strong> — every path validated with <code>os.path.realpath()</code></li>
-        <li><strong>Core file protection</strong> — system files only accessible through dedicated tools with strict allowlist</li>
-        <li><strong>Memory protection</strong> — <code>memory/</code> directory off-limits to general file tools</li>
-        <li><strong>Read-before-write</strong> — per-room tracking ensures reading before modifying</li>
+        <li><strong>Path traversal prevention</strong> - every path validated with <code>os.path.realpath()</code></li>
+        <li><strong>Core file protection</strong> - system files only accessible through dedicated tools with strict allowlist</li>
+        <li><strong>Memory protection</strong> - <code>memory/</code> directory off-limits to general file tools</li>
+        <li><strong>Read-before-write</strong> - per-room tracking ensures reading before modifying</li>
       </ul>
 
       <h2 id="sc-injection">Prompt Injection Mitigation</h2>
       <ul>
-        <li><strong>Untrusted content tagged</strong> — web search results, fetched URLs, downloads, and attachments are prefixed with disclaimers</li>
-        <li><strong>Filename sanitization</strong> — <code>os.path.basename()</code> with auto-increment on collision</li>
-        <li><strong>Sender name sanitization</strong> — brackets stripped, 50-char limit to prevent prompt injection via Matrix profile names</li>
+        <li><strong>Untrusted content tagged</strong> - web search results, fetched URLs, downloads, and attachments are prefixed with disclaimers</li>
+        <li><strong>Filename sanitization</strong> - <code>os.path.basename()</code> with auto-increment on collision</li>
+        <li><strong>Sender name sanitization</strong> - brackets stripped, 50-char limit to prevent prompt injection via Matrix profile names</li>
       </ul>
 
       <h2 id="sc-secrets">Secret Management</h2>
       <ul>
-        <li>Secrets live outside <code>config.json</code> — in <code>.env</code>, the managed <code>data/secrets.env</code>, or Bitwarden — and are injected at container startup</li>
+        <li>Secrets live outside <code>config.json</code> - in <code>.env</code>, the managed <code>data/secrets.env</code>, or Bitwarden - and are injected at container startup</li>
         <li>Resolved once at boot, then cleared from the process environment</li>
-        <li>The Web Control Panel exposes secrets write-only — values are never returned in plain text</li>
+        <li>The Web Control Panel exposes secrets write-only - values are never returned in plain text</li>
         <li>SearXNG gets a randomly generated secret key during setup</li>
-        <li>Conduit registration token is randomly generated — no hardcoded defaults</li>
+        <li>Conduit registration token is randomly generated - no hardcoded defaults</li>
       </ul>
       <p>See <a onclick="navigate('secrets')" style="cursor:pointer;color:var(--accent)">Secrets &amp; Bitwarden</a> for the full resolution model.</p>
     </div>
@@ -2103,7 +2158,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
     <div class="doc-page" id="page-docker">
       <div class="doc-breadcrumb">Reference</div>
       <h1>Docker &amp; Services</h1>
-      <p class="lead">A small set of services orchestrated by Docker Compose — all on a private internal network, with only the Web Control Panel published to <code>localhost</code>.</p>
+      <p class="lead">A small set of services orchestrated by Docker Compose - all on a private internal network, with only the Web Control Panel published to <code>localhost</code>.</p>
 
       <h2 id="dk-services">Services</h2>
       <table>
@@ -2118,8 +2173,8 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
       </table>
 
       <div class="callout note">
-        <span class="callout-icon">📘</span>
-        <div class="callout-body">The <code>chroma</code> service gives the agent <em>and</em> the web panel a single, consistent vector store — avoiding SQLite single-writer corruption that would occur if both processes opened an embedded database. Both connect via <code>CHROMA_URL=http://chroma:8000</code>.</div>
+        <span class="callout-tag note">note</span>
+        <div class="callout-body">The <code>chroma</code> service gives the agent <em>and</em> the web panel a single, consistent vector store - avoiding SQLite single-writer corruption that would occur if both processes opened an embedded database. Both connect via <code>CHROMA_URL=http://chroma:8000</code>.</div>
       </div>
 
       <h2 id="dk-volumes">Volumes</h2>
@@ -2163,8 +2218,8 @@ docker compose down
 docker compose build && docker compose up -d</code></pre>
 
       <div class="callout tip">
-        <span class="callout-icon">💡</span>
-        <div class="callout-body">You usually don't need to restart by hand — the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a> applies config changes with a safe in-place restart and streams the progress to your browser.</div>
+        <span class="callout-tag tip">tip</span>
+        <div class="callout-body">You usually don't need to restart by hand - the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a> applies config changes with a safe in-place restart and streams the progress to your browser.</div>
       </div>
     </div>
 
@@ -2207,10 +2262,10 @@ docker compose build && docker compose up -d</code></pre>
 
       <h2 id="ts-memory">Session or memory issues</h2>
       <ul>
-        <li><code>/clear</code> (or <code>/new</code>) — resets the current session</li>
+        <li><code>/clear</code> (or <code>/new</code>) - resets the current session</li>
         <li>Sessions are stored in <code>data/</code> as JSON files organized by date</li>
         <li>Memory files are in <code>workspace/memory/</code></li>
-        <li>Reasoning-memory conclusions live in the <code>chroma</code> service — browse, edit, or export them from the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a></li>
+        <li>Reasoning-memory conclusions live in the <code>chroma</code> service - browse, edit, or export them from the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a></li>
       </ul>
 
       <h2 id="ts-web">Web Control Panel won't load</h2>
@@ -2226,14 +2281,14 @@ docker compose build && docker compose up -d</code></pre>
         <li>Check the vector store is running: <code>docker compose ps chroma</code></li>
         <li>Verify both <code>memtrix</code> and <code>web</code> point at <code>CHROMA_URL=http://chroma:8000</code></li>
         <li>Inspect logs: <code>docker compose logs -f chroma</code></li>
-        <li>If memory is paused, the deriver won't write new conclusions — check the panel's deriver toggle</li>
+        <li>If memory is paused, the deriver won't write new conclusions - check the panel's deriver toggle</li>
       </ul>
 
       <h2 id="ts-reset">Full reset</h2>
 
       <div class="callout warn">
-        <span class="callout-icon">⚠️</span>
-        <div class="callout-body"><strong>This deletes all data</strong> — config, sessions, memory, persona files, sub-agents. Only do this if you want a fresh start.</div>
+        <span class="callout-tag warn">warn</span>
+        <div class="callout-body"><strong>This deletes all data</strong> - config, sessions, memory, persona files, sub-agents. Only do this if you want a fresh start.</div>
       </div>
 
       <pre><code>docker compose down
