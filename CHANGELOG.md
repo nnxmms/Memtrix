@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.17.0
+
+- Skills - Memtrix can now create and reuse its own skills: short, reusable task workflows it writes for itself so it handles recurring kinds of work better over time. A skill is a generalized set of steps (e.g. "when performing a security audit of a server, do these steps") stored in the agent's workspace as `skills/<name>/SKILL.md`. Skills are a distinct layer from SOUL.md/BEHAVIOR.md (character) and memory (facts/journal) - they capture *how* the agent works.
+- Authoring happens inside the normal agent loop with no second model: after finishing a task, the agent evaluates whether it was skill-worthy (took 5+ tool calls, required error recovery, involved a user correction, or followed a non-obvious workflow) and, if so, silently captures the approach. If an existing skill proved suboptimal, it improves it on the spot. One new tool, `skill_manage`, drives this with actions `create`, `view`, `list`, `edit`, `patch`, and `delete`.
+- Discovery is retrieval-based: each incoming message is embedded and matched against the agent's own skills, and any sufficiently relevant skill is surfaced to the agent as a transient suggestion (reusing the local embedding model and ChromaDB). The agent then loads the full instructions on demand and follows them. Skills contain instructions and reference files only - there is no separate code execution, preserving Memtrix's no-local-shell security model.
+- Each agent (main and every sub-agent) manages its own isolated skill store; the index rebuilds only when skills change and is kept current by a background sync. Gated behind a new optional `skills` config block: `enabled` (default true), `suggest_top_k` (2), `suggestion_max_distance` (0.55, lower = stricter matching). When disabled, the tool is not loaded and no suggestions are injected.
+
 ## 2.16.0
 
 - SSH remote administration - Memtrix can now act as a sysadmin on remote hosts over SSH. It opens a persistent interactive session and works inside it across many commands, so the working directory and environment persist between calls just like a human at a terminal. Eight new tools: `ssh_gen_key` (generate the agent's own ed25519 key), `ssh_get_pub_key` (return the public key to install in a host's authorized_keys), `ssh_add_host` / `ssh_remove_host` / `ssh_get_remote_hosts` (manage a registry of named hosts), `ssh_connect` / `ssh_disconnect` (open and close persistent sessions), and `ssh_run` (run a command in the open session, with optional `sudo`).

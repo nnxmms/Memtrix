@@ -239,6 +239,7 @@ Built-in tools are automatically discovered at startup:
 | `ssh_connect` | Opens a persistent interactive SSH session to a host (trust-on-first-use host key) |
 | `ssh_run` | Runs a command in the open session — state persists between calls; optional `sudo` |
 | `ssh_disconnect` | Closes an open SSH session |
+| `skill_manage` | Creates, views, lists, edits, patches, or deletes the agent's own reusable skills |
 
 > Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt. `USER.md` and `MEMORY.md` are profile cards owned by the reasoning memory and cannot be written by the agent at all.
 
@@ -384,6 +385,41 @@ SSH administration is enabled by default and configured via the optional `ssh` s
 | `max_output_chars` | `20000` | Cap on command output returned to the model. |
 
 The SSH tools are available to the main agent only; sub-agents do not get them.
+
+<br>
+
+## 🧠 Skills
+
+Memtrix can build its own **skills** — short, reusable task workflows it writes for itself so it handles recurring kinds of work better over time. A skill is a generalized set of steps for a kind of task, stored in the agent's workspace as `skills/<name>/SKILL.md`. Skills are a layer above memory: SOUL.md/BEHAVIOR.md capture *who* the agent is, memory captures *what* it knows, and skills capture *how* it gets recurring tasks done.
+
+```
+You:     Run a security audit on the Pi.
+Memtrix: → (works through it across several steps)
+         → skill_manage(action="create", name="security-audit",
+                        description="When auditing a Linux host's security, follow these steps",
+                        instructions="1. Check open ports …\n2. Review sudoers …\n3. …")
+
+  (next week)
+You:     Can you do a security check on my new server?
+Memtrix: 🧠 (a relevant skill is suggested automatically)
+         → skill_manage(action="view", name="security-audit")   (loads the steps)
+         → (follows the workflow)
+```
+
+**How it works**
+
+- **Self-authored, no second model** — authoring happens inside the normal agent loop. After finishing a task, the agent evaluates whether it was skill-worthy (5+ tool calls, error recovery, a user correction, or a non-obvious workflow) and, if so, captures the approach silently. The same `skill_manage` tool drives `create`, `view`, `list`, `edit`, `patch`, and `delete`.
+- **Retrieval-based suggestion** — each incoming message is embedded and matched against the agent's own skills (reusing the local embedding model and ChromaDB). A sufficiently relevant skill is surfaced as a transient suggestion; the agent then loads the full instructions on demand and follows them.
+- **Instructions only** — skills contain instructions and reference files, not executable code. The agent carries out the steps with its normal tools (including SSH), preserving Memtrix's no-local-shell security model.
+- **Per-agent isolation** — the main agent and every sub-agent keep their own separate skill store. The index rebuilds only when skills change and is kept current by a background sync.
+
+Skills are enabled by default and configured via the optional `skills` section in `config.json`:
+
+| Key | Default | Description |
+|:--|:--|:--|
+| `enabled` | `true` | Load the `skill_manage` tool and inject skill suggestions. Set to `false` to remove the capability entirely. |
+| `suggest_top_k` | `2` | Maximum number of relevant skills surfaced per message. |
+| `suggestion_max_distance` | `0.55` | Only suggest skills at least this relevant (lower = stricter matching). |
 
 <br>
 
@@ -645,6 +681,7 @@ Memtrix/
 │   ├── representation.py             # Reasoning-memory store (conclusions + profile cards)
 │   ├── deriver.py                    # Background reasoning thread
 │   ├── ssh_manager.py                # Persistent SSH sessions + key/host registry
+│   ├── skills_index.py               # Per-agent skill store + vector retrieval
 │   ├── config.py                     # Config path constant
 │   ├── onboarding.py                 # Interactive setup wizard (Rich TUI)
 │   ├── channels/
@@ -690,7 +727,8 @@ Memtrix/
 │   │   ├── ssh_get_remote_hosts_tool.py # List registered hosts
 │   │   ├── ssh_connect_tool.py       # Open a persistent SSH session
 │   │   ├── ssh_run_tool.py           # Run a command in the session
-│   │   └── ssh_disconnect_tool.py    # Close an SSH session
+│   │   ├── ssh_disconnect_tool.py    # Close an SSH session
+│   │   └── skill_manage_tool.py      # Create and reuse the agent's own skills
 │   └── static/
 │       ├── config.json               # Config template
 │       ├── conduit.toml              # Conduit homeserver config

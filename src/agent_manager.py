@@ -16,7 +16,7 @@ from typing import Any, Callable
 import requests
 
 from src.channels.matrix import MatrixChannel
-from src.config import CONFIG_PATH, CONFIG_LOCK
+from src.config import CONFIG_PATH, CONFIG_LOCK, resolve_skills_config
 from src.docs_index import DocsIndex
 from src.memory_index import MemoryIndex
 from src.orchestrator import Orchestrator
@@ -24,6 +24,7 @@ from src.orchestrator import Orchestrator
 logger: logging.Logger = logging.getLogger(__name__)
 from src.providers.base import BaseProvider
 from src.session import Session
+from src.skills_index import SKILL_TOOL_FILES, SkillsIndex
 from src.ssh_manager import SSH_TOOL_FILES
 from src.tools import discover_tools
 
@@ -703,6 +704,10 @@ class AgentManager:
         # Resolve workspace
         workspace_dir: str = agent_config["workspace"]
 
+        # Resolve the skills feature; the skill_manage tool is excluded when disabled
+        skills_cfg: dict[str, Any] = resolve_skills_config(config=self._config)
+        skill_exclude: set[str] = set() if skills_cfg["enabled"] else SKILL_TOOL_FILES
+
         # Discover tools scoped to this agent's workspace (exclude agent management
         # and reasoning-memory tools; reasoning memory is main-agent only for now)
         tools: list[BaseTool] = discover_tools(
@@ -715,12 +720,18 @@ class AgentManager:
                 "memory_search_tool.py",
                 "memory_context_tool.py",
                 "memory_conclude_tool.py",
-            } | SSH_TOOL_FILES
+            } | SSH_TOOL_FILES | skill_exclude
         )
 
         # Documentation index so sub-agents can research the Memtrix docs too
         docs_index: DocsIndex = DocsIndex.get_instance()
         docs_index.start_periodic_sync()
+
+        # Skills index so sub-agents can author and reuse their own skills
+        skills_index: SkillsIndex | None = None
+        if skills_cfg["enabled"]:
+            skills_index = SkillsIndex.get_instance(workspace_dir=workspace_dir, collection_name=f"agent_{name}")
+            skills_index.start_periodic_sync()
 
         # Wire ask_agent tool with agent manager and caller identity
         display_name: str = agent_config.get("display_name", name)
@@ -733,6 +744,8 @@ class AgentManager:
                 tool.set_docs_index(index=docs_index)
             if hasattr(tool, "set_dialectic"):
                 tool.set_dialectic(provider=provider, model=model_name)
+            if skills_index is not None and hasattr(tool, "set_skills_index"):
+                tool.set_skills_index(index=skills_index)
 
         # Initialize memory index for this agent (registers in the instances cache)
         index: MemoryIndex = MemoryIndex.get_instance(workspace_dir=workspace_dir, collection_name=f"agent_{name}")
@@ -744,7 +757,9 @@ class AgentManager:
             model=model_name,
             tools=tools,
             workspace_dir=workspace_dir,
-            think=think
+            think=think,
+            skills_index=skills_index,
+            skills_config=skills_cfg,
         )
         self._orchestrators[name] = orchestrator
         self._locks[name] = threading.Lock()

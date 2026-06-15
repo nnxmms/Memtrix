@@ -80,3 +80,18 @@ def resolve_ssh_config(config: dict[str, Any]) -> dict[str, Any]:
     }
     user_cfg: dict[str, Any] = config.get("ssh", {}) or {}
     return {**defaults, **user_cfg}
+
+
+def resolve_skills_config(config: dict[str, Any]) -> dict[str, Any]:
+    """
+    This function returns the skills configuration merged with safe defaults so that
+    installs without a "skills" section keep working unchanged. When disabled, the
+    skill management tool is not loaded and no skill suggestions are injected.
+    """
+    defaults: dict[str, Any] = {
+        "enabled": True,                 # load the skill_manage tool and suggest skills
+        "suggest_top_k": 2,              # max relevant skills surfaced per message
+        "suggestion_max_distance": 0.55, # only suggest skills at least this relevant (lower = stricter)
+    }
+    user_cfg: dict[str, Any] = config.get("skills", {}) or {}
+    return {**defaults, **user_cfg}

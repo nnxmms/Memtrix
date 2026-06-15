@@ -10,7 +10,7 @@ from src.agent_manager import AgentManager
 from src.channels.cli import CLIChannel
 from src.channels.matrix import MatrixChannel
 from src.commands import Commands
-from src.config import CONFIG_PATH, resolve_ssh_config, update_config
+from src.config import CONFIG_PATH, resolve_skills_config, resolve_ssh_config, update_config
 from src.deriver import Deriver
 from src.docs_index import DocsIndex
 from src.lifecycle import install_signal_handlers, start_heartbeat
@@ -19,6 +19,7 @@ from src.orchestrator import Orchestrator
 from src.providers.base import BaseProvider
 from src.representation import RepresentationStore, resolve_memory_config
 from src.session import Session
+from src.skills_index import SKILL_TOOL_FILES, SkillsIndex
 from src.ssh_manager import SSH_TOOL_FILES, SSHManager
 from src.tools import discover_tools
 
@@ -139,6 +140,11 @@ class Memtrix:
         else:
             logger.info("SSH remote administration enabled")
 
+        # Exclude the skill management tool unless the skills feature is enabled
+        skills_cfg: dict[str, Any] = resolve_skills_config(config=self._config)
+        if not skills_cfg["enabled"]:
+            tool_exclude |= SKILL_TOOL_FILES
+
         tools: list[BaseTool] = discover_tools(workspace_dir=workspace_dir, exclude=tool_exclude)
 
         # Eagerly initialize the memory index so existing files are indexed at startup
@@ -149,6 +155,13 @@ class Memtrix:
         docs_index: DocsIndex = DocsIndex.get_instance()
         docs_index.start_periodic_sync()
 
+        # Initialize the skills index so the agent can author and reuse skills
+        skills_index: SkillsIndex | None = None
+        if skills_cfg["enabled"]:
+            skills_index = SkillsIndex.get_instance(workspace_dir=workspace_dir)
+            skills_index.start_periodic_sync()
+            logger.info("Skills enabled")
+
         # Wire reasoning-memory dependencies into the memory tools
         for tool in tools:
             if representation is not None and hasattr(tool, "set_representation"):
@@ -157,6 +170,8 @@ class Memtrix:
                 tool.set_dialectic(provider=self._provider, model=reasoning_model)
             if hasattr(tool, "set_docs_index"):
                 tool.set_docs_index(index=docs_index)
+            if skills_index is not None and hasattr(tool, "set_skills_index"):
+                tool.set_skills_index(index=skills_index)
 
         logger.info("Discovered %d tools", len(tools))
 
@@ -169,6 +184,8 @@ class Memtrix:
             deriver=deriver,
             representation=representation,
             memory_config=mem_cfg,
+            skills_index=skills_index,
+            skills_config=skills_cfg,
         )
 
         logger.info("Orchestrator initialized (model=%s, think=%s)", self._model, think)

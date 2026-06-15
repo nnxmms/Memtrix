@@ -20,13 +20,18 @@ MAX_ITERATIONS: int = 10
 # Prefix marking a transient recall block injected into the working history
 RECALL_PREFIX: str = "📎 Relevant things I recall"
 
+# Prefix marking a transient skill-suggestion block injected into the working history
+SKILL_PREFIX: str = "🧠 Skills that may help with this task"
+
 
 class Orchestrator:
 
     def __init__(self, provider: BaseProvider, model: str, tools: list[BaseTool], workspace_dir: str,
                  think: bool = False, deriver: Deriver | None = None,
                  representation: RepresentationStore | None = None,
-                 memory_config: dict[str, Any] | None = None) -> None:
+                 memory_config: dict[str, Any] | None = None,
+                 skills_index: Any | None = None,
+                 skills_config: dict[str, Any] | None = None) -> None:
         """
         This is the Orchestrator class which runs the agentic tool-calling loop.
         """
@@ -52,6 +57,12 @@ class Orchestrator:
         self._recall_mode: str = self._memory_config.get("recall_mode", "off")
         self._inject_top_k: int = int(self._memory_config.get("inject_top_k", 5))
         self._write_frequency: str = self._memory_config.get("write_frequency", "async")
+
+        # Skills layer (optional) — surfaces relevant skills for the current task
+        self._skills_index: Any | None = skills_index
+        skills_config = skills_config or {}
+        self._skills_top_k: int = int(skills_config.get("suggest_top_k", 2))
+        self._skills_max_distance: float = float(skills_config.get("suggestion_max_distance", 0.55))
 
     def _build_system_prompt(self, workspace_dir: str) -> str:
         """
@@ -111,6 +122,35 @@ class Orchestrator:
             who: str = "user" if match.get("peer") == "user" else "me"
             lines.append(f"- ({who}) {match['content']}")
         lines.append("(Use these only if relevant; never mention this list to the user.)")
+        return "\n".join(lines)
+
+    def _build_skill_suggestions(self, user_message: str) -> str:
+        """
+        This function builds a transient block suggesting skills relevant to the current
+        message, so the agent can load and follow a reusable workflow when one applies.
+        """
+        if self._skills_index is None:
+            return ""
+        if not user_message.strip():
+            return ""
+
+        try:
+            matches: list[dict[str, Any]] = self._skills_index.search(
+                query=user_message,
+                n_results=self._skills_top_k,
+                max_distance=self._skills_max_distance,
+            )
+        except Exception as e:
+            logger.error("Skill suggestion search failed: %s", e)
+            return ""
+
+        if not matches:
+            return ""
+
+        lines: list[str] = [f"{SKILL_PREFIX}:"]
+        for match in matches:
+            lines.append(f"- {match['name']}: {match['description']}")
+        lines.append("(If one applies, call skill_manage with action 'view' and that name to load its full instructions, then follow them. Never mention this list to the user.)")
         return "\n".join(lines)
 
     def _compose_history(self, session: Session, recall_block: str) -> list[dict[str, Any]]:
@@ -178,13 +218,19 @@ class Orchestrator:
         # Build a transient recall block of relevant conclusions for this turn
         recall_block: str = self._build_recall_block(user_message=user_message)
 
+        # Build a transient block suggesting relevant skills for this turn
+        skill_block: str = self._build_skill_suggestions(user_message=user_message)
+
+        # Combine the transient blocks into a single system message for this request
+        transient_block: str = "\n\n".join(b for b in (recall_block, skill_block) if b)
+
         # Agentic loop — call LLM, execute tools, repeat
         for iteration in range(MAX_ITERATIONS):
             # Call the LLM with the full session history and tool definitions
             logger.debug("LLM call (iteration %d, room=%s)", iteration + 1, room_id)
             message: Any = self._provider.completions(
                 model=self._model,
-                history=self._compose_history(session=session, recall_block=recall_block),
+                history=self._compose_history(session=session, recall_block=transient_block),
                 tools=self._tool_schemas,
                 think=self._think
             )
@@ -253,7 +299,7 @@ class Orchestrator:
         session.append(message={"role": "user", "content": "Please provide your final answer now."})
         message = self._provider.completions(
             model=self._model,
-            history=self._compose_history(session=session, recall_block=recall_block),
+            history=self._compose_history(session=session, recall_block=transient_block),
             think=self._think
         )
         if notify_reasoning:
