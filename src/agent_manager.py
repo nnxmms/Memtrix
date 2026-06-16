@@ -24,7 +24,7 @@ from src.orchestrator import Orchestrator
 logger: logging.Logger = logging.getLogger(__name__)
 from src.providers.base import BaseProvider
 from src.session import Session
-from src.skills_index import SKILL_TOOL_FILES, SkillsIndex
+from src.skills_index import SKILL_TOOL_FILES, SkillsCatalog
 from src.ssh_manager import SSH_TOOL_FILES
 from src.tools import discover_tools
 
@@ -727,11 +727,10 @@ class AgentManager:
         docs_index: DocsIndex = DocsIndex.get_instance()
         docs_index.start_periodic_sync()
 
-        # Skills index so sub-agents can author and reuse their own skills
-        skills_index: SkillsIndex | None = None
+        # Skills catalog so sub-agents can author and reuse their own skills
+        skills_catalog: SkillsCatalog | None = None
         if skills_cfg["enabled"]:
-            skills_index = SkillsIndex.get_instance(workspace_dir=workspace_dir, collection_name=f"agent_{name}")
-            skills_index.start_periodic_sync()
+            skills_catalog = SkillsCatalog.get_instance(workspace_dir=workspace_dir)
 
         # Wire ask_agent tool with agent manager and caller identity
         display_name: str = agent_config.get("display_name", name)
@@ -744,8 +743,8 @@ class AgentManager:
                 tool.set_docs_index(index=docs_index)
             if hasattr(tool, "set_dialectic"):
                 tool.set_dialectic(provider=provider, model=model_name)
-            if skills_index is not None and hasattr(tool, "set_skills_index"):
-                tool.set_skills_index(index=skills_index)
+            if skills_catalog is not None and hasattr(tool, "set_skills_catalog"):
+                tool.set_skills_catalog(catalog=skills_catalog)
 
         # Initialize memory index for this agent (registers in the instances cache)
         index: MemoryIndex = MemoryIndex.get_instance(workspace_dir=workspace_dir, collection_name=f"agent_{name}")
@@ -758,8 +757,7 @@ class AgentManager:
             tools=tools,
             workspace_dir=workspace_dir,
             think=think,
-            skills_index=skills_index,
-            skills_config=skills_cfg,
+            skills_catalog=skills_catalog,
         )
         self._orchestrators[name] = orchestrator
         self._locks[name] = threading.Lock()

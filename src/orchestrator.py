@@ -20,8 +20,8 @@ MAX_ITERATIONS: int = 10
 # Prefix marking a transient recall block injected into the working history
 RECALL_PREFIX: str = "📎 Relevant things I recall"
 
-# Prefix marking a transient skill-suggestion block injected into the working history
-SKILL_PREFIX: str = "🧠 Skills that may help with this task"
+# Prefix marking a transient skill-catalog block injected into the working history
+SKILL_PREFIX: str = "🧠 Your skills (reusable workflows you can load on demand)"
 
 
 class Orchestrator:
@@ -30,8 +30,7 @@ class Orchestrator:
                  think: bool = False, deriver: Deriver | None = None,
                  representation: RepresentationStore | None = None,
                  memory_config: dict[str, Any] | None = None,
-                 skills_index: Any | None = None,
-                 skills_config: dict[str, Any] | None = None) -> None:
+                 skills_catalog: Any | None = None) -> None:
         """
         This is the Orchestrator class which runs the agentic tool-calling loop.
         """
@@ -58,11 +57,8 @@ class Orchestrator:
         self._inject_top_k: int = int(self._memory_config.get("inject_top_k", 5))
         self._write_frequency: str = self._memory_config.get("write_frequency", "async")
 
-        # Skills layer (optional) — surfaces relevant skills for the current task
-        self._skills_index: Any | None = skills_index
-        skills_config = skills_config or {}
-        self._skills_top_k: int = int(skills_config.get("suggest_top_k", 2))
-        self._skills_max_distance: float = float(skills_config.get("suggestion_max_distance", 0.55))
+        # Skills layer (optional) — exposes the agent's reusable workflows
+        self._skills_catalog: Any | None = skills_catalog
 
     def _build_system_prompt(self, workspace_dir: str) -> str:
         """
@@ -124,33 +120,30 @@ class Orchestrator:
         lines.append("(Use these only if relevant; never mention this list to the user.)")
         return "\n".join(lines)
 
-    def _build_skill_suggestions(self, user_message: str) -> str:
+    def _build_skill_catalog(self, user_message: str) -> str:
         """
-        This function builds a transient block suggesting skills relevant to the current
-        message, so the agent can load and follow a reusable workflow when one applies.
+        This function builds a transient block listing every skill's name and
+        description, so the agent can decide for itself when a skill applies and
+        load its full instructions on demand (progressive disclosure). The model
+        does the matching; there is no embedding or similarity threshold.
         """
-        if self._skills_index is None:
-            return ""
-        if not user_message.strip():
+        if self._skills_catalog is None:
             return ""
 
         try:
-            matches: list[dict[str, Any]] = self._skills_index.search(
-                query=user_message,
-                n_results=self._skills_top_k,
-                max_distance=self._skills_max_distance,
-            )
+            skills: list[dict[str, str]] = self._skills_catalog.list_skills()
         except Exception as e:
-            logger.error("Skill suggestion search failed: %s", e)
+            logger.error("Skill catalog read failed: %s", e)
             return ""
 
-        if not matches:
+        if not skills:
             return ""
 
         lines: list[str] = [f"{SKILL_PREFIX}:"]
-        for match in matches:
-            lines.append(f"- {match['name']}: {match['description']}")
-        lines.append("(If one applies, call skill_manage with action 'view' and that name to load its full instructions, then follow them. Never mention this list to the user.)")
+        for skill in skills:
+            description: str = skill.get("description", "") or "(no description)"
+            lines.append(f"- {skill['name']}: {description}")
+        lines.append("(If one fits the current task, call skill_manage with action 'view' and that name to load its full instructions, then follow them. Never mention this list to the user.)")
         return "\n".join(lines)
 
     def _compose_history(self, session: Session, recall_block: str) -> list[dict[str, Any]]:
@@ -218,8 +211,8 @@ class Orchestrator:
         # Build a transient recall block of relevant conclusions for this turn
         recall_block: str = self._build_recall_block(user_message=user_message)
 
-        # Build a transient block suggesting relevant skills for this turn
-        skill_block: str = self._build_skill_suggestions(user_message=user_message)
+        # Build a transient block listing the agent's skills for this turn
+        skill_block: str = self._build_skill_catalog(user_message=user_message)
 
         # Combine the transient blocks into a single system message for this request
         transient_block: str = "\n\n".join(b for b in (recall_block, skill_block) if b)

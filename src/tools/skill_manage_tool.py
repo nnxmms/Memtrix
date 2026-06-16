@@ -25,7 +25,7 @@ class SkillManageTool(BaseTool):
         workspace/skills/<name>/SKILL.md and surfaced automatically when relevant.
         """
         self._workspace_dir: str = workspace_dir
-        self._index: Any | None = None
+        self._catalog: Any | None = None
         super().__init__(
             name="skill_manage",
             description=(
@@ -71,17 +71,17 @@ class SkillManageTool(BaseTool):
             }
         )
 
-    def set_skills_index(self, index: Any) -> None:
+    def set_skills_catalog(self, catalog: Any) -> None:
         """
-        This function injects the SkillsIndex dependency for this agent's workspace.
+        This function injects the SkillsCatalog dependency for this agent's workspace.
         """
-        self._index = index
+        self._catalog = catalog
 
     def execute(self, **kwargs: Any) -> str:
         """
         This function dispatches a skill management action.
         """
-        if self._index is None:
+        if self._catalog is None:
             return "Error: skills are not enabled."
 
         action: str = str(kwargs.get("action", "")).strip().lower()
@@ -113,8 +113,8 @@ class SkillManageTool(BaseTool):
         if not NAME_PATTERN.match(name):
             return "Error: 'name' may only contain lowercase letters, digits and hyphens, and must start with a letter or digit."
         # Defense in depth against path traversal even though the pattern forbids it
-        skill_dir: str = os.path.join(self._index.skills_dir, name)
-        if not os.path.realpath(skill_dir).startswith(os.path.realpath(self._index.skills_dir) + os.sep):
+        skill_dir: str = os.path.join(self._catalog.skills_dir, name)
+        if not os.path.realpath(skill_dir).startswith(os.path.realpath(self._catalog.skills_dir) + os.sep):
             return "Error: invalid skill name."
         return None
 
@@ -127,19 +127,18 @@ class SkillManageTool(BaseTool):
 
     def _write(self, name: str, description: str, instructions: str) -> None:
         """
-        This function writes a skill's SKILL.md to disk and indexes it.
+        This function writes a skill's SKILL.md to disk.
         """
-        path: str = self._index.skill_path(name=name)
+        path: str = self._catalog.skill_path(name=name)
         os.makedirs(name=os.path.dirname(path), exist_ok=True)
         with open(file=path, mode="w", encoding="utf-8") as f:
             f.write(self._render(name=name, description=description, instructions=instructions))
-        self._index.upsert_skill(name=name, description=description)
 
     def _list(self) -> str:
         """
         This function lists all skills with their descriptions.
         """
-        skills: list[dict[str, str]] = self._index.list_skills()
+        skills: list[dict[str, str]] = self._catalog.list_skills()
         if not skills:
             return "No skills yet. Use action 'create' to capture a reusable workflow."
         lines: list[str] = [f"Skills ({len(skills)}):"]
@@ -166,7 +165,7 @@ class SkillManageTool(BaseTool):
             return "Error: 'instructions' is required for create."
 
         # Confirm overwrite of an existing skill
-        if os.path.isfile(self._index.skill_path(name=name)):
+        if os.path.isfile(self._catalog.skill_path(name=name)):
             if not confirm_with_user(kwargs, message=f"⚠️ Memtrix wants to overwrite an existing skill '{name}'. Allow this? (yes/no)"):
                 return "Skill overwrite denied by user."
 
@@ -181,7 +180,7 @@ class SkillManageTool(BaseTool):
         if not name:
             return "Error: 'name' is required for view."
 
-        skill: dict[str, Any] | None = self._index.get_skill(name=name)
+        skill: dict[str, Any] | None = self._catalog.get_skill(name=name)
         if skill is None:
             return f"Error: skill '{name}' not found."
 
@@ -206,7 +205,7 @@ class SkillManageTool(BaseTool):
         if not name:
             return "Error: 'name' is required for edit."
 
-        skill: dict[str, Any] | None = self._index.get_skill(name=name)
+        skill: dict[str, Any] | None = self._catalog.get_skill(name=name)
         if skill is None:
             return f"Error: skill '{name}' not found."
 
@@ -230,7 +229,7 @@ class SkillManageTool(BaseTool):
         if not old:
             return "Error: 'old' is required for patch."
 
-        skill: dict[str, Any] | None = self._index.get_skill(name=name)
+        skill: dict[str, Any] | None = self._catalog.get_skill(name=name)
         if skill is None:
             return f"Error: skill '{name}' not found."
 
@@ -252,14 +251,14 @@ class SkillManageTool(BaseTool):
         if not name:
             return "Error: 'name' is required for delete."
 
-        path: str = self._index.skill_path(name=name)
+        path: str = self._catalog.skill_path(name=name)
         if not os.path.isfile(path):
             return f"Error: skill '{name}' not found."
 
         if not confirm_with_user(kwargs, message=f"⚠️ Memtrix wants to permanently delete the skill '{name}'. Allow this? (yes/no)"):
             return "Skill deletion denied by user."
 
-        skill_dir: str = os.path.join(self._index.skills_dir, name)
+        skill_dir: str = os.path.join(self._catalog.skills_dir, name)
         # Remove the SKILL.md and any bundled files, then the directory
         for root, dirs, files in os.walk(skill_dir, topdown=False):
             for filename in files:
@@ -269,5 +268,4 @@ class SkillManageTool(BaseTool):
         if os.path.isdir(skill_dir):
             os.rmdir(skill_dir)
 
-        self._index.remove_skill(name=name)
         return f"Deleted skill '{name}'."

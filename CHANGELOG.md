@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.17.2
+
+- The skill self-authoring guidance in the agent system prompt is now mandatory after any larger task. Previously the agent was told to "briefly evaluate" whether a finished task was skill-worthy; it is now required to perform that evaluation as the explicit last step of completing a larger task (5+ tool calls, error recovery, a user correction, or a non-obvious workflow) and to capture or improve a skill unless an equally good one already exists. Skipping the check is no longer permitted — declining to save must be a deliberate judgement rather than an omission.
+
+## 2.17.1
+
+- Skills now use the Agent Skills progressive-disclosure model instead of embedding-based matching. At the start of every turn the agent sees a catalog of all its skills (each as `name: description`) and decides for itself which, if any, fits the current task — then loads that skill's full instructions on demand with `skill_manage action: view`. This removes the ChromaDB vector index, the local embedding step, and the `suggest_top_k` / `suggestion_max_distance` tuning knobs, whose distance threshold could wrongly reject relevant skills. The `skills` config block now has a single option, `enabled` (default true). Behaviour is otherwise unchanged: each agent still manages its own isolated `skills/<name>/SKILL.md` files, and the `skill_manage` tool keeps its `create`, `view`, `list`, `edit`, `patch`, and `delete` actions. The old `data/skills_index/` ChromaDB directory is no longer used.
+
 ## 2.17.0
 
 - Skills - Memtrix can now create and reuse its own skills: short, reusable task workflows it writes for itself so it handles recurring kinds of work better over time. A skill is a generalized set of steps (e.g. "when performing a security audit of a server, do these steps") stored in the agent's workspace as `skills/<name>/SKILL.md`. Skills are a distinct layer from SOUL.md/BEHAVIOR.md (character) and memory (facts/journal) - they capture *how* the agent works.

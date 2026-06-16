@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-2.12.0-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-2.17.2-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 [Website](https://memtrix.me) · [Documentation](https://memtrix.me/docs.html) · [GitHub](https://github.com/nnxmms/Memtrix)
@@ -401,7 +401,7 @@ Memtrix: → (works through it across several steps)
 
   (next week)
 You:     Can you do a security check on my new server?
-Memtrix: 🧠 (a relevant skill is suggested automatically)
+Memtrix: 🧠 (spots the matching skill in its catalog)
          → skill_manage(action="view", name="security-audit")   (loads the steps)
          → (follows the workflow)
 ```
@@ -409,17 +409,15 @@ Memtrix: 🧠 (a relevant skill is suggested automatically)
 **How it works**
 
 - **Self-authored, no second model** — authoring happens inside the normal agent loop. After finishing a task, the agent evaluates whether it was skill-worthy (5+ tool calls, error recovery, a user correction, or a non-obvious workflow) and, if so, captures the approach silently. The same `skill_manage` tool drives `create`, `view`, `list`, `edit`, `patch`, and `delete`.
-- **Retrieval-based suggestion** — each incoming message is embedded and matched against the agent's own skills (reusing the local embedding model and ChromaDB). A sufficiently relevant skill is surfaced as a transient suggestion; the agent then loads the full instructions on demand and follows them.
+- **Progressive disclosure** — at the start of every turn the agent sees a catalog of all its skills (each as `name: description`) and decides for itself which, if any, fits the task. It then loads that skill's full instructions on demand and follows them. There is no embedding step or vector index; the model does the matching, the same way the Agent Skills standard works.
 - **Instructions only** — skills contain instructions and reference files, not executable code. The agent carries out the steps with its normal tools (including SSH), preserving Memtrix's no-local-shell security model.
-- **Per-agent isolation** — the main agent and every sub-agent keep their own separate skill store. The index rebuilds only when skills change and is kept current by a background sync.
+- **Per-agent isolation** — the main agent and every sub-agent keep their own separate skill store under their workspace.
 
 Skills are enabled by default and configured via the optional `skills` section in `config.json`:
 
 | Key | Default | Description |
 |:--|:--|:--|
-| `enabled` | `true` | Load the `skill_manage` tool and inject skill suggestions. Set to `false` to remove the capability entirely. |
-| `suggest_top_k` | `2` | Maximum number of relevant skills surfaced per message. |
-| `suggestion_max_distance` | `0.55` | Only suggest skills at least this relevant (lower = stricter matching). |
+| `enabled` | `true` | Load the `skill_manage` tool and inject the skill catalog. Set to `false` to remove the capability entirely. |
 
 <br>
 
