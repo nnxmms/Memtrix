@@ -16,7 +16,7 @@ from typing import Any, Callable
 import requests
 
 from src.channels.matrix import MatrixChannel
-from src.config import CONFIG_PATH, CONFIG_LOCK, resolve_skills_config
+from src.config import CONFIG_PATH, CONFIG_LOCK, resolve_agent_config, resolve_skills_config
 from src.docs_index import DocsIndex
 from src.memory_index import MemoryIndex
 from src.orchestrator import Orchestrator
@@ -751,6 +751,7 @@ class AgentManager:
         index.start_periodic_sync()
 
         # Create orchestrator
+        agent_cfg: dict[str, Any] = resolve_agent_config(config=self._config)
         orchestrator: Orchestrator = Orchestrator(
             provider=provider,
             model=model_name,
@@ -758,6 +759,7 @@ class AgentManager:
             workspace_dir=workspace_dir,
             think=think,
             skills_catalog=skills_catalog,
+            max_iterations=agent_cfg["max_iterations"],
         )
         self._orchestrators[name] = orchestrator
         self._locks[name] = threading.Lock()

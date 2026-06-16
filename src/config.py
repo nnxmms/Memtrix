@@ -93,3 +93,16 @@ def resolve_skills_config(config: dict[str, Any]) -> dict[str, Any]:
     }
     user_cfg: dict[str, Any] = config.get("skills", {}) or {}
     return {**defaults, **user_cfg}
+
+
+def resolve_agent_config(config: dict[str, Any]) -> dict[str, Any]:
+    """
+    This function returns the core agent-loop configuration merged with safe
+    defaults so that installs without an "agent" section keep working unchanged.
+    """
+    defaults: dict[str, Any] = {
+        "max_iterations": 25,  # tool-call rounds allowed per request before forcing a final answer
+    }
+    user_cfg: dict[str, Any] = config.get("agent", {}) or {}
+    return {**defaults, **user_cfg}
+

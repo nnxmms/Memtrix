@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.17.2</span>
+    memtrix<span class="ver">v2.18.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -1848,6 +1848,9 @@ docker compose up -d</code></pre>
     <span style="color:var(--accent)">"skills"</span>: {
         <span style="color:var(--accent)">"enabled"</span>: <span style="color:var(--purple)">true</span>
     },
+    <span style="color:var(--accent)">"agent"</span>: {
+        <span style="color:var(--accent)">"max_iterations"</span>: <span style="color:var(--purple)">25</span>
+    },
     <span style="color:var(--accent)">"secrets"</span>: {
         <span style="color:var(--accent)">"backend"</span>: <span style="color:var(--orange)">"env"</span>
     }
@@ -1925,6 +1928,15 @@ docker compose up -d</code></pre>
         <thead><tr><th>Key</th><th>Default</th><th>Description</th></tr></thead>
         <tbody>
           <tr><td><code>enabled</code></td><td><code>true</code></td><td>Load the <code>skill_manage</code> tool and inject the skill catalog. Set to <code>false</code> to remove the capability entirely.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="cf-agent">Agent loop config</h2>
+      <p>The optional <code>agent</code> block tunes the core tool-calling loop. Each request runs the model, executes any tools, and repeats until a final answer is returned; this cap bounds how many rounds a single request may take. Omit it to run on the default below.</p>
+      <table>
+        <thead><tr><th>Key</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>max_iterations</code></td><td><code>25</code></td><td>Maximum tool-call rounds per request before the agent is forced to produce a final answer.</td></tr>
         </tbody>
       </table>
 

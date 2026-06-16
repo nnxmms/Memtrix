@@ -10,7 +10,7 @@ from src.agent_manager import AgentManager
 from src.channels.cli import CLIChannel
 from src.channels.matrix import MatrixChannel
 from src.commands import Commands
-from src.config import CONFIG_PATH, resolve_skills_config, resolve_ssh_config, update_config
+from src.config import CONFIG_PATH, resolve_agent_config, resolve_skills_config, resolve_ssh_config, update_config
 from src.deriver import Deriver
 from src.docs_index import DocsIndex
 from src.lifecycle import install_signal_handlers, start_heartbeat
@@ -145,6 +145,9 @@ class Memtrix:
         if not skills_cfg["enabled"]:
             tool_exclude |= SKILL_TOOL_FILES
 
+        # Core agent-loop settings (e.g. max tool-call rounds per request)
+        agent_cfg: dict[str, Any] = resolve_agent_config(config=self._config)
+
         tools: list[BaseTool] = discover_tools(workspace_dir=workspace_dir, exclude=tool_exclude)
 
         # Eagerly initialize the memory index so existing files are indexed at startup
@@ -184,6 +187,7 @@ class Memtrix:
             representation=representation,
             memory_config=mem_cfg,
             skills_catalog=skills_catalog,
+            max_iterations=agent_cfg["max_iterations"],
         )
 
         logger.info("Orchestrator initialized (model=%s, think=%s)", self._model, think)

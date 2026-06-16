@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-2.17.2-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-2.18.0-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 [Website](https://memtrix.me) · [Documentation](https://memtrix.me/docs.html) · [GitHub](https://github.com/nnxmms/Memtrix)
@@ -418,6 +418,18 @@ Skills are enabled by default and configured via the optional `skills` section i
 | Key | Default | Description |
 |:--|:--|:--|
 | `enabled` | `true` | Load the `skill_manage` tool and inject the skill catalog. Set to `false` to remove the capability entirely. |
+
+<br>
+
+## ⚙️ Agent Loop
+
+Each user request is handled by an iterative tool-calling loop: the agent calls the model, runs any requested tools, feeds the results back, and repeats until the model returns a final answer with no further tool calls. A safety cap limits how many of these rounds a single request may take; if it's reached, the agent is asked for a final answer with tools disabled. Raising the cap lets the agent work through longer, multi-step tasks without being cut off.
+
+The loop is configured via the optional `agent` section in `config.json`:
+
+| Key | Default | Description |
+|:--|:--|:--|
+| `max_iterations` | `25` | Maximum tool-call rounds per request before the agent is forced to produce a final answer. |
 
 <br>
 

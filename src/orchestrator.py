@@ -14,8 +14,8 @@ from src.tools.base import BaseTool
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-# Maximum number of tool-call rounds per request
-MAX_ITERATIONS: int = 10
+# Default number of tool-call rounds per request (overridable via the "agent" config block)
+DEFAULT_MAX_ITERATIONS: int = 25
 
 # Prefix marking a transient recall block injected into the working history
 RECALL_PREFIX: str = "📎 Relevant things I recall"
@@ -30,7 +30,8 @@ class Orchestrator:
                  think: bool = False, deriver: Deriver | None = None,
                  representation: RepresentationStore | None = None,
                  memory_config: dict[str, Any] | None = None,
-                 skills_catalog: Any | None = None) -> None:
+                 skills_catalog: Any | None = None,
+                 max_iterations: int = DEFAULT_MAX_ITERATIONS) -> None:
         """
         This is the Orchestrator class which runs the agentic tool-calling loop.
         """
@@ -59,6 +60,9 @@ class Orchestrator:
 
         # Skills layer (optional) — exposes the agent's reusable workflows
         self._skills_catalog: Any | None = skills_catalog
+
+        # Maximum tool-call rounds per request before forcing a final answer
+        self._max_iterations: int = max_iterations
 
     def _build_system_prompt(self, workspace_dir: str) -> str:
         """
@@ -218,7 +222,7 @@ class Orchestrator:
         transient_block: str = "\n\n".join(b for b in (recall_block, skill_block) if b)
 
         # Agentic loop — call LLM, execute tools, repeat
-        for iteration in range(MAX_ITERATIONS):
+        for iteration in range(self._max_iterations):
             # Call the LLM with the full session history and tool definitions
             logger.debug("LLM call (iteration %d, room=%s)", iteration + 1, room_id)
             message: Any = self._provider.completions(
@@ -288,7 +292,7 @@ class Orchestrator:
                     self._system_prompt = self._build_system_prompt(workspace_dir=self._workspace_dir)
 
         # Exhausted iterations — ask for a final answer without tools
-        logger.warning("Exhausted %d iterations (room=%s), forcing final answer", MAX_ITERATIONS, room_id)
+        logger.warning("Exhausted %d iterations (room=%s), forcing final answer", self._max_iterations, room_id)
         session.append(message={"role": "user", "content": "Please provide your final answer now."})
         message = self._provider.completions(
             model=self._model,

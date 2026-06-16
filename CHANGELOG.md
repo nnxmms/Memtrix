@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.18.0
+
+- The agent's tool-call loop limit is now configurable and its default has been raised from 10 to 25 rounds per request. Each user request runs an iterative loop (call the model, run tools, feed results back, repeat) until a final answer is produced; previously a hard-coded cap of 10 rounds could cut off longer multi-step tasks and force an early final answer. A new optional `agent` config block exposes `max_iterations` (default 25), applied to both the main agent and every sub-agent. Installs without an `agent` section automatically use the new default.
+
 ## 2.17.2
 
 - The skill self-authoring guidance in the agent system prompt is now mandatory after any larger task. Previously the agent was told to "briefly evaluate" whether a finished task was skill-worthy; it is now required to perform that evaluation as the explicit last step of completing a larger task (5+ tool calls, error recovery, a user correction, or a non-obvious workflow) and to capture or improve a skill unless an equally good one already exists. Skipping the check is no longer permitted — declining to save must be a deliberate judgement rather than an omission.
