@@ -475,33 +475,63 @@ class SSHManager:
             ask_password: Callable[[], str] | None = None) -> tuple[str, int]:
         """
         This function runs a command in the open session for an alias. When sudo is
-        set, a password is requested via ask_password (cached in RAM for the alias)
-        and fed to sudo over stdin.
+        requested, it first tries non-interactive sudo (-n flag). If that fails due to
+        a password requirement, it asks for the password via ask_password and caches
+        it in RAM for the alias. This avoids hanging on password prompts when the user
+        has passwordless sudo configured.
         """
         conn: SSHConnection | None = self._connections.get(alias)
         if conn is None or not conn.is_active():
             raise SSHError(f"Not connected to '{alias}'. Open a session first with ssh_connect.")
 
-        password: str | None = None
         if sudo:
-            password = self._sudo_pw.get(alias)
-            if password is None:
-                if ask_password is None:
-                    raise SSHError("A sudo password is required but no prompt is available.")
-                password = ask_password()
-                if not password:
-                    raise SSHError("No sudo password was provided; command not run.")
-                self._sudo_pw[alias] = password
-            command = f"sudo -k -S -p '' -- {command}"
+            # First, try non-interactive sudo (-n flag). This succeeds if the user
+            # has passwordless sudo (NOPASSWD) or if a prior call already cached the password.
+            # The -k flag flushes any cached credentials so we always get a fresh result.
+            test_cmd: str = f"sudo -n -k -p '' -- {command}"
+            output, exit_code = conn.run(command=test_cmd, password=None)
 
-        output, exit_code = conn.run(command=command, password=password)
-
-        if sudo:
+            # Check if the non-interactive attempt failed due to password requirement
             lowered: str = output.lower()
-            if "incorrect password" in lowered or "sorry, try again" in lowered or "is not in the sudoers" in lowered:
-                self._sudo_pw.pop(alias, None)
+            if exit_code != 0 and (
+                "a password is required" in lowered
+                or "sudo: a password is required" in lowered
+                or "[sudo] password" in lowered
+                or "is not in the sudoers" in lowered
+            ):
+                # Password-protected sudo is needed. Check if we have a cached password.
+                password: str | None = self._sudo_pw.get(alias)
+                if password is None:
+                    # No cached password; ask the user for it.
+                    if ask_password is None:
+                        raise SSHError("A sudo password is required but no prompt is available.")
+                    password = ask_password()
+                    if not password:
+                        raise SSHError("No sudo password was provided; command not run.")
+                    self._sudo_pw[alias] = password
+
+                # Retry the command with the password via stdin (-S flag).
+                command = f"sudo -k -S -p '' -- {command}"
+                output, exit_code = conn.run(command=command, password=password)
+
+                # If the password is wrong, clear the cached entry so we ask again next time.
+                if "incorrect password" in lowered or "sorry, try again" in lowered:
+                    self._sudo_pw.pop(alias, None)
+            elif exit_code == 0:
+                # Non-interactive sudo succeeded; return the result.
+                return output, exit_code
+            else:
+                # Some other error occurred; if we already have a cached password, try with it.
+                password: str | None = self._sudo_pw.get(alias)
+                if password is not None:
+                    command = f"sudo -k -S -p '' -- {command}"
+                    output, exit_code = conn.run(command=command, password=password)
+
+        else:
+            output, exit_code = conn.run(command=command, password=None)
 
         return output, exit_code
+
 
     def disconnect(self, alias: str) -> bool:
         """

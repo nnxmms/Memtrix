@@ -39,9 +39,8 @@ class SSHRunTool(BaseTool):
                 "Run a single shell command in the open SSH session for a host (open it first with "
                 "ssh_connect). Because the session is persistent, state carries over between calls: "
                 "'cd /etc' in one call is still in effect on the next. Combine steps on one line with "
-                "'&&' or ';'. Set sudo=true to run as root — you will be asked for the sudo password "
-                "the first time. Potentially destructive commands require confirmation. Returns the "
-                "command output and its exit code."
+                "'&&' or ';'. Set sudo=true to run as root. Potentially destructive commands require "
+                "confirmation. Returns the command output and its exit code."
             ),
             parameters={
                 "type": "object",

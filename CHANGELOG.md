@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.18.1
+
+- SSH sudo commands no longer hang waiting for password input when the user has passwordless sudo (NOPASSWD) configured. When `sudo=true` is set on `ssh_run`, the tool now first attempts a non-interactive `sudo -n` call; if it succeeds, the command output is returned immediately without prompting. Only if non-interactive sudo fails due to a password requirement does the tool ask the user, avoiding unnecessary hangs on systems with passwordless sudo for certain commands.
+
 ## 2.18.0
 
 - The agent's tool-call loop limit is now configurable and its default has been raised from 10 to 25 rounds per request. Each user request runs an iterative loop (call the model, run tools, feed results back, repeat) until a final answer is produced; previously a hard-coded cap of 10 rounds could cut off longer multi-step tasks and force an early final answer. A new optional `agent` config block exposes `max_iterations` (default 25), applied to both the main agent and every sub-agent. Installs without an `agent` section automatically use the new default.
