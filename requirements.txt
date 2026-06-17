@@ -5,6 +5,7 @@ chromadb
 einops
 fastapi
 filelock
+faster-whisper
 matrix-nio
 ollama
 openai

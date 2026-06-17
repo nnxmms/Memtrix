@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.19.0
+
+- Matrix voice messages can now be processed locally on-device: incoming `m.audio` events are downloaded to `attachments/`, transcribed with local speech-to-text, and forwarded to the normal agent loop as user text context.
+- New optional `voice` config block controls Matrix transcription behavior: `enabled`, `provider` (currently `local`), `model`, `language`, `max_audio_bytes`, and `timeout_seconds`.
+- Added a local STT module with lazy model initialization so voice transcription does not increase startup time; failures and timeouts degrade gracefully instead of breaking message handling.
+- Added config validation for the new voice settings and web config API support for editing the `voice` section.
+
 ## 2.18.4
 
 - Improved peer-card curation quality so `USER.md` and `MEMORY.md` no longer end with abrupt mid-bullet cutoffs when the character cap is hit. Card writes now enforce the budget with boundary-aware truncation (line/sentence/word) instead of naive raw slicing, preserving readable Markdown structure.

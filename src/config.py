@@ -106,3 +106,20 @@ def resolve_agent_config(config: dict[str, Any]) -> dict[str, Any]:
     user_cfg: dict[str, Any] = config.get("agent", {}) or {}
     return {**defaults, **user_cfg}
 
+
+def resolve_voice_config(config: dict[str, Any]) -> dict[str, Any]:
+    """
+    This function returns the voice-transcription configuration merged with safe
+    defaults. When disabled, Matrix audio messages are treated as regular files.
+    """
+    defaults: dict[str, Any] = {
+        "enabled": False,            # opt-in to Matrix audio transcription
+        "provider": "local",        # reserved for future providers; local for now
+        "model": "base",            # faster-whisper model tier
+        "language": None,            # auto-detect when unset
+        "max_audio_bytes": 25_000_000,
+        "timeout_seconds": 180,
+    }
+    user_cfg: dict[str, Any] = config.get("voice", {}) or {}
+    return {**defaults, **user_cfg}
+

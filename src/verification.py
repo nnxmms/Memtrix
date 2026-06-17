@@ -94,6 +94,28 @@ def validate_config(config: dict[str, Any]) -> list[str]:
         errors.extend(_validate_agent(label=f"agent '{name}'", agent=agent,
                                       models=models, channels=channels, required=True))
 
+    # Validate optional voice-transcription settings
+    voice: dict[str, Any] = config.get("voice") or {}
+    if not isinstance(voice, dict):
+        errors.append("voice section must be an object when present.")
+        return errors
+
+    provider: Any = voice.get("provider", "local")
+    if provider not in ("local",):
+        errors.append("voice.provider must be 'local'.")
+
+    model: Any = voice.get("model", "base")
+    if not isinstance(model, str) or not model.strip():
+        errors.append("voice.model must be a non-empty string.")
+
+    max_audio_bytes: Any = voice.get("max_audio_bytes", 25_000_000)
+    if not isinstance(max_audio_bytes, int) or max_audio_bytes <= 0:
+        errors.append("voice.max_audio_bytes must be a positive integer.")
+
+    timeout_seconds: Any = voice.get("timeout_seconds", 180)
+    if not isinstance(timeout_seconds, int) or timeout_seconds <= 0:
+        errors.append("voice.timeout_seconds must be a positive integer.")
+
     return errors
 
 

@@ -17,7 +17,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 class MatrixChannel:
 
-    def __init__(self, homeserver: str, user_id: str, access_token: str, display_name: str = "Memtrix", attachments_dir: str = "", bot_user_ids: set[str] | None = None) -> None:
+    def __init__(self, homeserver: str, user_id: str, access_token: str, display_name: str = "Memtrix", attachments_dir: str = "", bot_user_ids: set[str] | None = None, voice_config: dict[str, Any] | None = None, transcriber: Any = None) -> None:
         """
         This is the MatrixChannel class which provides a Matrix bot interface.
         """
@@ -52,6 +52,14 @@ class MatrixChannel:
 
         # Background handler tasks (prevent GC)
         self._tasks: set[asyncio.Task] = set()
+
+        # Optional local voice-transcription settings
+        self._voice_config: dict[str, Any] = voice_config or {}
+        self._transcriber: Any = transcriber
+        self._voice_enabled: bool = bool(self._voice_config.get("enabled", False))
+        self._voice_max_audio_bytes: int = int(self._voice_config.get("max_audio_bytes", 25_000_000))
+        self._voice_timeout_seconds: int = int(self._voice_config.get("timeout_seconds", 180))
+        self._voice_language: str | None = self._voice_config.get("language")
 
     async def _set_display_name(self) -> None:
         """
@@ -409,6 +417,143 @@ class MatrixChannel:
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
 
+    async def _on_audio(self, room: MatrixRoom, event: Any) -> None:
+        """
+        This function handles Matrix voice messages (m.audio). When voice STT is
+        enabled, it downloads and transcribes audio locally, then forwards the
+        transcript to the normal Memtrix handler.
+        """
+        if event.sender == self._user_id:
+            return
+        if event.sender in self._bot_user_ids:
+            return
+        if event.server_timestamp < self._start_time:
+            return
+        if not self._attachments_dir:
+            return
+
+        mxc_url: str = event.url or ""
+        filename: str = event.body or "voice_message"
+        if not mxc_url:
+            return
+
+        filepath: str = await self._download_mxc(mxc_url=mxc_url, filename=filename)
+        if not filepath:
+            return
+
+        sender_label: str = self._get_sender_label(room=room, event=event)
+        saved_filename: str = os.path.basename(filepath)
+        base_header: str = f"[Channel: Matrix, Sender: {sender_label}]"
+
+        # Fallback payload (always available)
+        user_message: str = (
+            f"{base_header}\n"
+            f"[Voice message received: attachments/{saved_filename}]\n"
+            "[Transcription unavailable.]"
+        )
+
+        if self._voice_enabled and self._transcriber is not None:
+            try:
+                if os.path.getsize(filepath) > self._voice_max_audio_bytes:
+                    raise RuntimeError("Audio file too large for configured voice.max_audio_bytes limit.")
+
+                result: dict[str, Any] = await asyncio.wait_for(
+                    asyncio.to_thread(self._transcriber.transcribe, filepath, self._voice_language),
+                    timeout=self._voice_timeout_seconds,
+                )
+                transcript: str = str(result.get("text", "") or "").strip()
+                if result.get("ok") and transcript:
+                    user_message = (
+                        f"{base_header}\n"
+                        f"[Voice transcription from attachments/{saved_filename}]\n"
+                        f"{transcript}"
+                    )
+                else:
+                    error_detail: str = str(result.get("error", "transcription failed"))
+                    user_message = (
+                        f"{base_header}\n"
+                        f"[Voice message received: attachments/{saved_filename}]\n"
+                        f"[Transcription failed: {error_detail}]"
+                    )
+            except asyncio.TimeoutError:
+                user_message = (
+                    f"{base_header}\n"
+                    f"[Voice message received: attachments/{saved_filename}]\n"
+                    "[Transcription timed out.]"
+                )
+            except Exception as e:
+                user_message = (
+                    f"{base_header}\n"
+                    f"[Voice message received: attachments/{saved_filename}]\n"
+                    f"[Transcription failed: {e}]"
+                )
+
+        logger.info("Audio received from %s in %s: %s", sender_label, room.room_id, saved_filename)
+
+        loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
+
+        def notify(msg: str) -> None:
+            future = asyncio.run_coroutine_threadsafe(
+                self._client.room_send(
+                    room_id=room.room_id,
+                    message_type="m.room.message",
+                    content={"msgtype": "m.notice", "body": msg}
+                ),
+                loop
+            )
+            future.result(timeout=10)
+
+        def send_file(path: str) -> None:
+            future = asyncio.run_coroutine_threadsafe(
+                self._send_file_to_room(room_id=room.room_id, filepath=path),
+                loop
+            )
+            future.result(timeout=30)
+
+        def ask(msg: str) -> str:
+            queue: asyncio.Queue[str] = asyncio.Queue()
+            self._pending_asks[room.room_id] = queue
+            try:
+                send_future = asyncio.run_coroutine_threadsafe(
+                    self._client.room_send(
+                        room_id=room.room_id,
+                        message_type="m.room.message",
+                        content={"msgtype": "m.notice", "body": msg}
+                    ),
+                    loop
+                )
+                send_future.result(timeout=10)
+                get_future = asyncio.run_coroutine_threadsafe(queue.get(), loop)
+                return get_future.result(timeout=120)
+            finally:
+                self._pending_asks.pop(room.room_id, None)
+
+        def react(emoji: str) -> None:
+            future = asyncio.run_coroutine_threadsafe(
+                self._react_to_event(room_id=room.room_id, event_id=event.event_id, key=emoji),
+                loop
+            )
+            future.result(timeout=10)
+
+        async def _process() -> None:
+            typing_task: asyncio.Task = asyncio.create_task(self._typing_loop(room_id=room.room_id))
+            try:
+                reply: str = await asyncio.to_thread(self._handler, user_message, room.room_id, notify, send_file, ask, react)
+                await self._client.room_send(
+                    room_id=room.room_id,
+                    message_type="m.room.message",
+                    content={"msgtype": "m.text", "body": reply}
+                )
+            except Exception as e:
+                logger.error("Error processing audio message in %s: %s", room.room_id, e, exc_info=True)
+            finally:
+                typing_task.cancel()
+                await self._stop_typing(room_id=room.room_id)
+
+        task: asyncio.Task = asyncio.create_task(_process())
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
     async def _on_sync(self, response: SyncResponse) -> None:
         """
         This function auto-joins rooms when the bot is invited.
@@ -427,7 +572,7 @@ class MatrixChannel:
         self._client.add_event_callback(self._on_message, RoomMessageText)
         self._client.add_event_callback(self._on_file, RoomMessageFile)
         self._client.add_event_callback(self._on_file, RoomMessageImage)
-        self._client.add_event_callback(self._on_file, RoomMessageAudio)
+        self._client.add_event_callback(self._on_audio, RoomMessageAudio)
         self._client.add_event_callback(self._on_file, RoomMessageVideo)
         self._client.add_response_callback(self._on_sync, SyncResponse)
 

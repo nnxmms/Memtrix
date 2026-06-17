@@ -10,7 +10,7 @@ from src.agent_manager import AgentManager
 from src.channels.cli import CLIChannel
 from src.channels.matrix import MatrixChannel
 from src.commands import Commands
-from src.config import CONFIG_PATH, resolve_agent_config, resolve_skills_config, resolve_ssh_config, update_config
+from src.config import CONFIG_PATH, resolve_agent_config, resolve_skills_config, resolve_ssh_config, resolve_voice_config, update_config
 from src.deriver import Deriver
 from src.docs_index import DocsIndex
 from src.lifecycle import install_signal_handlers, start_heartbeat
@@ -21,6 +21,7 @@ from src.representation import RepresentationStore, resolve_memory_config
 from src.session import Session
 from src.skills_index import SKILL_TOOL_FILES, SkillsCatalog
 from src.ssh_manager import SSH_TOOL_FILES, SSHManager
+from src.transcription import LocalSpeechToText
 from src.tools import discover_tools
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -355,6 +356,10 @@ class Memtrix:
 
         if channel_type == "matrix":
             agent_name: str = self._config["main-agent"].get("name", "Memtrix")
+            voice_cfg: dict[str, Any] = resolve_voice_config(config=self._config)
+            transcriber: LocalSpeechToText | None = None
+            if voice_cfg.get("enabled") and voice_cfg.get("provider") == "local":
+                transcriber = LocalSpeechToText(model_name=str(voice_cfg.get("model", "base")))
             logger.info("Starting Matrix channel as '%s'", agent_name)
             channel: MatrixChannel = MatrixChannel(
                 homeserver=channel_config["homeserver"],
@@ -362,7 +367,9 @@ class Memtrix:
                 access_token=channel_config["access_token"],
                 display_name=channel_config.get("display_name", f"{agent_name} ⚡"),
                 attachments_dir=attachments_dir,
-                bot_user_ids=self._bot_user_ids
+                bot_user_ids=self._bot_user_ids,
+                voice_config=voice_cfg,
+                transcriber=transcriber,
             )
             channel.run(handler=self._handle)
         else:

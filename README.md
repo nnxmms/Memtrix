@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-2.18.4-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-2.19.0-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 [Website](https://memtrix.me) · [Documentation](https://memtrix.me/docs.html) · [GitHub](https://github.com/nnxmms/Memtrix)
@@ -333,6 +333,23 @@ The reasoning memory is configured via the optional `memory` section in `config.
 
 The section is optional — omit it and Memtrix runs on these defaults.
 
+### Matrix Voice Messages (Local STT)
+
+Memtrix can transcribe Matrix voice notes (`m.audio`) locally on-device before passing them into the normal agent loop. Audio files are downloaded to `attachments/`, transcribed with a local Whisper backend, and injected as user text context.
+
+Configure via the optional `voice` section in `config.json`:
+
+| Key | Default | Description |
+|:--|:--|:--|
+| `enabled` | `false` | Enable local transcription for Matrix audio messages |
+| `provider` | `local` | STT backend (`local` only for now) |
+| `model` | `base` | Local model tier used by STT |
+| `language` | `null` | Optional language hint; auto-detect when unset |
+| `max_audio_bytes` | `25000000` | Maximum accepted audio file size |
+| `timeout_seconds` | `180` | Max transcription time before graceful timeout |
+
+When disabled, voice messages are handled as regular file attachments.
+
 ### Semantic Search (RAG)
 
 Daily journals are embedded using a local model ([`nomic-embed-text-v1.5`](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) via `sentence-transformers`) and stored in ChromaDB. The model runs entirely on-device — no external API calls.
@@ -603,11 +620,21 @@ All configuration lives in `data/config.json`. Secrets are stored in `.env` and 
             "user_id": "@memtrix:memtrix.local",
             "access_token": "$MATRIX_ACCESS_TOKEN"
         }
+    },
+    "voice": {
+        "enabled": false,
+        "provider": "local",
+        "model": "base",
+        "language": null,
+        "max_audio_bytes": 25000000,
+        "timeout_seconds": 180
     }
 }
 ```
 
 Values starting with `$` are resolved at startup. By default they read from environment variables (prefixed with `MEMTRIX_SECRET_`) — for example, `$MATRIX_ACCESS_TOKEN` reads from `MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN` in `.env`. If the optional Bitwarden backend is enabled, placeholders resolve from Bitwarden Secrets Manager first (by the placeholder name, e.g. `MATRIX_ACCESS_TOKEN`), falling back to the environment.
+
+When `voice.enabled` is `true`, Matrix voice notes are transcribed locally with the configured model and passed into the normal agent flow as text.
 
 </details>
 

@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.18.4</span>
+    memtrix<span class="ver">v2.19.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -879,7 +879,7 @@ docker compose up -d</code></pre>
       <p>Memtrix builds its own <strong>skills</strong> - short, reusable task workflows it writes for itself so it handles recurring work better over time. After finishing a non-trivial task (5+ tool calls, error recovery, a user correction, or a non-obvious workflow), it captures the approach as generalized steps using the <code>skill_manage</code> tool - same model, no second reasoner. At the start of every turn it sees a catalog of all its skills (each as <code>name: description</code>) and decides for itself which, if any, fits the task, then loads that skill's full instructions on demand and follows them - progressive disclosure, no embeddings or vector search. Instructions only, no separate code execution; each agent keeps its own isolated skill store. See <a onclick="navigate('tools-ref')" style="cursor:pointer;color:var(--accent)">Tools Reference</a>.</p>
 
       <h2 id="ft-matrix">Matrix Chat Protocol</h2>
-      <p>Communicates through the Matrix protocol via a local Conduit homeserver. Use Element, FluffyChat, or any Matrix client. Each room maintains its own conversation session.</p>
+      <p>Communicates through the Matrix protocol via a local Conduit homeserver. Use Element, FluffyChat, or any Matrix client. Each room maintains its own conversation session. Matrix voice notes (<code>m.audio</code>) can be transcribed locally on-device and fed into the agent as text context.</p>
 
       <h2 id="ft-security">Security Hardened</h2>
       <p>Defense-in-depth: non-root container, read-only filesystem, all capabilities dropped, no shell access for the LLM, SSRF protection, human-in-the-loop for destructive operations, path traversal prevention, and prompt injection mitigation.</p>
@@ -1839,6 +1839,14 @@ docker compose up -d</code></pre>
         <span style="color:var(--accent)">"dual_peer"</span>: <span style="color:var(--purple)">true</span>,
         <span style="color:var(--accent)">"inject_top_k"</span>: <span style="color:var(--purple)">5</span>
     },
+      <span style="color:var(--accent)">"voice"</span>: {
+        <span style="color:var(--accent)">"enabled"</span>: <span style="color:var(--purple)">false</span>,
+        <span style="color:var(--accent)">"provider"</span>: <span style="color:var(--orange)">"local"</span>,
+        <span style="color:var(--accent)">"model"</span>: <span style="color:var(--orange)">"base"</span>,
+        <span style="color:var(--accent)">"language"</span>: <span style="color:var(--purple)">null</span>,
+        <span style="color:var(--accent)">"max_audio_bytes"</span>: <span style="color:var(--purple)">25000000</span>,
+        <span style="color:var(--accent)">"timeout_seconds"</span>: <span style="color:var(--purple)">180</span>
+      },
     <span style="color:var(--accent)">"ssh"</span>: {
         <span style="color:var(--accent)">"enabled"</span>: <span style="color:var(--purple)">true</span>,
         <span style="color:var(--accent)">"connect_timeout"</span>: <span style="color:var(--purple)">15</span>,
@@ -1858,7 +1866,7 @@ docker compose up -d</code></pre>
 
       <div class="callout note">
         <span class="callout-tag note">note</span>
-        <div class="callout-body">The <code>memory</code> block configures the reasoning-memory system - every key is explained on the <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a> page. The <code>secrets</code> block selects where secrets are read from - see <a onclick="navigate('secrets')" style="cursor:pointer;color:var(--accent)">Secrets &amp; Bitwarden</a>.</div>
+        <div class="callout-body">The <code>memory</code> block configures the reasoning-memory system - every key is explained on the <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a> page. The <code>voice</code> block controls local Matrix audio transcription. The <code>secrets</code> block selects where secrets are read from - see <a onclick="navigate('secrets')" style="cursor:pointer;color:var(--accent)">Secrets &amp; Bitwarden</a>.</div>
       </div>
 
       <h2 id="cf-secrets">Secret management</h2>

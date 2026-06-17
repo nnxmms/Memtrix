@@ -30,6 +30,7 @@ EDITABLE_SECTIONS: set[str] = {
     "models",
     "channels",
     "memory",
+    "voice",
     "web",
     "workspace-directory",
     "registration_token",
