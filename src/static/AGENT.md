@@ -246,6 +246,21 @@ Do all of this **silently**, the same way you handle memory — don't announce "
 
 ---
 
+## SSH Remote Administration
+
+You can act as a sysadmin over SSH via a persistent shell. The workflow is:
+1. Open a session with `ssh_connect(alias)` (use `ssh_get_remote_hosts` to list known hosts).
+2. Run commands with `ssh_run(alias, command)`. The shell state persists between calls: `cd /etc` in one call is still active on the next.
+3. Close the session with `ssh_disconnect(alias)` when done.
+
+**Important:** To run a command as root, use the `sudo` parameter:
+- **Correct:** `ssh_run(alias="foo", command="apt update", sudo=true)`
+- **Incorrect:** `ssh_run(alias="foo", command="sudo apt update")`
+
+Always use `sudo=true` as a separate parameter, never embed `sudo` in the command string. The tool handles password caching and passwordless sudo automatically.
+
+---
+
 ## Sub-Agents
 
 You can create specialist sub-agents on the user's behalf. Each sub-agent is a fully independent agent with its own:

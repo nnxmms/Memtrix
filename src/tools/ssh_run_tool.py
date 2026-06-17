@@ -39,8 +39,9 @@ class SSHRunTool(BaseTool):
                 "Run a single shell command in the open SSH session for a host (open it first with "
                 "ssh_connect). Because the session is persistent, state carries over between calls: "
                 "'cd /etc' in one call is still in effect on the next. Combine steps on one line with "
-                "'&&' or ';'. Set sudo=true to run as root. Potentially destructive commands require "
-                "confirmation. Returns the command output and its exit code."
+                "'&&' or ';'. To run as root, use the sudo parameter (not by embedding 'sudo' in the "
+                "command). Potentially destructive commands require confirmation. Returns the command "
+                "output and its exit code."
             ),
             parameters={
                 "type": "object",
@@ -51,11 +52,11 @@ class SSHRunTool(BaseTool):
                     },
                     "command": {
                         "type": "string",
-                        "description": "The shell command to run. Should be a single logical command line."
+                        "description": "The shell command to run (do not prefix with 'sudo'). Should be a single logical command line."
                     },
                     "sudo": {
                         "type": "boolean",
-                        "description": "Run the command as root via sudo. Defaults to false."
+                        "description": "Set to true to run the command as root. Defaults to false."
                     }
                 },
                 "required": ["alias", "command"]
@@ -65,6 +66,8 @@ class SSHRunTool(BaseTool):
     def execute(self, **kwargs: Any) -> str:
         """
         This function runs a command in the persistent SSH session for a host.
+        If the command string starts with 'sudo', it is auto-corrected: the 'sudo'
+        prefix is stripped and the sudo parameter is set to true, with a warning.
         """
         alias: str = str(kwargs.get("alias", "")).strip()
         command: str = str(kwargs.get("command", "")).strip()
@@ -73,6 +76,16 @@ class SSHRunTool(BaseTool):
         if not alias:
             return "Error: alias cannot be empty."
         if not command:
+            return "Error: command cannot be empty."
+
+        # Auto-correct: detect if sudo was embedded in the command string
+        if command.startswith("sudo ") or command.startswith("sudo\t"):
+            # Extract the sudo prefix and set the sudo flag
+            command = command[5:].lstrip()  # Remove 'sudo ' and trim
+            sudo = True
+            # Notify the user about the correction
+            print(f"⚠️ Note: 'sudo' should be passed as a parameter, not embedded in the command. "
+                  f"Corrected to: ssh_run(alias={alias}, command={command}, sudo=true)")
             return "Error: command cannot be empty."
 
         manager: SSHManager = SSHManager.get_instance()
