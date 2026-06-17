@@ -189,7 +189,8 @@ class Orchestrator:
             send_file: Callable[[str], None] | None = None,
             ask: Callable[[str], str] | None = None,
             react: Callable[[str], None] | None = None,
-            agent_depth: int = 0) -> str:
+            agent_depth: int = 0,
+            should_stop: Callable[[], bool] | None = None) -> str:
         """
         This function processes a user message through the agentic loop and returns the final response.
         All callbacks are per-call parameters — the orchestrator holds no mutable per-request state.
@@ -223,6 +224,11 @@ class Orchestrator:
 
         # Agentic loop — call LLM, execute tools, repeat
         for iteration in range(self._max_iterations):
+            # Check if a stop was requested
+            if should_stop and should_stop():
+                logger.info("Stop requested during iteration %d (room=%s)", iteration + 1, room_id)
+                return "(stopped)"
+
             # Call the LLM with the full session history and tool definitions
             logger.debug("LLM call (iteration %d, room=%s)", iteration + 1, room_id)
             message: Any = self._provider.completions(

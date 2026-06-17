@@ -64,6 +64,9 @@ class Memtrix:
         # Per-room sessions keyed by room id
         self._sessions: dict[str, Session] = {}
 
+        # Per-room stop requests — room IDs for which /stop was sent
+        self._stop_requested: set[str] = set()
+
         # Shared mutable set of all bot user IDs (main + sub-agents)
         self._bot_user_ids: set[str] = set()
 
@@ -282,6 +285,11 @@ class Memtrix:
         if raw_body.strip().lower() in ("/clear", "/new"):
             return self._clear_session(room_id=room_id)
 
+        # Handle /stop — interrupt the current run without affecting the session
+        if raw_body.strip().lower() == "/stop":
+            self._stop_requested.add(room_id)
+            return "⏹️ Stopped."
+
         # Check for slash commands
         if self._commands.is_command(message=raw_body):
             return self._commands.execute(message=raw_body)
@@ -290,9 +298,18 @@ class Memtrix:
         notify_cb: Callable[[str], None] | None = notify if self._commands.verbose else None
         reasoning_cb: Callable[[str], None] | None = notify if self._commands.reasoning else None
 
+        # Check if a stop was requested for this room, and clear it before running
+        if room_id in self._stop_requested:
+            self._stop_requested.discard(room_id)
+            return "(stopped)"
+
+        # Create a callable to check if stop is requested during the run
+        def should_stop() -> bool:
+            return room_id in self._stop_requested
+
         # Get the session for this room and run the orchestrator
         session: Session = self._get_session(room_id=room_id)
-        return self._orchestrator.run(
+        result = self._orchestrator.run(
             user_message=user_input,
             session=session,
             room_id=room_id,
@@ -300,8 +317,12 @@ class Memtrix:
             notify_reasoning=reasoning_cb,
             send_file=send_file,
             ask=ask,
-            react=react
+            react=react,
+            should_stop=should_stop,
         )
+        # Clear the stop flag in case it was set during the run
+        self._stop_requested.discard(room_id)
+        return result
 
     def run(self) -> None:
         """

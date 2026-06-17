@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.18.3
+
+- Added `/stop` slash command to interrupt the current run immediately without affecting the session. Useful for canceling long-running operations or tool calls. The session history is preserved and the user can send the next message normally. The command is now checked at each iteration of the agentic loop, ensuring instant interruption even during LLM reasoning. Documented in the agent's system prompt and listed in `/help`.
+- SSH tool now enforces correct sudo usage. The `ssh_run` tool description has been clarified to state that `sudo` must be passed as a parameter, not embedded in the command string. If the LLM does embed `sudo` in the command, the tool detects it, auto-corrects by stripping the prefix and setting `sudo=true`, and logs a warning. The system prompt (AGENT.md) now includes explicit SSH usage guidance with correct and incorrect examples.
+- SSH sudo commands no longer hang waiting for password input when the user has passwordless sudo (NOPASSWD) configured. When `sudo=true` is set on `ssh_run`, the tool now first attempts a non-interactive `sudo -n` call; if it succeeds, the command output is returned immediately without prompting. Only if non-interactive sudo fails due to a password requirement does the tool ask the user, avoiding unnecessary hangs on systems with passwordless sudo for certain commands.
+- Added `/stop` slash command to interrupt the current run immediately without affecting the session. Useful for canceling long-running operations or tool calls. The session history is preserved and the user can send the next message normally. The command is listed in `/help` and documented in the agent's system prompt.
+
 ## 2.18.2
 
 - SSH tool now enforces correct sudo usage. The `ssh_run` tool description has been clarified to state that `sudo` must be passed as a parameter, not embedded in the command string. If the LLM does embed `sudo` in the command, the tool detects it, auto-corrects by stripping the prefix and setting `sudo=true`, and logs a warning. The system prompt (AGENT.md) now includes explicit SSH usage guidance with correct and incorrect examples.

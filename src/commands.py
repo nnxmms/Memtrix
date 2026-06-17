@@ -144,4 +144,6 @@ class Commands:
         This function lists available commands.
         """
         names: list[str] = sorted(self._commands.keys())
+        # /stop is special-cased in memtrix.py, so add it manually
+        names = ["stop"] + names
         return "Available commands: " + ", ".join(f"/{n}" for n in names)
