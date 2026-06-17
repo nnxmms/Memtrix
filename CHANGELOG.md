@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.18.4
+
+- Improved peer-card curation quality so `USER.md` and `MEMORY.md` no longer end with abrupt mid-bullet cutoffs when the character cap is hit. Card writes now enforce the budget with boundary-aware truncation (line/sentence/word) instead of naive raw slicing, preserving readable Markdown structure.
+- Strengthened deriver card-generation prompts to prefer fewer, higher-signal complete bullets and added a bounded one-shot compression retry when a draft significantly exceeds `peer_card_max_chars`, reducing fallback truncation frequency.
+- Curation input is now shaped more defensively by shortening overlong source conclusions before prompt assembly, preventing single verbose records from dominating the peer-card budget.
+
 ## 2.18.3
 
 - Added `/stop` slash command to interrupt the current run immediately without affecting the session. Useful for canceling long-running operations or tool calls. The session history is preserved and the user can send the next message normally. The command is now checked at each iteration of the agentic loop, ensuring instant interruption even during LLM reasoning. Documented in the agent's system prompt and listed in `/help`.

@@ -24,6 +24,13 @@ IDLE_FLUSH_SECONDS: float = 90.0
 # Re-curate the finite peer card after this many reasoning passes for a peer
 CARD_REFRESH_EVERY: int = 3
 
+# Cap curation input size so one verbose conclusion cannot dominate the card
+CARD_SOURCE_LIMIT: int = 40
+CARD_SOURCE_ITEM_MAX_CHARS: int = 220
+
+# Run one compression retry when the first draft significantly exceeds budget
+CARD_RETRY_OVERAGE_CHARS: int = 80
+
 # Peer -> config key that, when true, freezes that peer card against re-curation
 FREEZE_FLAGS: dict[str, str] = {"user": "freeze_user_card", "agent": "freeze_agent_card"}
 
@@ -232,12 +239,15 @@ class Deriver:
             logger.info("Peer card '%s' is frozen; skipping re-curation", peer)
             return
 
-        records: list[dict[str, Any]] = self._store.all_for_peer(peer=peer, limit=40)
+        records: list[dict[str, Any]] = self._store.all_for_peer(peer=peer, limit=CARD_SOURCE_LIMIT)
         if not records:
             return
 
         existing: str = self._store.read_peer_card(peer=peer)
-        bullet_points: str = "\n".join(f"- ({r['kind']}) {r['content']}" for r in records)
+        shaped_bullets: list[str] = [self._shape_record_bullet(r) for r in records]
+        bullet_points: str = "\n".join(b for b in shaped_bullets if b)
+        if not bullet_points:
+            return
         if peer == "user":
             subject_desc: str = (
                 "a compact profile of the USER: their name, what they like, their preferences, "
@@ -253,6 +263,8 @@ class Deriver:
             f"You maintain {subject_desc}. Rewrite the card as concise Markdown bullet points. "
             f"Keep it under {self._max_chars} characters. Merge duplicates, drop anything "
             "outdated or contradicted, and keep only durable, high-signal information. "
+            "Every bullet must be atomic and complete; never output incomplete or dangling bullets. "
+            "Prefer fewer, stronger bullets over broad coverage. "
             "Respond with ONLY the card content, no preamble."
         )
         user_prompt: str = (
@@ -274,8 +286,55 @@ class Deriver:
 
         if card:
             card = re.sub(pattern=r"^```[a-zA-Z]*\n?|\n?```$", repl="", string=card).strip()
+            if len(card) > self._max_chars + CARD_RETRY_OVERAGE_CHARS:
+                compacted: str | None = self._retry_compact_card(peer=peer, subject_desc=subject_desc, card=card)
+                if compacted:
+                    card = compacted
             self._store.write_peer_card(peer=peer, text=card, max_chars=self._max_chars)
-            logger.info("Re-curated peer card for '%s' (%d chars)", peer, len(card))
+            logger.info("Re-curated peer card for '%s' (draft=%d chars)", peer, len(card))
+
+    @staticmethod
+    def _shape_record_bullet(record: dict[str, Any]) -> str:
+        """
+        This function normalizes one conclusion into a compact bullet suitable for
+        peer-card curation prompts.
+        """
+        content: str = re.sub(pattern=r"\s+", repl=" ", string=str(record.get("content", "") or "")).strip()
+        if not content:
+            return ""
+        if len(content) > CARD_SOURCE_ITEM_MAX_CHARS:
+            content = content[:CARD_SOURCE_ITEM_MAX_CHARS].rstrip()
+        kind: str = str(record.get("kind", "observation") or "observation")
+        return f"- ({kind}) {content}"
+
+    def _retry_compact_card(self, peer: str, subject_desc: str, card: str) -> str | None:
+        """
+        This function performs one bounded retry to compress an oversized peer-card
+        draft before the final storage-layer budget enforcement runs.
+        """
+        system_prompt: str = (
+            f"Compress this Markdown bullet card about {subject_desc}. "
+            f"Keep it at or below {self._max_chars} characters. "
+            "Keep only the highest-signal durable bullets. "
+            "Every bullet must be complete and grammatical. "
+            "Respond with ONLY Markdown bullets, no preamble."
+        )
+        history: list[dict[str, str]] = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Card draft:\n{card}\n\nReturn a compact rewrite."},
+        ]
+        try:
+            message: Any = self._provider.completions(model=self._model, history=history, think=False)
+            compacted: str = (message.content or "").strip()
+        except Exception as e:
+            logger.warning("Peer card compact retry failed for '%s': %s", peer, e)
+            return None
+
+        compacted = re.sub(pattern=r"^```[a-zA-Z]*\n?|\n?```$", repl="", string=compacted).strip()
+        if not compacted:
+            return None
+        logger.info("Peer card compact retry used for '%s' (%d chars)", peer, len(compacted))
+        return compacted
 
     # --------------------------------------------------- daily memory consolidation
 

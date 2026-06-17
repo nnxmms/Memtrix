@@ -9,7 +9,7 @@
 [![Matrix](https://img.shields.io/badge/Matrix-Protocol-000000?logo=matrix&logoColor=white)](https://matrix.org)
 [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-1A1A2E)](https://ollama.ai)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-Cloud%20LLM-6C5CE7)](https://openrouter.ai)
-[![Version](https://img.shields.io/badge/version-2.18.3-brightgreen)](#)
+[![Version](https://img.shields.io/badge/version-2.18.4-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-Private-red)](#)
 
 [Website](https://memtrix.me) · [Documentation](https://memtrix.me/docs.html) · [GitHub](https://github.com/nnxmms/Memtrix)
@@ -327,7 +327,7 @@ The reasoning memory is configured via the optional `memory` section in `config.
 | `reasoning_level` | `low` | Reasoning depth: `minimal`, `low`, `medium`, `high`, `max` |
 | `reasoning_model` | `null` | Optional model override for reasoning (must share the main provider) |
 | `batch_tokens` | `1000` | Approx. tokens accumulated before a background reasoning pass |
-| `peer_card_max_chars` | `1500` | Hard character budget for each profile card |
+| `peer_card_max_chars` | `1500` | Hard character budget for each profile card, enforced with boundary-safe trimming (no mid-bullet cutoffs) |
 | `dual_peer` | `true` | Model both the user and the agent (vs. user only) |
 | `inject_top_k` | `5` | How many conclusions to inject into the prompt per turn |
 

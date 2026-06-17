@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.18.3</span>
+    memtrix<span class="ver">v2.18.4</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -1449,7 +1449,7 @@ docker compose up -d</code></pre>
           <tr><td>agent</td><td><code>MEMORY.md</code></td><td>The agent's distilled long-term "brain"</td></tr>
         </tbody>
       </table>
-      <p>Peer cards are <strong>always injected</strong> into the system prompt, capped at <code>peer_card_max_chars</code> (default 1,500). They are re-curated from accumulated conclusions every few reasoning passes - so they stay compact and current instead of growing forever.</p>
+      <p>Peer cards are <strong>always injected</strong> into the system prompt, capped at <code>peer_card_max_chars</code> (default 1,500). They are re-curated from accumulated conclusions every few reasoning passes - so they stay compact and current instead of growing forever. Cap enforcement is boundary-safe, so cards are trimmed at clean boundaries instead of being cut mid-bullet.</p>
 
       <div class="callout warn">
         <span class="callout-tag warn">warn</span>
@@ -1566,7 +1566,7 @@ docker compose up -d</code></pre>
           <tr><td><code>reasoning_level</code></td><td><code>low</code></td><td>Depth of extraction (items per kind: 2 / 4 / 6 / 8 / 12)</td></tr>
           <tr><td><code>reasoning_model</code></td><td><code>null</code></td><td>Use a different model instance for derivation, or the main model</td></tr>
           <tr><td><code>batch_tokens</code></td><td><code>1000</code></td><td>Token threshold before a peer's queue is flushed and reasoned</td></tr>
-          <tr><td><code>peer_card_max_chars</code></td><td><code>1500</code></td><td>Maximum size of each peer card</td></tr>
+          <tr><td><code>peer_card_max_chars</code></td><td><code>1500</code></td><td>Maximum size of each peer card (trimmed at safe boundaries, not mid-bullet)</td></tr>
           <tr><td><code>dual_peer</code></td><td><code>true</code></td><td>Model the agent (<code>MEMORY.md</code>) as well as the user</td></tr>
           <tr><td><code>inject_top_k</code></td><td><code>5</code></td><td>Number of conclusions auto-injected per message</td></tr>
           <tr><td><code>consolidation</code></td><td><code>true</code></td><td>Run the daily distillation pass that merges and prunes conclusions</td></tr>

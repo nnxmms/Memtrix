@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 import threading
 import time
 import uuid
@@ -96,6 +97,7 @@ class RepresentationStore:
 
     _instances: dict[str, "RepresentationStore"] = {}
     _lock: threading.Lock = threading.Lock()
+    _TRUNCATION_MARKER: str = "..."
 
     @classmethod
     def get_instance(cls, workspace_dir: str, collection_name: str = "representations") -> "RepresentationStore":
@@ -294,13 +296,66 @@ class RepresentationStore:
         filename: str | None = PEER_CARD_FILES.get(peer)
         if not filename:
             return
-        trimmed: str = text.strip()
-        if len(trimmed) > max_chars:
-            trimmed = trimmed[:max_chars].rstrip()
+        raw_text: str = text.strip()
+        trimmed, strategy = self._truncate_peer_card(text=raw_text, max_chars=max_chars)
+        if strategy != "none":
+            logger.info(
+                "Peer card '%s' truncated via %s (%d -> %d chars, limit=%d)",
+                peer,
+                strategy,
+                len(raw_text),
+                len(trimmed),
+                max_chars,
+            )
         path: str = os.path.join(self._workspace_dir, filename)
         with self._write_lock, FileLock(path + ".lock", timeout=15):
             with open(file=path, mode="w") as f:
                 f.write(trimmed + "\n")
+
+    def _truncate_peer_card(self, text: str, max_chars: int) -> tuple[str, str]:
+        """
+        This function enforces the peer-card character budget while preferring
+        clean semantic boundaries instead of slicing mid-word or mid-bullet.
+        Returns (trimmed_text, strategy).
+        """
+        if max_chars <= 0:
+            return ("", "empty-budget")
+
+        normalized: str = text.strip()
+        if len(normalized) <= max_chars:
+            return (normalized, "none")
+
+        # Reserve room for a continuation marker whenever possible.
+        marker: str = self._TRUNCATION_MARKER if max_chars > len(self._TRUNCATION_MARKER) else ""
+        budget: int = max_chars - len(marker)
+        if budget <= 0:
+            return (normalized[:max_chars].rstrip(), "hard-cut")
+
+        candidate: str = normalized[:budget].rstrip()
+
+        # 1) Prefer a complete line/bullet boundary.
+        last_newline: int = candidate.rfind("\n")
+        if last_newline > 0:
+            line_cut: str = candidate[:last_newline].rstrip()
+            if line_cut:
+                return (line_cut + marker, "line-boundary")
+
+        # 2) Prefer ending on sentence punctuation.
+        sentence_ends: list[int] = [m.end() for m in re.finditer(r"[.!?](?:\s|$)", candidate)]
+        if sentence_ends:
+            sent_cut: str = candidate[:sentence_ends[-1]].rstrip()
+            if sent_cut:
+                return (sent_cut + marker, "sentence-boundary")
+
+        # 3) Prefer a word boundary.
+        last_space: int = candidate.rfind(" ")
+        if last_space > 0:
+            word_cut: str = candidate[:last_space].rstrip()
+            if word_cut:
+                return (word_cut + marker, "word-boundary")
+
+        # Final fallback: hard cut at budget.
+        return (candidate + marker, "hard-cut")
 
     # ----------------------------------------------------------------- admin API
 
