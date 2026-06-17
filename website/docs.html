@@ -2041,6 +2041,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
         <tbody>
           <tr><td><code>/clear</code></td><td>-</td><td>Start a fresh session in the current room. Also clears inter-agent sessions.</td></tr>
           <tr><td><code>/new</code></td><td>-</td><td>Alias for <code>/clear</code> - begins a new conversation in the current room.</td></tr>
+          <tr><td><code>/stop</code></td><td>-</td><td>Stop the current run immediately. Interrupts LLM reasoning, tool execution, and any ongoing operations. Session history is preserved; send the next message to continue.</td></tr>
           <tr><td><code>/verbose</code></td><td><code>on</code> | <code>off</code></td><td>Toggle real-time tool execution notifications. Persists to config.</td></tr>
           <tr><td><code>/reasoning</code></td><td><code>on</code> | <code>off</code></td><td>Toggle display of model reasoning/thinking. Persists to config.</td></tr>
           <tr><td><code>/costs</code></td><td>-</td><td>Show OpenRouter credit usage - today, this week, this month, and all-time. Only available when an OpenRouter provider is configured.</td></tr>
