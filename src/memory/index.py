@@ -8,6 +8,19 @@ import threading
 import time
 from typing import Any
 
+# Cap embedding CPU parallelism BEFORE torch/OpenMP initialize, so background
+# indexing and embedding cannot grab every core and starve the asyncio event loop
+# (Matrix sync) or the agent's handler thread. Leaves one core free by default;
+# override with MEMTRIX_EMBED_THREADS.
+_embed_override: str = os.environ.get("MEMTRIX_EMBED_THREADS", "").strip()
+EMBED_THREADS: int = (
+    int(_embed_override)
+    if _embed_override.isdigit() and int(_embed_override) > 0
+    else max(1, (os.cpu_count() or 2) - 1)
+)
+os.environ.setdefault("OMP_NUM_THREADS", str(EMBED_THREADS))
+os.environ.setdefault("MKL_NUM_THREADS", str(EMBED_THREADS))
+
 import chromadb
 from sentence_transformers import SentenceTransformer
 
@@ -21,6 +34,10 @@ EMBEDDING_DIM: int = 256  # Matryoshka truncation (768 -> 256) for faster infere
 
 # Periodic sync interval in seconds
 SYNC_INTERVAL: int = 300
+
+# Initial-index upsert batch size — keeps each embedding pass short so the GIL is
+# released between batches and the event loop / handler thread stay responsive.
+UPSERT_BATCH_SIZE: int = 128
 
 # Target size of a transcript chunk in characters (~800 tokens at ~4 chars/token).
 # Consecutive turns are grouped up to this size so each embedded chunk carries
@@ -95,6 +112,10 @@ class LocalEmbeddingFunction:
 
             if model_cached:
                 logger.info("Loading embedding model from local cache")
+
+            # Bound intra-op parallelism so a large encode cannot peg every core.
+            import torch
+            torch.set_num_threads(EMBED_THREADS)
 
             model: SentenceTransformer = SentenceTransformer(
                 model_name_or_path=EMBEDDING_MODEL,
@@ -375,9 +396,16 @@ class ConversationIndex:
                     documents.append(chunk_text)
                     metadatas.append({"date": date_dir, "session_id": session_id})
 
-        # One batched upsert lets ChromaDB embed every changed chunk in a single pass.
-        if ids:
-            self._collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
+        # Upsert in bounded batches so each embedding call stays short and the GIL is
+        # released between batches, keeping the event loop and handler responsive.
+        for start in range(0, len(ids), UPSERT_BATCH_SIZE):
+            stop: int = start + UPSERT_BATCH_SIZE
+            self._collection.upsert(
+                ids=ids[start:stop],
+                documents=documents[start:stop],
+                metadatas=metadatas[start:stop],
+            )
+            time.sleep(0)  # yield to the event loop / handler thread between batches
 
         # Drop index entries and cached hashes for chunks that no longer exist.
         stale_ids: list[str] = [doc_id for doc_id in existing_ids if doc_id not in seen_ids]
@@ -400,6 +428,14 @@ class ConversationIndex:
         self._sync_started = True
 
         def _sync_loop() -> None:
+            try:
+                # Pre-load the embedding model off the request path so the first
+                # recall (and the user's first message) never pays the one-time
+                # load cost. Shared singleton, so this warms all indexes at once.
+                self._embedding_fn.warm_up()
+            except Exception as e:
+                logger.error("Embedding warm-up failed: %s", e, exc_info=True)
+
             try:
                 self._reindex_all()
                 logger.info(

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.24.1
+
+- Fixed the long pause on the first message and the general sluggishness right after startup. The on-device embedding model runs in-process, and three things made the agent feel stuck: on a warm restart with nothing new to index the model was never pre-loaded, so the *first* message paid the full one-time load before the reply could even begin; the initial reindex embedded every conversation chunk in one giant pass that let PyTorch grab every CPU core, starving the Matrix event loop and the request handler; and the existing `warm_up()` helper was never actually called. Now the embedding model is warmed on a background thread at boot (off the request path, shared across the conversation, docs, and reasoning-memory indexes), the initial index upserts in bounded batches that release the GIL between passes, and embedding is capped to leave one CPU core free for the agent to stay responsive (override with the `MEMTRIX_EMBED_THREADS` environment variable).
+
 ## 2.24.0
 
 - Added date-based conversation recall. Asking what was discussed on a specific day or period now works — previously this failed because the conversation index is semantic, and a date like "June 15" doesn't resemble the *content* of that day's chats, so vector search returned nothing. The `search_memory` tool now takes optional `date` (one day) or `start_date`+`end_date` (a range) parameters that filter on each chunk's stored day metadata instead of embedding distance, returning that day's conversation in chronological order. `query` is now optional, and meaning-based and date-based recall can be combined to search a topic within a time window. Ranges are capped at 62 days and validated as strict ISO `YYYY-MM-DD`.
