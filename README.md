@@ -38,7 +38,9 @@
 
 > [!NOTE]
 > **First startup:** Memtrix downloads the embedding model (~100 MB) on first launch.
-> This can take a couple of minutes depending on your network. Subsequent starts reuse `data/models/`.
+> This can take a couple of minutes depending on your network. The agent stays responsive
+> while the model loads in the background, and indexing runs off the startup path.
+> Subsequent starts reuse `data/models/`.
 
 ```bash
 git clone https://github.com/your-user/memtrix.git && cd memtrix

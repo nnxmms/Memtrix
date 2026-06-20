@@ -240,8 +240,8 @@ class AgentManager:
         os.makedirs(name=os.path.join(workspace_dir, "attachments"), exist_ok=True)
         os.makedirs(name=os.path.join(workspace_dir, "downloads"), exist_ok=True)
 
-        # Copy AGENT.md from static templates
-        src_agent_md: str = os.path.join(os.path.dirname(__file__), "static", "AGENT.md")
+        # Copy AGENT.md from static templates (src/static, one level up from src/agents)
+        src_agent_md: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "AGENT.md")
         dst_agent_md: str = os.path.join(workspace_dir, "AGENT.md")
         if os.path.isfile(path=src_agent_md):
             shutil.copy2(src=src_agent_md, dst=dst_agent_md)

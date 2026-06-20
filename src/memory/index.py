@@ -25,44 +25,82 @@ SYNC_INTERVAL: int = 300
 class LocalEmbeddingFunction:
 
     _instance: "LocalEmbeddingFunction | None" = None
+    _instance_lock: threading.Lock = threading.Lock()
 
     @classmethod
     def get_instance(cls, model_dir: str) -> "LocalEmbeddingFunction":
         """
-        This function returns the singleton LocalEmbeddingFunction instance.
-        The model is loaded once and reused across all MemoryIndex instances.
+        This function returns the singleton LocalEmbeddingFunction instance, shared
+        across the memory, docs, and representation stores. The underlying model is
+        loaded lazily on first use (see warm_up / _ensure_model), so obtaining the
+        instance never blocks startup.
         """
         if cls._instance is None:
-            cls._instance = cls(model_dir=model_dir)
+            with cls._instance_lock:
+                if cls._instance is None:
+                    cls._instance = cls(model_dir=model_dir)
         return cls._instance
 
     def __init__(self, model_dir: str) -> None:
         """
-        This is the LocalEmbeddingFunction which generates embeddings using a local model.
+        This is the LocalEmbeddingFunction which generates embeddings using a local
+        model. Construction is intentionally cheap: the SentenceTransformer (which
+        takes 40-60s to load) is built lazily on the first embedding call rather
+        than here, so creating the index singletons never blocks startup.
         """
-        # Redirect all HuggingFace caches to the writable data volume
+        # Redirect all HuggingFace caches to the writable data volume. This must be
+        # set before the model is ever loaded, hence it happens at construction.
         os.environ["HF_HOME"] = model_dir
         os.environ["TRANSFORMERS_CACHE"] = model_dir
 
-        # Use local cache only when model is already downloaded — avoids slow
-        # HuggingFace Hub network calls on every startup
-        model_cached: bool = any(
-            entry.startswith("models--")
-            for entry in os.listdir(model_dir)
-            if os.path.isdir(os.path.join(model_dir, entry))
-        ) if os.path.isdir(model_dir) else False
+        self._model_dir: str = model_dir
+        self._model: SentenceTransformer | None = None
+        self._model_lock: threading.Lock = threading.Lock()
 
-        if model_cached:
-            logger.info("Loading embedding model from local cache")
+    def warm_up(self) -> None:
+        """
+        This function loads the embedding model if it is not loaded yet. It is safe
+        to call from a background thread to pre-load the model off the startup path;
+        concurrent callers wait for the single in-progress load.
+        """
+        self._ensure_model()
 
-        self._model: SentenceTransformer = SentenceTransformer(
-            model_name_or_path=EMBEDDING_MODEL,
-            cache_folder=model_dir,
-            trust_remote_code=True,
-            local_files_only=model_cached,
-            truncate_dim=EMBEDDING_DIM
-        )
-        logger.info("Embedding model loaded (%s, dim=%d)", EMBEDDING_MODEL, EMBEDDING_DIM)
+    def _ensure_model(self) -> SentenceTransformer:
+        """
+        This function returns the loaded model, building it on first use under a
+        lock so that exactly one load happens even under concurrent access.
+        """
+        if self._model is not None:
+            return self._model
+
+        with self._model_lock:
+            if self._model is not None:
+                return self._model
+
+            model_dir: str = self._model_dir
+
+            # Use the local cache only when the model is already downloaded — this
+            # avoids slow HuggingFace Hub network calls on every startup.
+            model_cached: bool = any(
+                entry.startswith("models--")
+                for entry in os.listdir(model_dir)
+                if os.path.isdir(os.path.join(model_dir, entry))
+            ) if os.path.isdir(model_dir) else False
+
+            if model_cached:
+                logger.info("Loading embedding model from local cache")
+
+            model: SentenceTransformer = SentenceTransformer(
+                model_name_or_path=EMBEDDING_MODEL,
+                cache_folder=model_dir,
+                trust_remote_code=True,
+                local_files_only=model_cached,
+                truncate_dim=EMBEDDING_DIM,
+            )
+            logger.info("Embedding model loaded (%s, dim=%d)", EMBEDDING_MODEL, EMBEDDING_DIM)
+
+            self._model = model
+            return self._model
 
     @staticmethod
     def name() -> str:
@@ -77,8 +115,9 @@ class LocalEmbeddingFunction:
         arrays (not Python lists) because ChromaDB's HttpClient serializes query
         embeddings via .tolist() and expects numpy arrays on the way out.
         """
+        model: SentenceTransformer = self._ensure_model()
         prefixed: list[str] = [f"search_document: {text}" for text in input]
-        embeddings = self._model.encode(sentences=prefixed, normalize_embeddings=True, show_progress_bar=False)
+        embeddings = model.encode(sentences=prefixed, normalize_embeddings=True, show_progress_bar=False)
         return list(embeddings)
 
     def embed_query(self, input: list[str]) -> Any:
@@ -87,8 +126,9 @@ class LocalEmbeddingFunction:
         (not Python lists) so the result works with both ChromaDB's PersistentClient
         and HttpClient code paths.
         """
+        model: SentenceTransformer = self._ensure_model()
         prefixed: list[str] = [f"search_query: {text}" for text in input]
-        embeddings = self._model.encode(sentences=prefixed, normalize_embeddings=True, show_progress_bar=False)
+        embeddings = model.encode(sentences=prefixed, normalize_embeddings=True, show_progress_bar=False)
         return list(embeddings)
 
 
@@ -142,9 +182,11 @@ class MemoryIndex:
         # Content hashes to detect changes (filename -> md5 hex)
         self._hashes: dict[str, str] = {}
 
-        # Full reindex on startup
-        self._reindex_all()
-        logger.info("Memory index ready (collection=%s, docs=%d)", collection_name, self._collection.count())
+        # Indexing runs on the background sync thread (see start_periodic_sync) so
+        # that model loading and embedding never block startup.
+        self._collection_name: str = collection_name
+        self._sync_started: bool = False
+        logger.info("Memory index created (collection=%s); indexing in background", collection_name)
 
     @staticmethod
     def _hash_content(content: str) -> str:
@@ -155,22 +197,39 @@ class MemoryIndex:
 
     def _reindex_all(self) -> None:
         """
-        This function reindexes all memory files on startup.
+        This function indexes all memory files in a single batched embedding pass.
+        An unreadable file is skipped with a warning rather than aborting the rest.
         """
         if not os.path.isdir(s=self._memory_dir):
             return
+
+        ids: list[str] = []
+        documents: list[str] = []
+        metadatas: list[dict[str, str]] = []
 
         for filename in sorted(os.listdir(self._memory_dir)):
             if not filename.endswith(".md"):
                 continue
 
             path: str = os.path.join(self._memory_dir, filename)
-            with open(file=path, mode="r") as f:
-                content: str = f.read()
+            try:
+                with open(file=path, mode="r", encoding="utf-8") as f:
+                    content: str = f.read()
+            except OSError as e:
+                logger.warning("Skipping unreadable memory file %s: %s", filename, e)
+                continue
 
-            if content.strip():
-                self._hashes[filename] = self._hash_content(content=content)
-                self._index_memory(filename=filename, content=content)
+            if not content.strip():
+                continue
+
+            self._hashes[filename] = self._hash_content(content=content)
+            ids.append(filename)
+            documents.append(content)
+            metadatas.append({"date": filename.replace(".md", ""), "filename": filename})
+
+        # One batched upsert lets ChromaDB embed every file in a single pass.
+        if ids:
+            self._collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
 
     def sync_changed(self) -> None:
         """
@@ -210,9 +269,24 @@ class MemoryIndex:
 
     def start_periodic_sync(self) -> None:
         """
-        This function starts a background thread that periodically syncs changed memory files.
+        This function performs the initial full index and then periodically syncs
+        changed memory files, all on a background thread so that startup is never
+        blocked by model loading or embedding. It is a no-op if already started.
         """
+        if self._sync_started:
+            return
+        self._sync_started = True
+
         def _sync_loop() -> None:
+            try:
+                self._reindex_all()
+                logger.info(
+                    "Memory index ready (collection=%s, docs=%d)",
+                    self._collection_name, self._collection.count(),
+                )
+            except Exception as e:
+                logger.error("Initial memory index error: %s", e, exc_info=True)
+
             while True:
                 time.sleep(SYNC_INTERVAL)
                 try:
@@ -220,7 +294,7 @@ class MemoryIndex:
                 except Exception as e:
                     logger.error("Memory sync error: %s", e, exc_info=True)
 
-        thread: threading.Thread = threading.Thread(target=_sync_loop, daemon=True)
+        thread: threading.Thread = threading.Thread(target=_sync_loop, daemon=True, name="memory-sync")
         thread.start()
 
     def search(self, query: str, n_results: int = 5) -> list[dict[str, Any]]:

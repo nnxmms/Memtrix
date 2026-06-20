@@ -22,8 +22,9 @@ COLLECTION_NAME: str = "documentation"
 # Periodic sync interval in seconds (matches the daily-memory index)
 SYNC_INTERVAL: int = 300
 
-# Bundled documentation source (website/docs.html copied into src/static at build time)
-DOCS_PATH: str = os.path.join(os.path.dirname(__file__), "static", "docs.html")
+# Bundled documentation source (website/docs.html copied into src/static at build
+# time). This module lives in src/indexing/, so resolve up one level to src/static.
+DOCS_PATH: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "docs.html")
 
 # Headings that start a new searchable section within a documentation page
 SECTION_TAGS: set[str] = {"h2", "h3"}
@@ -67,9 +68,10 @@ class DocsIndex:
             embedding_function=self._embedding_fn,
         )
 
-        # Index the bundled docs on startup (no-op if already up to date)
-        self._reindex_if_changed()
-        logger.info("Docs index ready (sections=%d)", self._collection.count())
+        # Indexing runs on the background sync thread (see start_periodic_sync) so
+        # that model loading and embedding never block startup.
+        self._sync_started: bool = False
+        logger.info("Docs index created; indexing in background")
 
     @staticmethod
     def _hash_content(content: str) -> str:
@@ -212,10 +214,21 @@ class DocsIndex:
 
     def start_periodic_sync(self) -> None:
         """
-        This function starts a background thread that periodically rebuilds the
-        documentation index when the bundled source changes.
+        This function performs the initial documentation index and then periodically
+        rebuilds it when the bundled source changes, all on a background thread so
+        that startup is never blocked. It is a no-op if already started.
         """
+        if self._sync_started:
+            return
+        self._sync_started = True
+
         def _sync_loop() -> None:
+            try:
+                self._reindex_if_changed()
+                logger.info("Docs index ready (sections=%d)", self._collection.count())
+            except Exception as e:
+                logger.error("Initial docs index error: %s", e, exc_info=True)
+
             while True:
                 time.sleep(SYNC_INTERVAL)
                 try:
@@ -223,7 +236,7 @@ class DocsIndex:
                 except Exception as e:
                     logger.error("Docs sync error: %s", e, exc_info=True)
 
-        thread: threading.Thread = threading.Thread(target=_sync_loop, daemon=True)
+        thread: threading.Thread = threading.Thread(target=_sync_loop, daemon=True, name="docs-sync")
         thread.start()
 
     def search(self, query: str, n_results: int = 5) -> list[dict[str, Any]]:

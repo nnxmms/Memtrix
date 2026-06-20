@@ -183,7 +183,7 @@ class Onboarding:
         """
         This function reads the registration token from the Conduit config file.
         """
-        conduit_toml_path: str = os.path.join(os.path.dirname(__file__), "static", "conduit.toml")
+        conduit_toml_path: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "conduit.toml")
         if os.path.isfile(conduit_toml_path):
             with open(file=conduit_toml_path, mode="r") as f:
                 for line in f:

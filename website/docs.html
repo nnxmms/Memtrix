@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.19.1</span>
+    memtrix<span class="ver">v2.20.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -805,7 +805,7 @@
 
       <div class="callout tip">
         <span class="callout-tag tip">tip</span>
-        <div class="callout-body">Memtrix downloads the embedding model (~100 MB) on first launch. Subsequent starts reuse the cached model in <code>data/models/</code>.</div>
+        <div class="callout-body">Memtrix downloads the embedding model (~100 MB) on first launch, loaded lazily in the background so the agent stays responsive. Subsequent starts reuse the cached model in <code>data/models/</code>.</div>
       </div>
 
       <h2 id="ov-quick">Quick start</h2>
@@ -1058,7 +1058,7 @@ docker compose up -d</code></pre>
 
       <div class="callout note">
         <span class="callout-tag note">note</span>
-        <div class="callout-body"><strong>First startup:</strong> Memtrix downloads the embedding model (~100 MB) on first launch. This can take a couple of minutes. Subsequent starts reuse <code>data/cache/</code>.</div>
+        <div class="callout-body"><strong>First startup:</strong> Memtrix downloads the embedding model (~100 MB) on first launch. This can take a couple of minutes, but the agent stays responsive while it loads in the background. Subsequent starts reuse <code>data/cache/</code>.</div>
       </div>
 
       <h2 id="gs-next">What to do next</h2>

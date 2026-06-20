@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.20.0
+
+- Startup is now non-blocking: the agent connects and starts responding within seconds instead of waiting 40-90s for the embedding model and indexes. The local embedding model is loaded lazily on first use (on a background thread), and the initial memory and documentation indexing now runs on the existing periodic-sync thread rather than blocking process start.
+- Made the embedding model a thread-safe lazy singleton so concurrent callers share a single load, and guarded the periodic-sync threads against double-start.
+- Memory reindexing now embeds every file in a single batched upsert instead of one call per file, and an unreadable memory file is skipped with a warning instead of aborting the whole pass (files are also read as UTF-8).
+- Fixed three path regressions from the v2.19.1 package restructure where bundled resources were resolved relative to the module's new, deeper location: the documentation index (`docs.html`), the sub-agent system-prompt template (`AGENT.md`), and the onboarding registration-token lookup (`conduit.toml`) now resolve correctly against `src/static/` again. The docs index in particular had been silently empty since the restructure.
+
 ## 2.19.1
 
 - Reorganized the Python backend into clear, domain-oriented packages for long-term maintainability. The previously flat `src/` module layout is now grouped into `app/` (entry points and top-level orchestration), `core/` (config, session, lifecycle, commands, usage, verification), `agents/` (the agentic loop and sub-agent manager), `memory/` (vector index, conclusion store, background deriver), `indexing/` (docs and skills catalogs), and `integrations/` (Bitwarden, secrets, SSH, transcription).
