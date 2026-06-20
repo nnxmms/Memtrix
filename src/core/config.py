@@ -112,9 +112,9 @@ def resolve_prompt_guard_config(config: dict[str, Any]) -> dict[str, Any]:
     """
     This function returns the prompt-injection screening configuration merged with
     safe defaults so that installs without a "prompt_guard" section keep working
-    unchanged. When enabled, untrusted tool output (web pages, search results, remote
-    command output, untrusted files) is screened with Llama Prompt Guard 2 before it
-    reaches the conversation; flagged content is replaced with a tool-error.
+    unchanged. When enabled, the output of the web-fetching tools (web_search and
+    fetch_url) is screened with a local prompt-injection classifier before it reaches
+    the conversation; flagged content is replaced with a tool-error.
     """
     defaults: dict[str, Any] = {
         "enabled": True,        # screen untrusted tool output for prompt injection

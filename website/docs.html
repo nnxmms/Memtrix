@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.28.1</span>
+    memtrix<span class="ver">v2.28.2</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -2606,7 +2606,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
       <h2 id="sc-injection">Prompt Injection Mitigation</h2>
       <ul>
         <li><strong>Untrusted content tagged</strong> - web search results, fetched URLs, remote SSH command output, downloads, and attachments are prefixed with disclaimers</li>
-        <li><strong>Active injection screening</strong> - everything that is not from the user is treated as untrusted. Before any such content reaches the model it is screened by <a href="https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2" target="_blank" rel="noopener">ProtectAI's DeBERTa prompt-injection detector</a>, a local classifier that runs entirely inside the container (openly licensed — no HuggingFace token required). If the content is flagged as a prompt-injection or jailbreak attempt, the tool result is replaced with a tool-error so the malicious text never enters the conversation, and the model is told the source is untrusted</li>
+        <li><strong>Active injection screening</strong> - the output of the web-fetching tools (<code>web_search</code> and <code>fetch_url</code>) — arbitrary content straight from external sites — is screened by <a href="https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2" target="_blank" rel="noopener">ProtectAI's DeBERTa prompt-injection detector</a>, a local classifier that runs entirely inside the container (openly licensed — no HuggingFace token required). If the content is flagged as a prompt-injection or jailbreak attempt, the tool result is replaced with a tool-error so the malicious text never enters the conversation, and the model is told the source is untrusted</li>
         <li><strong>Filename sanitization</strong> - <code>os.path.basename()</code> with auto-increment on collision</li>
         <li><strong>Sender name sanitization</strong> - brackets stripped, 50-char limit to prevent prompt injection via Matrix profile names</li>
       </ul>

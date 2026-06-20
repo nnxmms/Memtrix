@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.28.2
+
+- Narrowed prompt-injection screening to the two web-fetching tools, `web_search` and `fetch_url`. These pull arbitrary content straight from external sites and are the primary indirect-injection vector; other tools (including remote SSH command output and untrusted files) are no longer run through the classifier. The untrusted-content disclaimers those tools prepend are unchanged — only the active classifier step is now scoped to web fetches.
+
 ## 2.28.1
 
 - Swapped the prompt-injection screener's default model from Llama Prompt Guard 2 to [ProtectAI's `deberta-v3-base-prompt-injection-v2`](https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2). The DeBERTa detector is openly licensed, so screening now works out of the box with **no HuggingFace token and no gated-model license acceptance** — the model downloads automatically on first run. The `prompt_guard.model` setting now accepts either a short name (`deberta`) or any full HuggingFace repo id of a prompt-injection sequence classifier, so you can still point it at a different detector if you prefer.

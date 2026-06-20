@@ -64,11 +64,10 @@ _SENSITIVE_KEY_HINTS: tuple[str, ...] = (
     "passphrase", "credential", "auth", "private_key",
 )
 
-# Marker that tools prepend to content originating from untrusted, external sources
-# (web pages, search results, remote command output, untrusted files). Any tool
-# result carrying this marker is screened for prompt injection before it reaches the
-# conversation, so the screening set stays in sync with the tools automatically.
-_UNTRUSTED_MARKER: str = "[UNTRUSTED"
+# Tools whose output is screened for prompt injection before it reaches the
+# conversation. Limited to the web-fetching tools, whose results come straight from
+# arbitrary external sites and are the primary indirect-injection vector.
+_SCREENED_TOOL_NAMES: frozenset[str] = frozenset({"web_search", "fetch_url"})
 
 
 class Orchestrator:
@@ -343,17 +342,20 @@ class Orchestrator:
 
     def _screen_untrusted(self, tool_name: str, result: str) -> str:
         """
-        This function screens a tool result that originates from an untrusted external
-        source (identified by the untrusted marker the tool prepends) for prompt
-        injection. Trusted results, errors, and installs without screening enabled pass
-        through unchanged. When the classifier flags the content it is replaced with a
-        tool-error so the malicious text never enters the conversation and the model is
-        notified. If the classifier itself cannot run, the configured fail-open/closed
-        policy decides whether the content is passed through or blocked.
+        This function screens the output of the web-fetching tools (see
+        _SCREENED_TOOL_NAMES) for prompt injection. Results from other tools, errors,
+        and installs without screening enabled pass through unchanged. When the
+        classifier flags the content it is replaced with a tool-error so the malicious
+        text never enters the conversation and the model is notified. If the classifier
+        itself cannot run, the configured fail-open/closed policy decides whether the
+        content is passed through or blocked.
         """
         if self._prompt_guard is None:
             return result
-        if not isinstance(result, str) or not result.lstrip().startswith(_UNTRUSTED_MARKER):
+        if tool_name not in _SCREENED_TOOL_NAMES or not isinstance(result, str):
+            return result
+        # Don't waste inference on the tool's own error strings (e.g. a failed fetch).
+        if result.startswith("Error:"):
             return result
 
         try:
