@@ -112,12 +112,29 @@ class LocalEmbeddingFunction:
 
     def __call__(self, input: list[str]) -> Any:
         """
-        This function generates embeddings for a list of texts. It returns numpy
-        arrays (not Python lists) because ChromaDB's HttpClient serializes query
-        embeddings via .tolist() and expects numpy arrays on the way out.
+        This function generates embeddings for a list of documents being indexed. It
+        returns numpy arrays (not Python lists) because ChromaDB's HttpClient
+        serializes query embeddings via .tolist() and expects numpy arrays on the
+        way out.
+        """
+        return self._encode(texts=input, prefix="search_document: ")
+
+    def embed_query(self, input: list[str]) -> Any:
+        """
+        This function generates embeddings for search queries. ChromaDB 1.5+ calls
+        this (not __call__) for the query side, and nomic-embed-text is trained with
+        a distinct "search_query:" task prefix that improves retrieval quality, so
+        queries are embedded separately from indexed documents.
+        """
+        return self._encode(texts=input, prefix="search_query: ")
+
+    def _encode(self, texts: list[str], prefix: str) -> Any:
+        """
+        This function applies the task prefix and returns normalized embeddings as a
+        list of numpy arrays.
         """
         model: SentenceTransformer = self._ensure_model()
-        prefixed: list[str] = [f"search_document: {text}" for text in input]
+        prefixed: list[str] = [f"{prefix}{text}" for text in texts]
         embeddings = model.encode(sentences=prefixed, normalize_embeddings=True, show_progress_bar=False)
         return list(embeddings)
 

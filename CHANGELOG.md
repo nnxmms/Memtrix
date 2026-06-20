@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.22.1
+
+- Fixed semantic recall crashing with `'LocalEmbeddingFunction' object has no attribute 'embed_query'`. ChromaDB 1.5 dispatches the query side of a search to an embedding function's `embed_query` method (distinct from `__call__`, which it uses for indexing documents); the local embedding function only implemented `__call__`, so every vector query raised. The method had been dropped in a past dead-code sweep because it looked unused — it is actually called by ChromaDB via duck typing — and the breakage stayed hidden until the default `recall_mode` became `hybrid`, which made per-turn recall run the first real query. Restored `embed_query`, so reasoning-memory recall, the `search_memory` tool, near-duplicate detection, and docs search all work again.
+- As part of the fix, search queries now use nomic-embed-text's dedicated `search_query:` task prefix instead of the document prefix. The model is trained to pair query- and document-prefixed embeddings, so this also improves retrieval relevance rather than only restoring functionality.
+
 ## 2.22.0
 
 - Hardened the agentic tool-calling loop end to end. Provider calls (Ollama and OpenRouter) now retry transient failures with exponential backoff and jitter instead of letting a single network blip or rate limit kill an entire request. Malformed JSON in a tool call's arguments is tolerated — rather than crashing the whole turn, the bad arguments become an empty object and the model gets a clear, correctable error on the next round.
