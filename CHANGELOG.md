@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.19.1
+
+- Reorganized the Python backend into clear, domain-oriented packages for long-term maintainability. The previously flat `src/` module layout is now grouped into `app/` (entry points and top-level orchestration), `core/` (config, session, lifecycle, commands, usage, verification), `agents/` (the agentic loop and sub-agent manager), `memory/` (vector index, conclusion store, background deriver), `indexing/` (docs and skills catalogs), and `integrations/` (Bitwarden, secrets, SSH, transcription).
+- Tool implementations are now organized into category subpackages (`agents/`, `docs/`, `files/`, `memory/`, `ssh/`, `web/`, `misc/`) and discovered recursively, replacing the single flat tool directory. Tool discovery now only instantiates classes defined in each module, avoiding accidental duplicates.
+- Split the SSH integration into a focused package: connection handling, error types, and the manager now live in separate modules behind a stable public interface.
+- Removed dead code left over from an abandoned earlier refactor (orphaned modules with broken imports and stale package directories).
+- Updated container and script entry points to the new module paths (`src.app.main`, `src.app.onboarding`). No runtime behavior changes.
+
 ## 2.19.0
 
 - Matrix voice messages can now be processed locally on-device: incoming `m.audio` events are downloaded to `attachments/`, transcribed with local speech-to-text, and forwarded to the normal agent loop as user text context.

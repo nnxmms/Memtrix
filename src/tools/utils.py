@@ -19,7 +19,8 @@ from src.tools.base import BaseTool
 
 def discover_tools(workspace_dir: str, exclude: set[str] | None = None) -> list[BaseTool]:
     """
-    This function discovers and instantiates all tools in the tools directory.
+    This function discovers and instantiates all tools in the tools directory,
+    recursing into category subpackages (agents/, files/, memory/, ssh/, ...).
     Optionally excludes tool files by filename.
     """
     tools: list[BaseTool] = []
@@ -32,18 +33,32 @@ def discover_tools(workspace_dir: str, exclude: set[str] | None = None) -> list[
     if exclude:
         excluded: set[str] = excluded | exclude
 
-    for filename in sorted(os.listdir(tools_dir)):
-        if not filename.endswith(".py") or filename in excluded:
-            continue
+    # Collect candidate module paths first, walking category subdirectories.
+    module_names: list[str] = []
+    for root, dirs, files in os.walk(tools_dir):
+        # Deterministic traversal; skip caches.
+        dirs[:] = sorted(d for d in dirs if d != "__pycache__")
+        rel_dir: str = os.path.relpath(root, tools_dir)
+        for filename in sorted(files):
+            if not filename.endswith(".py") or filename in excluded:
+                continue
+            if rel_dir == ".":
+                module_names.append(f"src.tools.{filename[:-3]}")
+            else:
+                package: str = rel_dir.replace(os.sep, ".")
+                module_names.append(f"src.tools.{package}.{filename[:-3]}")
 
-        # Dynamically import the module
-        module_name: str = f"src.tools.{filename[:-3]}"
+    for module_name in module_names:
         module: ModuleType = importlib.import_module(name=module_name)
 
-        # Find all classes that inherit from BaseTool
+        # Instantiate classes actually defined in this module (avoids picking up
+        # BaseTool subclasses imported from sibling modules).
         for _, obj in inspect.getmembers(module, inspect.isclass):
-            if issubclass(obj, BaseTool) and obj is not BaseTool:
-                tools.append(obj(workspace_dir=workspace_dir))
+            if obj is BaseTool or not issubclass(obj, BaseTool):
+                continue
+            if obj.__module__ != module_name:
+                continue
+            tools.append(obj(workspace_dir=workspace_dir))
 
     return tools
 

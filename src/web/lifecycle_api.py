@@ -9,16 +9,16 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from src import __version__
-from src.config import load_config
-from src.lifecycle import (
+from src.core.config import load_config
+from src.core.lifecycle import (
     is_agent_alive,
     is_deriver_paused,
     read_heartbeat,
     request_restart,
     restart_requested,
 )
-from src.representation import resolve_memory_config
-from src.verification import validate_config
+from src.memory.store import resolve_memory_config
+from src.core.verification import validate_config
 from src.web.deps import get_store
 from src.web.schemas import MessageResponse, StatusResponse
 

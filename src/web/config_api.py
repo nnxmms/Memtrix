@@ -6,9 +6,9 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
-from src.config import load_config, save_config
-from src.secrets import SECRET_PREFIX
-from src.verification import test_channel, test_provider, validate_config
+from src.core.config import load_config, save_config
+from src.integrations.secrets import SECRET_PREFIX
+from src.core.verification import test_channel, test_provider, validate_config
 from src.web.schemas import (
     ConfigPayload,
     MessageResponse,

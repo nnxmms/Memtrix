@@ -5,9 +5,9 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from src.config import load_config, update_config
-from src.lifecycle import is_deriver_paused, pause_deriver, resume_deriver
-from src.representation import KINDS, PEER_CARD_FILES, PEERS
+from src.core.config import load_config, update_config
+from src.core.lifecycle import is_deriver_paused, pause_deriver, resume_deriver
+from src.memory.store import KINDS, PEER_CARD_FILES, PEERS
 from src.web.deps import get_store
 from src.web.schemas import (
     Conclusion,

@@ -33,10 +33,10 @@ trap term_handler TERM INT
 rm -f "${RESTART_SENTINEL}" 2>/dev/null || true
 
 while true; do
-    echo "[supervisor] starting agent: python -m src.main"
+    echo "[supervisor] starting agent: python -m src.app.main"
     start_ts="$(date +%s)"
 
-    python -m src.main &
+    python -m src.app.main &
     child_pid="$!"
 
     # Watch for a restart request while the child runs.

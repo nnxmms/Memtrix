@@ -6,8 +6,8 @@ from typing import Any
 
 from fastapi import Header, HTTPException, status
 
-from src.config import load_config
-from src.representation import RepresentationStore
+from src.core.config import load_config
+from src.memory.store import RepresentationStore
 
 logger: logging.Logger = logging.getLogger(__name__)
 

@@ -7,7 +7,7 @@ docker run --rm -it \
   --network memtrix_matrix \
   -v "$SCRIPT_DIR/data:/home/memtrix/data" \
   -v "$SCRIPT_DIR/workspace:/home/memtrix/workspace" \
-  memtrix python -m src.onboarding
+  memtrix python -m src.app.onboarding
 
 # Fix ownership after onboarding may have written new files as root
 chown -R 1000:1000 "$SCRIPT_DIR/data" "$SCRIPT_DIR/workspace" "$SCRIPT_DIR/agents" 2>/dev/null || true

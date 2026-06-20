@@ -63,4 +63,4 @@ ENV PYTHONUNBUFFERED=1
 
 # Default command runs the agent directly. Compose overrides this with the
 # supervisor entrypoint (agent) or the web server command (control panel).
-CMD ["python", "-m", "src.main"]
+CMD ["python", "-m", "src.app.main"]

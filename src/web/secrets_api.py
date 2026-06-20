@@ -6,14 +6,14 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
-from src.config import load_config
-from src.secrets import (
+from src.core.config import load_config
+from src.integrations.secrets import (
     BITWARDEN_TOKEN_ENV,
     SECRET_PREFIX,
     read_managed_secrets,
     write_managed_secret,
 )
-from src.verification import test_bitwarden
+from src.core.verification import test_bitwarden
 from src.web.schemas import (
     BitwardenTest,
     MessageResponse,
@@ -54,7 +54,7 @@ def _bitwarden_client(config: dict[str, Any]) -> Any:
     This function builds and connects a Bitwarden client using the configured
     organization/project and the access token from the environment or secrets file.
     """
-    from src.bitwarden import BitwardenSecrets
+    from src.integrations.bitwarden import BitwardenSecrets
 
     secrets_cfg: dict[str, Any] = config.get("secrets") or {}
     token: str | None = os.environ.get(BITWARDEN_TOKEN_ENV) or read_managed_secrets().get(BITWARDEN_TOKEN_ENV)

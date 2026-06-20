@@ -707,20 +707,35 @@ Content from external sources is clearly marked so the LLM can distinguish trust
 ```
 Memtrix/
 ├── src/
-│   ├── main.py                       # Entry point
-│   ├── memtrix.py                    # Core — wires channels, providers, sessions
-│   ├── orchestrator.py               # Agentic loop — LLM calls, tool execution
-│   ├── agent_manager.py              # Sub-agent lifecycle management
-│   ├── session.py                    # Per-room conversation persistence
-│   ├── commands.py                   # Slash command registry
-│   ├── secrets.py                    # Secret resolution + sanitization
-│   ├── memory_index.py               # ChromaDB + local embeddings (RAG)
-│   ├── representation.py             # Reasoning-memory store (conclusions + profile cards)
-│   ├── deriver.py                    # Background reasoning thread
-│   ├── ssh_manager.py                # Persistent SSH sessions + key/host registry
-│   ├── skills_index.py               # Per-agent skill store + vector retrieval
-│   ├── config.py                     # Config path constant
-│   ├── onboarding.py                 # Interactive setup wizard (Rich TUI)
+│   ├── app/                          # Entry points & top-level orchestration
+│   │   ├── main.py                   # Agent entry point (python -m src.app.main)
+│   │   ├── memtrix.py                # Core — wires channels, providers, sessions
+│   │   └── onboarding.py             # Interactive setup wizard (Rich TUI)
+│   ├── core/                         # Core primitives
+│   │   ├── config.py                 # Config I/O + subsystem resolvers
+│   │   ├── session.py                # Per-room conversation persistence
+│   │   ├── lifecycle.py              # Heartbeat, restart & deriver signals
+│   │   ├── commands.py               # Slash command registry
+│   │   ├── usage.py                  # Provider cost reporting
+│   │   └── verification.py           # Config validation + live tests
+│   ├── agents/                       # Agent orchestration
+│   │   ├── orchestrator.py           # Agentic loop — LLM calls, tool execution
+│   │   └── manager.py                # Sub-agent lifecycle management
+│   ├── memory/                       # Long-term memory subsystem
+│   │   ├── index.py                  # ChromaDB + local embeddings (RAG)
+│   │   ├── store.py                  # Reasoning-memory store (conclusions + cards)
+│   │   └── deriver.py                # Background reasoning thread
+│   ├── indexing/                     # Documentation & skill indexes
+│   │   ├── docs.py                   # Bundled docs vector index
+│   │   └── skills.py                 # Per-agent skill store + vector retrieval
+│   ├── integrations/                 # External integrations
+│   │   ├── bitwarden.py              # Bitwarden Secrets Manager backend
+│   │   ├── secrets.py                # Secret resolution + sanitization
+│   │   ├── transcription.py          # Local speech-to-text
+│   │   └── ssh/                      # Persistent SSH sessions + key/host registry
+│   │       ├── manager.py            # Connection registry, keys, hosts
+│   │       ├── connection.py         # Persistent interactive shell wrapper
+│   │       └── exceptions.py         # SSH error types
 │   ├── channels/
 │   │   ├── base.py                   # BaseChannel interface
 │   │   ├── cli.py                    # CLI channel (stdin/stdout)
@@ -730,42 +745,17 @@ Memtrix/
 │   │   ├── ollama.py                 # Ollama LLM provider
 │   │   ├── openrouter.py             # OpenRouter LLM provider
 │   │   └── utils.py                  # Dynamic provider discovery
-│   ├── tools/
+│   ├── tools/                        # Tools, grouped by category (auto-discovered)
 │   │   ├── base.py                   # BaseTool interface + read tracker
-│   │   ├── utils.py                  # Dynamic tool discovery
-│   │   ├── time_tool.py              # Current time
-│   │   ├── core_file_tools.py        # Read/write persona files
-│   │   ├── memory_file_tools.py      # Read/write daily journals
-│   │   ├── search_memory_tool.py     # Semantic memory search
-│   │   ├── memory_profile_tool.py    # Read reasoned profile cards
-│   │   ├── memory_search_tool.py     # Search reasoned conclusions
-│   │   ├── memory_context_tool.py    # Synthesized answer from memory
-│   │   ├── memory_conclude_tool.py   # Store a durable fact
-│   │   ├── web_search_tool.py        # Web search via SearXNG
-│   │   ├── fetch_url_tool.py         # URL content extraction
-│   │   ├── read_file_tool.py         # Read files (text + PDF extraction)
-│   │   ├── create_file_tool.py       # Create/overwrite text files
-│   │   ├── delete_file_tool.py       # Delete files
-│   │   ├── create_directory_tool.py  # Create directories
-│   │   ├── list_directory_tool.py    # List directory contents
-│   │   ├── delete_directory_tool.py  # Delete directories
-│   │   ├── git_clone_tool.py         # Clone git repositories
-│   │   ├── download_file_tool.py     # Download files from URLs
-│   │   ├── send_file_tool.py         # Send files to user via Matrix
-│   │   ├── react_tool.py             # React to messages with emoji
-│   │   ├── create_agent_tool.py      # Create specialist sub-agents
-│   │   ├── list_agents_tool.py       # List registered sub-agents
-│   │   ├── delete_agent_tool.py      # Delete sub-agents
-│   │   ├── ask_agent_tool.py         # Inter-agent communication
-│   │   ├── ssh_gen_key_tool.py       # Generate the agent's SSH key
-│   │   ├── ssh_get_pub_key_tool.py   # Return the SSH public key
-│   │   ├── ssh_add_host_tool.py      # Register a remote host
-│   │   ├── ssh_remove_host_tool.py   # Unregister a remote host
-│   │   ├── ssh_get_remote_hosts_tool.py # List registered hosts
-│   │   ├── ssh_connect_tool.py       # Open a persistent SSH session
-│   │   ├── ssh_run_tool.py           # Run a command in the session
-│   │   ├── ssh_disconnect_tool.py    # Close an SSH session
-│   │   └── skill_manage_tool.py      # Create and reuse the agent's own skills
+│   │   ├── utils.py                  # Recursive tool discovery
+│   │   ├── agents/                   # create/list/delete/ask sub-agent tools
+│   │   ├── docs/                     # ask/search bundled documentation
+│   │   ├── files/                    # read/write/create/delete files & dirs, git, downloads
+│   │   ├── memory/                   # search/profile/conclude reasoning memory + journals
+│   │   ├── ssh/                      # gen-key, host registry, connect/run/disconnect
+│   │   ├── web/                      # web search + URL fetch
+│   │   └── misc/                     # time, react, skill management
+│   ├── web/                          # FastAPI control panel (python -m src.web)
 │   └── static/
 │       ├── config.json               # Config template
 │       ├── conduit.toml              # Conduit homeserver config
