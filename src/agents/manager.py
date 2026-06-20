@@ -66,12 +66,11 @@ class AgentManager:
     # Maximum depth for inter-agent calls (prevents infinite recursion)
     MAX_AGENT_DEPTH: int = 2
 
-    def __init__(self, config: dict[str, Any], main_handler_factory: Callable, bot_user_ids: set[str] | None = None) -> None:
+    def __init__(self, config: dict[str, Any], bot_user_ids: set[str] | None = None) -> None:
         """
         This is the AgentManager class which manages sub-agent lifecycle.
         """
         self._config: dict[str, Any] = config
-        self._main_handler_factory: Callable = main_handler_factory
 
         # Shared mutable set of all Memtrix agent user IDs (updated on create/delete)
         self._bot_user_ids: set[str] = bot_user_ids if bot_user_ids is not None else set()

@@ -59,17 +59,6 @@ def write_managed_secret(placeholder: str, value: str) -> None:
     _write_env_file(path=MANAGED_SECRETS_PATH, values=existing)
 
 
-def delete_managed_secret(placeholder: str) -> None:
-    """
-    This function removes a single secret from the managed secrets file.
-    """
-    key: str = placeholder if placeholder == BITWARDEN_TOKEN_ENV else SECRET_PREFIX + placeholder
-    existing: dict[str, str] = _parse_env_file(path=MANAGED_SECRETS_PATH)
-    if key in existing:
-        del existing[key]
-        _write_env_file(path=MANAGED_SECRETS_PATH, values=existing)
-
-
 def _parse_env_file(path: str) -> dict[str, str]:
     """
     This function parses a simple KEY=VALUE env file, ignoring blank lines and
@@ -139,19 +128,6 @@ def clear_secrets_from_env() -> None:
         del os.environ[key]
     if BITWARDEN_TOKEN_ENV in os.environ:
         del os.environ[BITWARDEN_TOKEN_ENV]
-
-
-def get_sanitized_env() -> dict[str, str]:
-    """
-    This function returns a copy of the environment with all MEMTRIX_SECRET_* variables
-    and the Bitwarden access token removed.
-    Used by run_command to prevent secret leakage via subprocesses.
-    """
-    return {
-        k: v
-        for k, v in os.environ.items()
-        if not k.startswith(SECRET_PREFIX) and k != BITWARDEN_TOKEN_ENV
-    }
 
 
 # Optional secret keys that resolve to empty string if not set

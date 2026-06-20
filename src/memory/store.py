@@ -22,9 +22,6 @@ logger: logging.Logger = logging.getLogger(__name__)
 PEERS: set[str] = {"user", "agent"}
 KINDS: set[str] = {"observation", "deductive", "inductive"}
 
-# Valid provenance values for a stored conclusion
-SOURCES: set[str] = {"derived", "manual"}
-
 # Peer card files (finite, always-injected summaries)
 PEER_CARD_FILES: dict[str, str] = {"user": "USER.md", "agent": "MEMORY.md"}
 

@@ -120,17 +120,6 @@ class LocalEmbeddingFunction:
         embeddings = model.encode(sentences=prefixed, normalize_embeddings=True, show_progress_bar=False)
         return list(embeddings)
 
-    def embed_query(self, input: list[str]) -> Any:
-        """
-        This function generates embeddings for query texts. It returns numpy arrays
-        (not Python lists) so the result works with both ChromaDB's PersistentClient
-        and HttpClient code paths.
-        """
-        model: SentenceTransformer = self._ensure_model()
-        prefixed: list[str] = [f"search_query: {text}" for text in input]
-        embeddings = model.encode(sentences=prefixed, normalize_embeddings=True, show_progress_bar=False)
-        return list(embeddings)
-
 
 class MemoryIndex:
 

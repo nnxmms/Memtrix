@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.20.1
+
+- Swept the backend for dead code and removed it: an unused `json` import, the never-called `LocalEmbeddingFunction.embed_query` method, the unused `SOURCES` constant, the unused Bitwarden client `list_secrets`/`get_secret` methods, and the unused `delete_managed_secret`/`get_sanitized_env` secret helpers. Also dropped the `AgentManager` `main_handler_factory` parameter, which was always passed as `None` and never read.
+- Fixed a latent defect surfaced by the sweep: `Memtrix._load_provider` referenced `BaseTool` in a type annotation without importing it; the import is now present.
+- No behavior changes — all removals were verified to have no call sites, and startup, module imports, and tool discovery were re-validated.
+
 ## 2.20.0
 
 - Startup is now non-blocking: the agent connects and starts responding within seconds instead of waiting 40-90s for the embedding model and indexes. The local embedding model is loaded lazily on first use (on a background thread), and the initial memory and documentation indexing now runs on the existing periodic-sync thread rather than blocking process start.
