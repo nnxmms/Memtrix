@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.22.0
+
+- Hardened the agentic tool-calling loop end to end. Provider calls (Ollama and OpenRouter) now retry transient failures with exponential backoff and jitter instead of letting a single network blip or rate limit kill an entire request. Malformed JSON in a tool call's arguments is tolerated — rather than crashing the whole turn, the bad arguments become an empty object and the model gets a clear, correctable error on the next round.
+- Tool-call arguments are now validated against each tool's JSON schema before the tool runs: missing required parameters and basic type mismatches are returned to the model as a precise error it can fix, instead of failing deep inside a tool with an opaque message.
+- Independent, read-only tool calls within a single batch now execute concurrently (up to eight at a time), cutting latency when the model fans out work like multiple reads or searches. Stateful or order-dependent tools (file writes, core/memory edits, sub-agent calls, SSH sessions) are detected and always run sequentially to preserve deterministic semantics.
+- Sessions are now bounded by a new `agent.max_history` setting (default 60 messages): the oldest turns are trimmed once a conversation grows past the limit, preventing context-window overflow on long-running rooms. Trimming is tool-pairing-safe — it never leaves an orphaned tool result that would break strict providers — and always preserves the system prompt.
+- The system prompt is now rebuilt mid-session whenever its source files change, so background-curated `USER.md` / `MEMORY.md` card updates take effect immediately instead of only on the next session. Tool-call IDs are guaranteed one-to-one with their results, and the forced "final answer" nudge at the iteration cap is no longer persisted into history. When the agent nears its tool-round budget it now receives a transient heads-up so it can wrap up cleanly.
+- The background reasoning deriver no longer silently discards a whole batch when the model returns unparseable JSON: it makes one repair attempt (re-prompting for strict JSON) before giving up, reducing lost conclusions. Peer-card curation is now asked to order bullets by importance so that any boundary-safe truncation drops the least critical information first.
+- Tool-call notifications now redact values whose argument names look like secrets (passwords, tokens, API keys, passphrases). The default reasoning `recall_mode` fallback is aligned to `hybrid`, and the agent's context-enrichment guidance was reworded from "mandatory on every message" to a judgment-based "fill genuine gaps" to cut needless extra tool round-trips.
+
 ## 2.21.0
 
 - Memory journal indexing now persists a content-hash cache (`.file-hashes.json`) alongside the vector index, so restarts re-embed only files that are new or changed instead of re-embedding the entire journal history every boot. For users with many daily memory files this removes most of the post-startup background indexing cost on warm starts.

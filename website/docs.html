@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.21.0</span>
+    memtrix<span class="ver">v2.22.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -1858,7 +1858,8 @@ docker compose up -d</code></pre>
         <span style="color:var(--accent)">"enabled"</span>: <span style="color:var(--purple)">true</span>
     },
     <span style="color:var(--accent)">"agent"</span>: {
-        <span style="color:var(--accent)">"max_iterations"</span>: <span style="color:var(--purple)">25</span>
+        <span style="color:var(--accent)">"max_iterations"</span>: <span style="color:var(--purple)">25</span>,
+        <span style="color:var(--accent)">"max_history"</span>: <span style="color:var(--purple)">60</span>
     },
     <span style="color:var(--accent)">"secrets"</span>: {
         <span style="color:var(--accent)">"backend"</span>: <span style="color:var(--orange)">"env"</span>
@@ -1946,6 +1947,7 @@ docker compose up -d</code></pre>
         <thead><tr><th>Key</th><th>Default</th><th>Description</th></tr></thead>
         <tbody>
           <tr><td><code>max_iterations</code></td><td><code>25</code></td><td>Maximum tool-call rounds per request before the agent is forced to produce a final answer.</td></tr>
+          <tr><td><code>max_history</code></td><td><code>60</code></td><td>Maximum messages kept in a session before the oldest turns are trimmed (the system prompt is always preserved), bounding context growth on long conversations.</td></tr>
         </tbody>
       </table>
 

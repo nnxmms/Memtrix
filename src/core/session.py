@@ -107,18 +107,40 @@ class Session:
     def trim(self, max_messages: int = 50) -> None:
         """
         This function trims the session history to stay within a maximum message count.
-        Keeps the system prompt (first message if role=system) plus the most recent messages.
+        Keeps the system prompt (first message if role=system) plus the most recent
+        messages, and never starts the retained window on an orphaned tool result so
+        the history stays valid for strict providers (every tool message must follow
+        its assistant tool-call message).
         """
         if len(self._history) <= max_messages:
             return
 
-        # Preserve system prompt if present
-        if self._history and self._history[0].get("role") == "system":
-            system: list[dict[str, Any]] = [self._history[0]]
-            self._history = system + self._history[-(max_messages - 1):]
-        else:
-            self._history = self._history[-max_messages:]
+        has_system: bool = bool(self._history) and self._history[0].get("role") == "system"
+        system: list[dict[str, Any]] = [self._history[0]] if has_system else []
+        body: list[dict[str, Any]] = self._history[1:] if has_system else self._history
 
+        keep: int = max(1, max_messages - len(system))
+        tail: list[dict[str, Any]] = body[-keep:]
+
+        # Drop leading orphaned tool results whose assistant tool-call was trimmed away.
+        while tail and tail[0].get("role") == "tool":
+            tail.pop(0)
+
+        self._history = system + tail
+        self._save_history()
+
+    def set_system_prompt(self, content: str) -> None:
+        """
+        This function updates the leading system message in place (or inserts one when
+        absent) so a refreshed system prompt propagates into an active session without
+        disturbing the rest of the history.
+        """
+        if self._history and self._history[0].get("role") == "system":
+            if self._history[0].get("content") == content:
+                return
+            self._history[0]["content"] = content
+        else:
+            self._history.insert(0, {"role": "system", "content": content})
         self._save_history()
 
     def extend(self, messages: list[dict[str, Any]]) -> None:

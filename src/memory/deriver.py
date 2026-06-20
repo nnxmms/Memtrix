@@ -212,22 +212,50 @@ class Deriver:
             {"role": "user", "content": f"Transcript:\n{transcript}"},
         ]
 
-        try:
-            message: Any = self._provider.completions(model=self._model, history=history, think=False)
-            raw: str = message.content or ""
-        except Exception as e:
-            logger.error("Deriver reasoning call failed: %s", e)
-            return {}
-
-        parsed: dict[str, Any] | None = self._parse_json(raw)
+        parsed: dict[str, Any] | None = self._complete_json(history=history, label=f"reasoning for peer '{peer}'")
         if parsed is None:
-            logger.warning("Deriver could not parse reasoning output for peer '%s'", peer)
             return {}
         return {
             "explicit": parsed.get("explicit", []) or [],
             "deductive": parsed.get("deductive", []) or [],
             "inductive": parsed.get("inductive", []) or [],
         }
+
+    def _complete_json(self, history: list[dict[str, str]], label: str) -> dict[str, Any] | None:
+        """
+        This function runs a JSON-returning completion and, when the first reply does
+        not parse, makes one repair attempt that re-prompts for strict JSON before
+        giving up — so a single malformed reply no longer silently discards a batch.
+        """
+        try:
+            message: Any = self._provider.completions(model=self._model, history=history, think=False)
+            raw: str = message.content or ""
+        except Exception as e:
+            logger.error("Deriver %s call failed: %s", label, e)
+            return None
+
+        parsed: dict[str, Any] | None = self._parse_json(raw)
+        if parsed is not None:
+            return parsed
+
+        repair_history: list[dict[str, str]] = history + [
+            {"role": "assistant", "content": raw},
+            {"role": "user", "content": (
+                "Your previous reply was not valid JSON. Respond again with ONLY the JSON "
+                "object — no prose, no explanation, no code fences."
+            )},
+        ]
+        try:
+            message = self._provider.completions(model=self._model, history=repair_history, think=False)
+            raw = message.content or ""
+        except Exception as e:
+            logger.error("Deriver %s repair call failed: %s", label, e)
+            return None
+
+        parsed = self._parse_json(raw)
+        if parsed is None:
+            logger.warning("Deriver %s output unparseable after repair retry", label)
+        return parsed
 
     def _recurate_card(self, peer: str) -> None:
         """
@@ -265,6 +293,8 @@ class Deriver:
             "outdated or contradicted, and keep only durable, high-signal information. "
             "Every bullet must be atomic and complete; never output incomplete or dangling bullets. "
             "Prefer fewer, stronger bullets over broad coverage. "
+            "Order the bullets from most to least important, so that if the card is later "
+            "trimmed to fit, the least critical bullets are the ones dropped. "
             "Respond with ONLY the card content, no preamble."
         )
         user_prompt: str = (
@@ -316,6 +346,7 @@ class Deriver:
             f"Compress this Markdown bullet card about {subject_desc}. "
             f"Keep it at or below {self._max_chars} characters. "
             "Keep only the highest-signal durable bullets. "
+            "Order the bullets from most to least important. "
             "Every bullet must be complete and grammatical. "
             "Respond with ONLY Markdown bullets, no preamble."
         )
@@ -451,16 +482,8 @@ class Deriver:
             {"role": "user", "content": f"Stored conclusions about {subject}:\n{listing}\n\nProduce the distilled set."},
         ]
 
-        try:
-            message: Any = self._provider.completions(model=self._model, history=history, think=False)
-            raw: str = message.content or ""
-        except Exception as e:
-            logger.error("Consolidation reasoning call failed for '%s': %s", peer, e)
-            return []
-
-        parsed: dict[str, Any] | None = self._parse_json(raw)
+        parsed: dict[str, Any] | None = self._complete_json(history=history, label=f"consolidation for '{peer}'")
         if parsed is None:
-            logger.warning("Consolidation output unparseable for '%s'", peer)
             return []
 
         distilled: list[dict[str, Any]] = []

@@ -456,6 +456,9 @@ The loop is configured via the optional `agent` section in `config.json`:
 | Key | Default | Description |
 |:--|:--|:--|
 | `max_iterations` | `25` | Maximum tool-call rounds per request before the agent is forced to produce a final answer. |
+| `max_history` | `60` | Maximum messages kept in a session before the oldest turns are trimmed (the system prompt is always preserved). |
+
+The loop is built for reliability: provider calls retry with exponential backoff on transient errors, malformed tool-call arguments are tolerated and surfaced to the model as a correctable error instead of crashing the request, tool arguments are validated against each tool's schema before execution, and independent read-only tool calls in a batch run concurrently. Sessions are bounded by `max_history` so long conversations cannot overflow the context window, and the system prompt is rebuilt mid-session when the background memory re-curates `USER.md` / `MEMORY.md` so card updates take effect immediately.
 
 <br>
 

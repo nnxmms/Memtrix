@@ -7,6 +7,7 @@ from typing import Any
 from openai import OpenAI
 
 from src.providers.base import BaseProvider
+from src.providers.utils import with_retries
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -100,7 +101,10 @@ class OpenRouterProvider(BaseProvider):
         if think:
             kwargs["extra_body"] = {"include_reasoning": True}
 
-        response: Any = self._client.chat.completions.create(**kwargs)
+        response: Any = with_retries(
+            lambda: self._client.chat.completions.create(**kwargs),
+            label=f"OpenRouter completion (model={model})",
+        )
         message: Any = response.choices[0].message
         logger.debug("OpenRouter response received (model=%s)", model)
 
@@ -115,7 +119,7 @@ class OpenRouterProvider(BaseProvider):
                     id=tc.id,
                     function=_ToolFunction(
                         name=tc.function.name,
-                        arguments=json.loads(tc.function.arguments) if isinstance(tc.function.arguments, str) else tc.function.arguments
+                        arguments=self._parse_arguments(raw=tc.function.arguments, name=tc.function.name)
                     )
                 )
                 for tc in message.tool_calls
@@ -126,3 +130,22 @@ class OpenRouterProvider(BaseProvider):
             tool_calls=wrapped_tool_calls,
             thinking=thinking
         )
+
+    @staticmethod
+    def _parse_arguments(raw: Any, name: str) -> dict[str, Any]:
+        """
+        This function parses a tool call's arguments into a dict, tolerating malformed
+        JSON from the model so a single bad tool call cannot crash the whole request.
+        On failure it returns an empty dict, letting the orchestrator surface a clear
+        validation error the model can correct on the next round.
+        """
+        if isinstance(raw, dict):
+            return raw
+        if not isinstance(raw, str) or not raw.strip():
+            return {}
+        try:
+            parsed: Any = json.loads(raw)
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning("Could not parse arguments for tool '%s': %s", name, e)
+            return {}
+        return parsed if isinstance(parsed, dict) else {}

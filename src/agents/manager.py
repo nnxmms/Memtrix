@@ -759,6 +759,7 @@ class AgentManager:
             think=think,
             skills_catalog=skills_catalog,
             max_iterations=agent_cfg["max_iterations"],
+            max_history=agent_cfg["max_history"],
         )
         self._orchestrators[name] = orchestrator
         self._locks[name] = threading.Lock()

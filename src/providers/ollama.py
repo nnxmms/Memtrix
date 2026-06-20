@@ -6,6 +6,7 @@ from typing import Any
 from ollama import Client
 
 from src.providers.base import BaseProvider
+from src.providers.utils import with_retries
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -35,6 +36,6 @@ class OllamaProvider(BaseProvider):
         if think:
             kwargs["think"] = True
 
-        response: Any = self._client.chat(**kwargs)
+        response: Any = with_retries(lambda: self._client.chat(**kwargs), label=f"Ollama chat (model={model})")
         logger.debug("Ollama response received (model=%s)", model)
         return response.message

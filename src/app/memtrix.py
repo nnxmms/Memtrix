@@ -193,6 +193,7 @@ class Memtrix:
             memory_config=mem_cfg,
             skills_catalog=skills_catalog,
             max_iterations=agent_cfg["max_iterations"],
+            max_history=agent_cfg["max_history"],
         )
 
         logger.info("Orchestrator initialized (model=%s, think=%s)", self._model, think)

@@ -3,6 +3,56 @@
 from typing import Any
 
 
+# JSON-schema type name -> acceptable Python types for lightweight validation
+_TYPE_MAP: dict[str, tuple[type, ...]] = {
+    "string": (str,),
+    "integer": (int,),
+    "number": (int, float),
+    "boolean": (bool,),
+    "array": (list,),
+    "object": (dict,),
+}
+
+
+def validate_tool_args(parameters: dict[str, Any], args: dict[str, Any]) -> str | None:
+    """
+    This function checks tool-call arguments against a tool's JSON-schema parameters,
+    returning a human-readable error string (for the model to self-correct) or None
+    when the arguments are acceptable. Validation is intentionally lightweight: it
+    enforces required keys and basic scalar/container types without deep schema rules.
+    """
+    if not isinstance(args, dict):
+        return f"Error: tool arguments must be a JSON object, got {type(args).__name__}."
+
+    properties: dict[str, Any] = parameters.get("properties", {}) or {}
+    required: list[str] = parameters.get("required", []) or []
+
+    missing: list[str] = [
+        key for key in required
+        if key not in args or args[key] is None or (isinstance(args[key], str) and args[key] == "")
+    ]
+    if missing:
+        return f"Error: missing required parameter(s): {', '.join(missing)}."
+
+    for key, value in args.items():
+        spec: Any = properties.get(key)
+        if not isinstance(spec, dict):
+            continue
+        expected: Any = spec.get("type")
+        if not isinstance(expected, str) or expected not in _TYPE_MAP:
+            continue
+        if value is None:
+            continue
+        # bool is a subclass of int — reject it for numeric types to avoid silent coercion
+        allowed: tuple[type, ...] = _TYPE_MAP[expected]
+        if expected in ("integer", "number") and isinstance(value, bool):
+            return f"Error: parameter '{key}' must be of type {expected}, got boolean."
+        if not isinstance(value, allowed):
+            return f"Error: parameter '{key}' must be of type {expected}, got {type(value).__name__}."
+
+    return None
+
+
 class BaseTool:
 
     # Per-room tracker for read-before-write enforcement on core files

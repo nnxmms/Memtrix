@@ -102,6 +102,7 @@ def resolve_agent_config(config: dict[str, Any]) -> dict[str, Any]:
     """
     defaults: dict[str, Any] = {
         "max_iterations": 25,  # tool-call rounds allowed per request before forcing a final answer
+        "max_history": 60,     # messages kept in a session before older turns are trimmed
     }
     user_cfg: dict[str, Any] = config.get("agent", {}) or {}
     return {**defaults, **user_cfg}

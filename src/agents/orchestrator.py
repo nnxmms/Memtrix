@@ -1,26 +1,60 @@
 #!/usr/bin/python3
 
+import concurrent.futures
 import logging
 import os
 import re
+import uuid
 from typing import Any, Callable
 
 from src.memory.deriver import Deriver
 from src.providers.base import BaseProvider
 from src.memory.store import RepresentationStore
 from src.core.session import Session
-from src.tools.base import BaseTool
+from src.tools.base import BaseTool, validate_tool_args
 
 logger: logging.Logger = logging.getLogger(__name__)
 
 # Default number of tool-call rounds per request (overridable via the "agent" config block)
 DEFAULT_MAX_ITERATIONS: int = 25
 
+# Default number of messages retained in a session before older turns are trimmed
+DEFAULT_MAX_HISTORY: int = 60
+
+# Maximum tools executed concurrently within a single parallel-safe batch
+MAX_PARALLEL_TOOLS: int = 8
+
+# When this many or fewer tool rounds remain, warn the model to wrap up
+BUDGET_WARN_ROUNDS: int = 3
+
 # Prefix marking a transient recall block injected into the working history
 RECALL_PREFIX: str = "📎 Relevant things I recall"
 
 # Prefix marking a transient skill-catalog block injected into the working history
 SKILL_PREFIX: str = "🧠 Your skills (reusable workflows you can load on demand)"
+
+# Prefix marking a transient tool-round budget warning injected into the history
+BUDGET_PREFIX: str = "⏳ Tool-round budget"
+
+# Files whose content is baked into the system prompt; a change to any of them
+# (including the background-curated USER.md/MEMORY.md cards) triggers a rebuild.
+_PROMPT_SOURCE_FILES: tuple[str, ...] = ("AGENT.md", "BEHAVIOR.md", "SOUL.md", "USER.md", "MEMORY.md")
+
+# Tools that mutate state, manage sessions/connections, or depend on execution
+# order — these never run concurrently with siblings in the same tool-call batch.
+_SEQUENTIAL_TOOL_NAMES: frozenset[str] = frozenset({
+    "read_core_file", "write_core_file", "read_memory_file", "write_memory_file",
+    "create_file", "delete_file", "download_file", "create_directory", "delete_directory",
+    "git_clone", "create_agent", "delete_agent", "ask_agent", "memory_conclude",
+    "send_file", "skill_manage", "ssh_connect", "ssh_disconnect", "ssh_add_host",
+    "ssh_remove_host", "ssh_gen_key", "ssh_run",
+})
+
+# Argument-name substrings whose values are redacted in tool-call notifications.
+_SENSITIVE_KEY_HINTS: tuple[str, ...] = (
+    "password", "passwd", "secret", "token", "api_key", "apikey",
+    "passphrase", "credential", "auth", "private_key",
+)
 
 
 class Orchestrator:
@@ -30,7 +64,8 @@ class Orchestrator:
                  representation: RepresentationStore | None = None,
                  memory_config: dict[str, Any] | None = None,
                  skills_catalog: Any | None = None,
-                 max_iterations: int = DEFAULT_MAX_ITERATIONS) -> None:
+                 max_iterations: int = DEFAULT_MAX_ITERATIONS,
+                 max_history: int = DEFAULT_MAX_HISTORY) -> None:
         """
         This is the Orchestrator class which runs the agentic tool-calling loop.
         """
@@ -45,15 +80,17 @@ class Orchestrator:
         # Tool schemas for the LLM
         self._tool_schemas: list[dict[str, Any]] = [tool.schema() for tool in tools]
 
-        # System prompt built from workspace files
+        # System prompt built from workspace files, plus a snapshot of the source-file
+        # modification times so background-curated card edits can trigger a rebuild.
         self._workspace_dir: str = workspace_dir
         self._system_prompt: str = self._build_system_prompt(workspace_dir=workspace_dir)
+        self._prompt_source_mtimes: dict[str, float] = self._source_mtimes()
 
         # Reasoning-memory layer (optional)
         self._deriver: Deriver | None = deriver
         self._representation: RepresentationStore | None = representation
         self._memory_config: dict[str, Any] = memory_config or {}
-        self._recall_mode: str = self._memory_config.get("recall_mode", "off")
+        self._recall_mode: str = self._memory_config.get("recall_mode", "hybrid")
         self._inject_top_k: int = int(self._memory_config.get("inject_top_k", 5))
         self._write_frequency: str = self._memory_config.get("write_frequency", "async")
 
@@ -62,6 +99,35 @@ class Orchestrator:
 
         # Maximum tool-call rounds per request before forcing a final answer
         self._max_iterations: int = max_iterations
+
+        # Maximum messages retained per session before older turns are trimmed
+        self._max_history: int = max_history
+
+    def _source_mtimes(self) -> dict[str, float]:
+        """
+        This function snapshots the modification times of the system-prompt source
+        files, so a later change (e.g. a background-curated card) can be detected.
+        """
+        mtimes: dict[str, float] = {}
+        for filename in _PROMPT_SOURCE_FILES:
+            path: str = os.path.join(self._workspace_dir, filename)
+            try:
+                mtimes[filename] = os.path.getmtime(path)
+            except OSError:
+                mtimes[filename] = 0.0
+        return mtimes
+
+    def _refresh_system_prompt(self, session: Session) -> None:
+        """
+        This function rebuilds the system prompt when any source file has changed since
+        the last build (notably the background-curated USER.md/MEMORY.md cards) and
+        syncs the latest prompt into the given session so mid-session updates take effect.
+        """
+        current: dict[str, float] = self._source_mtimes()
+        if current != self._prompt_source_mtimes:
+            self._system_prompt = self._build_system_prompt(workspace_dir=self._workspace_dir)
+            self._prompt_source_mtimes = current
+        session.set_system_prompt(content=self._system_prompt)
 
     def _build_system_prompt(self, workspace_dir: str) -> str:
         """
@@ -161,26 +227,78 @@ class Orchestrator:
         history.insert(insert_at, {"role": "system", "content": recall_block})
         return history
 
-    def _serialize_message(self, message: Any) -> dict[str, Any]:
+    def _serialize_message(self, message: Any) -> tuple[dict[str, Any], list[str]]:
         """
-        This function converts a provider message object to a serializable dict.
+        This function converts a provider message object to a serializable dict and
+        returns the per-tool-call ids alongside it, synthesizing an id for any call
+        that lacks one so every tool call can be matched 1:1 with its tool result.
         """
         result: dict[str, Any] = {"role": "assistant", "content": message.content or ""}
+        call_ids: list[str] = []
         if message.tool_calls:
             serialized_calls: list[dict[str, Any]] = []
             for tc in message.tool_calls:
-                tc_dict: dict[str, Any] = {
+                call_id: str = getattr(tc, "id", None) or uuid.uuid4().hex
+                call_ids.append(call_id)
+                serialized_calls.append({
+                    "id": call_id,
                     "type": "function",
                     "function": {
                         "name": tc.function.name,
-                        "arguments": tc.function.arguments
-                    }
-                }
-                if getattr(tc, "id", None):
-                    tc_dict["id"] = tc.id
-                serialized_calls.append(tc_dict)
+                        "arguments": tc.function.arguments,
+                    },
+                })
             result["tool_calls"] = serialized_calls
-        return result
+        return result, call_ids
+
+    @staticmethod
+    def _summarize_args(args: dict[str, Any]) -> str:
+        """
+        This function renders tool-call arguments for a notification, omitting bulky
+        content and redacting values whose key names suggest a secret.
+        """
+        parts: list[str] = []
+        for key, value in args.items():
+            if key == "content":
+                continue
+            if any(hint in key.lower() for hint in _SENSITIVE_KEY_HINTS):
+                parts.append(f"{key}=***")
+            else:
+                parts.append(f"{key}={value}")
+        return ", ".join(parts)
+
+    def _execute_tool(self, tool_name: str, tool_args: dict[str, Any], room_id: str,
+                      ask: Callable[[str], str] | None, react: Callable[[str], None] | None,
+                      agent_depth: int) -> str:
+        """
+        This function validates and runs a single tool call, returning its result (or a
+        descriptive error string the model can act on). It performs no notification or
+        session mutation so it is safe to run concurrently for parallel-safe batches.
+        """
+        if tool_name not in self._tools:
+            logger.warning("LLM requested unknown tool '%s'", tool_name)
+            return f"Error: unknown tool '{tool_name}'"
+
+        validation_error: str | None = validate_tool_args(
+            parameters=self._tools[tool_name].parameters, args=tool_args
+        )
+        if validation_error:
+            logger.info("Tool '%s' rejected: %s", tool_name, validation_error)
+            return validation_error
+
+        try:
+            logger.info("Executing tool '%s' (room=%s)", tool_name, room_id)
+            exec_args: dict[str, Any] = {
+                **tool_args,
+                "_room_id": room_id,
+                "_ask": ask,
+                "_react": react,
+                "_agent_depth": agent_depth,
+            }
+            return self._tools[tool_name].execute(**exec_args)
+        except Exception as e:
+            logger.error("Tool '%s' raised an exception: %s", tool_name, e)
+            return f"Error: {e}"
 
     def run(self, user_message: str, session: Session, room_id: str = "",
             notify: Callable[[str], None] | None = None,
@@ -201,12 +319,18 @@ class Orchestrator:
         if "send_file" in self._tools:
             self._tools["send_file"].set_send_file(callback=send_file)
 
-        # Inject system prompt at the start of a fresh session
+        # Inject the system prompt for a fresh session, or refresh an existing one so
+        # background-curated card edits propagate mid-session.
         if not session.history:
             session.append(message={"role": "system", "content": self._system_prompt})
+        else:
+            self._refresh_system_prompt(session=session)
 
         # Add the user message to the session
         session.append(message={"role": "user", "content": user_message})
+
+        # Bound the session so long conversations cannot overflow the context window
+        session.trim(max_messages=self._max_history)
 
         # Feed the user message to the background reasoning layer
         if self._deriver is not None:
@@ -228,11 +352,21 @@ class Orchestrator:
                 logger.info("Stop requested during iteration %d (room=%s)", iteration + 1, room_id)
                 return "(stopped)"
 
+            # Warn the model when it is close to the tool-round budget
+            rounds_left: int = self._max_iterations - iteration
+            active_block: str = transient_block
+            if rounds_left <= BUDGET_WARN_ROUNDS:
+                budget_note: str = (
+                    f"{BUDGET_PREFIX}: you have {rounds_left} tool round(s) left before you must "
+                    "give a final answer. Prioritize finishing and answering the user now."
+                )
+                active_block = "\n\n".join(b for b in (transient_block, budget_note) if b)
+
             # Call the LLM with the full session history and tool definitions
             logger.debug("LLM call (iteration %d, room=%s)", iteration + 1, room_id)
             message: Any = self._provider.completions(
                 model=self._model,
-                history=self._compose_history(session=session, recall_block=transient_block),
+                history=self._compose_history(session=session, recall_block=active_block),
                 tools=self._tool_schemas,
                 think=self._think
             )
@@ -251,57 +385,24 @@ class Orchestrator:
                 logger.info("Response ready (room=%s, length=%d)", room_id, len(response))
                 return response
 
-            # Save the assistant's tool-call message to session
-            session.append(message=self._serialize_message(message=message))
+            # Save the assistant's tool-call message to session (ids guaranteed 1:1)
+            serialized, call_ids = self._serialize_message(message=message)
+            session.append(message=serialized)
 
-            # Execute each requested tool and save results
-            for tool_call in message.tool_calls:
-                tool_name: str = tool_call.function.name
-                tool_args: dict[str, Any] = tool_call.function.arguments
+            # Execute the batch, running parallel-safe read-only tools concurrently
+            self._run_tool_batch(
+                tool_calls=list(message.tool_calls), call_ids=call_ids, session=session,
+                room_id=room_id, notify=notify, ask=ask, react=react, agent_depth=agent_depth,
+            )
 
-                # Notify about the tool call
-                args_summary: str = ", ".join(f"{k}={v}" for k, v in tool_args.items() if k != "content")
-                if notify:
-                    notify(f"→ Tool call: {tool_name}({args_summary})")
-
-                # Execute the tool or report an error
-                if tool_name in self._tools:
-                    try:
-                        logger.info("Executing tool '%s' (room=%s)", tool_name, room_id)
-                        exec_args: dict[str, Any] = {
-                            **tool_args,
-                            "_room_id": room_id,
-                            "_ask": ask,
-                            "_react": react,
-                            "_agent_depth": agent_depth
-                        }
-                        result: str = self._tools[tool_name].execute(**exec_args)
-                    except Exception as e:
-                        result: str = f"Error: {e}"
-                        logger.error("Tool '%s' raised an exception: %s", tool_name, e)
-                else:
-                    result: str = f"Error: unknown tool '{tool_name}'"
-                    logger.warning("LLM requested unknown tool '%s'", tool_name)
-
-                # Notify about the tool response
-                if notify:
-                    notify("→ Tool response received")
-
-                tool_result: dict[str, str] = {"role": "tool", "content": result}
-                if getattr(tool_call, "id", None):
-                    tool_result["tool_call_id"] = tool_call.id
-                session.append(message=tool_result)
-
-                # Rebuild system prompt if a core file was updated
-                if tool_name == "write_core_file" and result.startswith("Successfully"):
-                    self._system_prompt = self._build_system_prompt(workspace_dir=self._workspace_dir)
-
-        # Exhausted iterations — ask for a final answer without tools
+        # Exhausted iterations — ask for a final answer without tools. The nudge is
+        # transient: it is added to the working history but never persisted.
         logger.warning("Exhausted %d iterations (room=%s), forcing final answer", self._max_iterations, room_id)
-        session.append(message={"role": "user", "content": "Please provide your final answer now."})
+        final_history: list[dict[str, Any]] = list(self._compose_history(session=session, recall_block=transient_block))
+        final_history.append({"role": "user", "content": "Please provide your final answer now."})
         message = self._provider.completions(
             model=self._model,
-            history=self._compose_history(session=session, recall_block=transient_block),
+            history=final_history,
             think=self._think
         )
         if notify_reasoning:
@@ -312,6 +413,60 @@ class Orchestrator:
         session.append(message={"role": "assistant", "content": response})
         self._after_response(response=response)
         return response
+
+    def _run_tool_batch(self, tool_calls: list[Any], call_ids: list[str], session: Session,
+                        room_id: str, notify: Callable[[str], None] | None,
+                        ask: Callable[[str], str] | None, react: Callable[[str], None] | None,
+                        agent_depth: int) -> None:
+        """
+        This function executes a batch of tool calls and appends their results to the
+        session in the original order. Batches made up entirely of parallel-safe,
+        known tools run concurrently; any sequential or unknown tool forces the whole
+        batch to run in order so stateful tools keep deterministic semantics.
+        """
+        names: list[str] = [tc.function.name for tc in tool_calls]
+
+        # Announce every call up front (ordered, with secrets redacted)
+        if notify:
+            for tc in tool_calls:
+                notify(f"→ Tool call: {tc.function.name}({self._summarize_args(tc.function.arguments)})")
+
+        can_parallel: bool = (
+            len(tool_calls) > 1
+            and all(name in self._tools and name not in _SEQUENTIAL_TOOL_NAMES for name in names)
+        )
+
+        if can_parallel:
+            logger.debug("Running %d tool calls concurrently (room=%s)", len(tool_calls), room_id)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(MAX_PARALLEL_TOOLS, len(tool_calls))) as pool:
+                results: list[str] = list(pool.map(
+                    lambda tc: self._execute_tool(
+                        tool_name=tc.function.name, tool_args=tc.function.arguments,
+                        room_id=room_id, ask=ask, react=react, agent_depth=agent_depth,
+                    ),
+                    tool_calls,
+                ))
+        else:
+            results = [
+                self._execute_tool(
+                    tool_name=tc.function.name, tool_args=tc.function.arguments,
+                    room_id=room_id, ask=ask, react=react, agent_depth=agent_depth,
+                )
+                for tc in tool_calls
+            ]
+
+        # Append results in order, each tied to its tool call id
+        prompt_dirty: bool = False
+        for name, call_id, result in zip(names, call_ids, results):
+            if notify:
+                notify("→ Tool response received")
+            session.append(message={"role": "tool", "content": result, "tool_call_id": call_id})
+            if name == "write_core_file" and result.startswith("Successfully"):
+                prompt_dirty = True
+
+        # Rebuild and propagate the system prompt once if a core file was updated
+        if prompt_dirty:
+            self._refresh_system_prompt(session=session)
 
     def _after_response(self, response: str) -> None:
         """
