@@ -735,12 +735,19 @@
     <a class="sidebar-link" onclick="navigate('first-conversation')">First Conversation</a>
   </div>
   <div class="sidebar-group">
-    <div class="sidebar-group-label">Guides</div>
-    <a class="sidebar-link" onclick="navigate('agents')">Sub-Agents</a>
+    <div class="sidebar-group-label">Core Concepts</div>
+    <a class="sidebar-link" onclick="navigate('agentic-loop')">The Agentic Loop</a>
     <a class="sidebar-link" onclick="navigate('persona')">Persona System</a>
     <a class="sidebar-link" onclick="navigate('memory')">Memory & RAG</a>
     <a class="sidebar-link" onclick="navigate('reasoning-memory')">Reasoning Memory</a>
+    <a class="sidebar-link" onclick="navigate('skills')">Skills</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Guides</div>
+    <a class="sidebar-link" onclick="navigate('agents')">Sub-Agents</a>
     <a class="sidebar-link" onclick="navigate('web-panel')">Web Control Panel</a>
+    <a class="sidebar-link" onclick="navigate('voice')">Voice & Transcription</a>
+    <a class="sidebar-link" onclick="navigate('ssh')">SSH Remote Admin</a>
     <a class="sidebar-link" onclick="navigate('custom-tools')">Custom Tools</a>
     <a class="sidebar-link" onclick="navigate('custom-providers')">Custom Providers</a>
   </div>
@@ -752,6 +759,7 @@
     <a class="sidebar-link" onclick="navigate('tools-ref')">Tools Reference</a>
     <a class="sidebar-link" onclick="navigate('security')">Security</a>
     <a class="sidebar-link" onclick="navigate('docker')">Docker & Services</a>
+    <a class="sidebar-link" onclick="navigate('performance')">Performance & Startup</a>
     <a class="sidebar-link" onclick="navigate('troubleshooting')">Troubleshooting</a>
   </div>
 </aside>
@@ -787,7 +795,7 @@
         <li><strong>Self-hosted</strong> - LLM, homeserver, search engine, vector DB - everything on your hardware</li>
         <li><strong>Multi-provider</strong> - local models via Ollama or 200+ cloud models via OpenRouter</li>
         <li><strong>Persistent memory</strong> - searchable conversation-history RAG plus a reasoning-memory layer (auto-curated peer cards &amp; conclusions), all on-device</li>
-        <li><strong>Agentic</strong> - iterative reasoning loop with 28 auto-discovered tools</li>
+        <li><strong>Agentic</strong> - iterative reasoning loop with 35 auto-discovered tools, parallel tool execution, and schema-validated calls</li>
         <li><strong>Multi-agent</strong> - create specialist sub-agents that can consult each other</li>
         <li><strong>Web Control Panel</strong> - configure, test connections, manage secrets, and curate memory from the browser</li>
         <li><strong>Security hardened</strong> - non-root, read-only filesystem, all capabilities dropped</li>
@@ -858,7 +866,7 @@ docker compose up -d</code></pre>
       <p>A local web app at <code>localhost:8800</code> for running Memtrix without editing JSON: a validated config editor, one-click connection tests, secret management, full memory administration, and safe restarts with live progress. See <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a>.</p>
 
       <h2 id="ft-tools">Agentic Tool System</h2>
-      <p>36 built-in tools auto-discovered at startup. The orchestrator runs an iterative reasoning loop (up to 10 iterations) where the LLM can call tools, observe results, and continue reasoning. New tools are just Python files dropped into <code>src/tools/</code>.</p>
+      <p>35 built-in tools auto-discovered at startup. The orchestrator runs an iterative reasoning loop (up to 25 rounds, configurable) where the LLM can call tools, observe results, and continue reasoning. Independent read-only tool calls run in parallel (up to 8 at once), every call is validated against the tool's JSON schema before it runs, and provider calls retry transient failures with exponential backoff. New tools are just Python files dropped into <code>src/tools/</code>. See <a onclick="navigate('agentic-loop')" style="cursor:pointer;color:var(--accent)">The Agentic Loop</a>.</p>
 
       <h2 id="ft-selfdocs">Self-Documenting</h2>
       <p>Memtrix can research its own documentation. The <code>search_docs</code> and <code>ask_docs</code> tools let the agent - and every sub-agent - answer "how does Memtrix work?" questions from the bundled docs, with citations. The docs are parsed into a vector-indexed <code>documentation</code> collection at startup and refreshed automatically. See <a onclick="navigate('tools-ref')" style="cursor:pointer;color:var(--accent)">Tools Reference</a>.</p>
@@ -873,13 +881,16 @@ docker compose up -d</code></pre>
       <p>Create specialist sub-agents with their own identity, memory, Matrix presence, and workspace. Agents communicate via <code>ask_agent</code> - the main agent can consult sub-agents, and sub-agents can consult each other or the main agent.</p>
 
       <h2 id="ft-ssh">SSH Remote Administration</h2>
-      <p>Memtrix can act as a sysadmin on your remote hosts. It generates its own SSH key, registers hosts, and opens a <strong>persistent interactive session</strong> it works inside across many commands (so <code>cd</code> and environment changes persist), then closes it. Key-only auth, trust-on-first-use host keys, confirmation for destructive commands, and in-memory-only <code>sudo</code> passwords. See <a onclick="navigate('tools-ref')" style="cursor:pointer;color:var(--accent)">Tools Reference</a>.</p>
+      <p>Memtrix can act as a sysadmin on your remote hosts. It generates its own SSH key, registers hosts, and opens a <strong>persistent interactive session</strong> it works inside across many commands (so <code>cd</code> and environment changes persist), then closes it. Key-only auth, trust-on-first-use host keys, confirmation for destructive commands, and in-memory-only <code>sudo</code> passwords. See <a onclick="navigate('ssh')" style="cursor:pointer;color:var(--accent)">SSH Remote Admin</a>.</p>
 
       <h2 id="ft-skills">Self-Authored Skills</h2>
-      <p>Memtrix builds its own <strong>skills</strong> - short, reusable task workflows it writes for itself so it handles recurring work better over time. After finishing a non-trivial task (5+ tool calls, error recovery, a user correction, or a non-obvious workflow), it captures the approach as generalized steps using the <code>skill_manage</code> tool - same model, no second reasoner. At the start of every turn it sees a catalog of all its skills (each as <code>name: description</code>) and decides for itself which, if any, fits the task, then loads that skill's full instructions on demand and follows them - progressive disclosure, no embeddings or vector search. Instructions only, no separate code execution; each agent keeps its own isolated skill store. See <a onclick="navigate('tools-ref')" style="cursor:pointer;color:var(--accent)">Tools Reference</a>.</p>
+      <p>Memtrix builds its own <strong>skills</strong> - short, reusable task workflows it writes for itself so it handles recurring work better over time. After finishing a non-trivial task (5+ tool calls, error recovery, a user correction, or a non-obvious workflow), it captures the approach as generalized steps using the <code>skill_manage</code> tool - same model, no second reasoner. At the start of every turn it sees a catalog of all its skills (each as <code>name: description</code>) and decides for itself which, if any, fits the task, then loads that skill's full instructions on demand and follows them - progressive disclosure, no embeddings or vector search. Instructions only, no separate code execution; each agent keeps its own isolated skill store. See <a onclick="navigate('skills')" style="cursor:pointer;color:var(--accent)">Skills</a>.</p>
 
       <h2 id="ft-matrix">Matrix Chat Protocol</h2>
-      <p>Communicates through the Matrix protocol via a local Conduit homeserver. Use Element, FluffyChat, or any Matrix client. Each room maintains its own conversation session. Matrix voice notes (<code>m.audio</code>) can be transcribed locally on-device and fed into the agent as text context.</p>
+      <p>Communicates through the Matrix protocol via a local Conduit homeserver (or any external homeserver). Use Element, FluffyChat, or any Matrix client. Each room maintains its own conversation session, and Memtrix shows a native typing indicator while it works on a reply.</p>
+
+      <h2 id="ft-voice">Local Voice Notes</h2>
+      <p>Send a voice message and Memtrix transcribes it <strong>on-device</strong> with a local faster-whisper model, then answers as if you had typed it. No audio leaves your machine. Off by default - see <a onclick="navigate('voice')" style="cursor:pointer;color:var(--accent)">Voice &amp; Transcription</a>.</p>
 
       <h2 id="ft-security">Security Hardened</h2>
       <p>Defense-in-depth: non-root container, read-only filesystem, all capabilities dropped, no shell access for the LLM, SSRF protection, human-in-the-loop for destructive operations, path traversal prevention, and prompt injection mitigation.</p>
@@ -959,7 +970,7 @@ docker compose up -d</code></pre>
         <li>Memtrix's orchestrator builds the system prompt (injecting persona &amp; memory files)</li>
         <li>Relevant long-term memory is recalled (conversation-history RAG + reasoning-memory cards) and injected as context</li>
         <li>The LLM is called with conversation history + tool schemas</li>
-        <li>If the LLM requests tools → tools execute → results returned → loop continues (up to 10 iterations)</li>
+        <li>If the LLM requests tools → tools execute (in parallel where safe) → results returned → loop continues (up to <code>max_iterations</code>, default 25)</li>
         <li>Final response is sent back through the homeserver to your Matrix client</li>
         <li>After the reply, the reasoning-memory deriver runs in the background to update peer cards and conclusions</li>
       </ol>
@@ -1187,7 +1198,7 @@ docker compose up -d</code></pre>
       <ol>
         <li><strong>Builds the system prompt</strong> - injects <code>SOUL.md</code>, <code>BEHAVIOR.md</code>, <code>USER.md</code>, and <code>MEMORY.md</code> into the <code>AGENT.md</code> template</li>
         <li><strong>Recalls memory</strong> - silently pulls relevant context from past conversations and the reasoning-memory store (peer cards &amp; conclusions)</li>
-        <li><strong>Calls the LLM</strong> with conversation history and all 26 tool schemas</li>
+        <li><strong>Calls the LLM</strong> with conversation history and all available tool schemas (35 built-in, minus any gated off)</li>
         <li><strong>Executes tools</strong> if the LLM requests them (web search, memory lookup, etc.)</li>
         <li><strong>Responds</strong> with the final answer</li>
         <li><strong>Learns in the background</strong> - after replying, the reasoning-memory deriver updates the auto-curated peer cards (<code>USER.md</code>, <code>MEMORY.md</code>) and records conclusions, while the raw conversation transcript is saved and embedded for future recall</li>
@@ -1296,6 +1307,89 @@ docker compose up -d</code></pre>
 
       <h2 id="ag-memory-exchange">Memory exchange</h2>
       <p>As of v2.7, after an inter-agent call, a summary of the exchange is appended to the target agent's active user session. If Agent B asks Agent A something, A can later tell the user what B asked and what it answered.</p>
+    </div>
+
+    <!-- ═══════════════════════════════════════ AGENTIC LOOP ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-agentic-loop">
+      <div class="doc-breadcrumb">Core concepts</div>
+      <h1>The Agentic Loop</h1>
+      <p class="lead">Memtrix is not a single LLM call - it is an orchestrated reasoning loop. Each message runs an iterative cycle of "call the model, run any tools it asks for, feed the results back" until the model produces a final answer.</p>
+
+      <h2 id="al-cycle">The cycle</h2>
+      <p>When a message arrives, the orchestrator runs this loop:</p>
+      <div class="steps">
+        <div class="step">
+          <div></div>
+          <div class="step-content">
+            <h4>Build the system prompt</h4>
+            <p>The <code>AGENT.md</code> template is filled in: <code>{{DATE}}</code> becomes today's ISO date, and <code>{{BEHAVIOR}}</code>, <code>{{SOUL}}</code>, <code>{{USER}}</code>, <code>{{MEMORY}}</code> are replaced with the live contents of those persona files. If any source file changed since last turn, the prompt is rebuilt mid-session so edits take effect immediately.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div></div>
+          <div class="step-content">
+            <h4>Inject recall &amp; skills</h4>
+            <p>Relevant reasoning-memory conclusions are pulled and injected as a context block (within a relevance threshold), and a catalog of the agent's skills (<code>name: description</code>) is added so the model can decide which, if any, to load.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div></div>
+          <div class="step-content">
+            <h4>Call the model</h4>
+            <p>The provider is called with the full message history plus every available tool schema. Transient failures (network blips, rate limits) retry automatically with exponential backoff and jitter.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div></div>
+          <div class="step-content">
+            <h4>Validate &amp; run tools</h4>
+            <p>If the model requests tools, each call's arguments are validated against the tool's JSON schema first. Independent read-only calls run concurrently; stateful ones run sequentially. Results are appended to the history.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div></div>
+          <div class="step-content">
+            <h4>Loop or finish</h4>
+            <p>If the model returned tool calls, the loop repeats. If it returned a plain message, that is the final answer and it is sent back to you. The loop is capped at <code>max_iterations</code> rounds (default 25).</p>
+          </div>
+        </div>
+      </div>
+
+      <h2 id="al-parallel">Parallel tool execution</h2>
+      <p>When the model fans out independent work - several reads, multiple searches - those calls run <strong>concurrently</strong>, up to 8 at a time, cutting latency. Tools that mutate state or depend on order are detected and always run <strong>sequentially</strong> to keep behaviour deterministic. Sequential tools include:</p>
+      <ul>
+        <li>Core/persona writes (<code>read_core_file</code>, <code>write_core_file</code>)</li>
+        <li>File operations (<code>create_file</code>, <code>delete_file</code>, <code>git_clone</code>, <code>send_file</code>, directory ops)</li>
+        <li>Agent management (<code>create_agent</code>, <code>delete_agent</code>, <code>ask_agent</code>)</li>
+        <li>Memory writes (<code>memory_conclude</code>), skill edits (<code>skill_manage</code>), and all SSH operations</li>
+      </ul>
+
+      <h2 id="al-validation">Schema validation &amp; error tolerance</h2>
+      <ul>
+        <li><strong>Argument validation</strong> - missing required parameters and basic type mismatches are returned to the model as a precise, correctable error instead of failing deep inside a tool.</li>
+        <li><strong>Malformed JSON</strong> - if the model emits invalid JSON for a tool's arguments, the arguments become an empty object and the model is told to fix it next round, rather than the whole turn crashing.</li>
+        <li><strong>One-to-one tool IDs</strong> - every tool call is paired exactly with its result, so strict providers never see an orphaned tool result.</li>
+        <li><strong>Secret redaction</strong> - tool-call notifications redact argument values whose names look like secrets (password, token, api_key, secret, credential, auth, private_key).</li>
+      </ul>
+
+      <h2 id="al-budget">Iteration budget</h2>
+      <p>Each request may take at most <code>max_iterations</code> tool-call rounds (default 25, set under the <code>agent</code> config block). When only a few rounds remain, the model receives a transient "tool-round budget warning" so it can wrap up cleanly instead of being cut off mid-task. At the hard cap it is asked for a final answer; that forced nudge is not persisted into history.</p>
+
+      <h2 id="al-history">History trimming</h2>
+      <p>Long-running rooms are bounded by <code>max_history</code> (default 60 messages). Once a session grows past the limit, the oldest turns are trimmed - but trimming is tool-pairing-safe (it never leaves an orphaned tool result) and the system prompt is always preserved. This prevents context-window overflow without losing the agent's identity or recent context.</p>
+
+      <h2 id="al-stop">Interruption</h2>
+      <p>The <code>/stop</code> command is checked at <em>every</em> iteration of the loop, so it interrupts instantly - even mid-reasoning or mid-tool-call. Session history is preserved; just send your next message to continue. See <a onclick="navigate('commands')" style="cursor:pointer;color:var(--accent)">Commands</a>.</p>
+
+      <h2 id="al-config">Tuning the loop</h2>
+      <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg> data/config.json</div>
+      <pre><code>{
+  <span style="color:var(--blue)">"agent"</span>: {
+    <span style="color:var(--blue)">"max_iterations"</span>: <span style="color:var(--accent)">25</span>,  <span style="color:var(--text-muted)">// tool-call rounds per request</span>
+    <span style="color:var(--blue)">"max_history"</span>: <span style="color:var(--accent)">60</span>      <span style="color:var(--text-muted)">// messages kept before trimming</span>
+  }
+}</code></pre>
+      <p>Both keys apply to the main agent and every sub-agent. Installs without an <code>agent</code> block use the defaults.</p>
     </div>
 
     <!-- ═══════════════════════════════════════ PERSONA SYSTEM ═══════════════════════════════════════ -->
@@ -1581,6 +1675,76 @@ docker compose up -d</code></pre>
       </div>
     </div>
 
+    <!-- ═══════════════════════════════════════ SKILLS ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-skills">
+      <div class="doc-breadcrumb">Core concepts</div>
+      <h1>Skills</h1>
+      <p class="lead">Memtrix writes its own <strong>skills</strong> - short, reusable task workflows it captures so it handles recurring kinds of work better over time. Skills are a distinct layer from persona (character) and memory (facts): they capture <em>how</em> the agent works.</p>
+
+      <div class="callout note">
+        <span class="callout-tag note">note</span>
+        <div class="callout-body">A skill is a generalized set of steps - e.g. "when performing a security audit of a server, do these steps". It is instructions only; there is no separate code execution, which preserves Memtrix's no-local-shell security model.</div>
+      </div>
+
+      <h2 id="sk-what">What a skill is</h2>
+      <p>Each skill lives in the agent's own workspace as a Markdown file with YAML frontmatter:</p>
+      <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg> workspace/skills/&lt;name&gt;/SKILL.md</div>
+      <pre><code>---
+name: server-security-audit
+description: Steps to audit a remote host's security posture
+---
+
+## Instructions
+1. Connect to the host and check for OS updates
+2. Review open ports and running services
+3. Inspect sudoers and SSH config
+4. Summarize findings with severity levels</code></pre>
+      <p>A skill folder can also hold reference files alongside <code>SKILL.md</code>. Each agent (main and every sub-agent) keeps its <strong>own isolated</strong> skill store.</p>
+
+      <h2 id="sk-author">How skills are authored</h2>
+      <p>Authoring happens <strong>inside the normal agent loop</strong> - the same model, no second reasoner. After finishing a non-trivial task, the agent evaluates whether it was skill-worthy and, if so, captures the approach as generalized steps. A task is considered skill-worthy when it:</p>
+      <ul>
+        <li>Took <strong>5 or more tool calls</strong></li>
+        <li>Required <strong>error recovery</strong></li>
+        <li>Involved a <strong>user correction</strong></li>
+        <li>Followed a <strong>non-obvious workflow</strong></li>
+      </ul>
+      <p>If an existing skill proved suboptimal during the task, the agent improves it on the spot instead of creating a duplicate. This evaluation is a required last step of finishing a larger task - declining to save must be a deliberate judgment, not an omission.</p>
+
+      <h2 id="sk-discovery">Progressive disclosure</h2>
+      <p>Skills use the <strong>progressive-disclosure</strong> model rather than embedding-based matching:</p>
+      <ol>
+        <li>At the start of <em>every</em> turn, the agent sees a catalog of all its skills, each as <code>name: description</code>.</li>
+        <li>It decides for itself which skill, if any, fits the current task.</li>
+        <li>It loads that skill's full instructions on demand with <code>skill_manage</code> (<code>view</code>), then follows them.</li>
+      </ol>
+      <p>There is no vector index, no embedding step, and no distance threshold that could wrongly reject a relevant skill - just a plain catalog the model reasons over.</p>
+
+      <h2 id="sk-tool">The skill_manage tool</h2>
+      <p>One tool drives the whole lifecycle, with these actions:</p>
+      <table>
+        <thead><tr><th>Action</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>list</code></td><td>List all skills (name + description)</td></tr>
+          <tr><td><code>view</code></td><td>Load a skill's full instructions and reference files</td></tr>
+          <tr><td><code>create</code></td><td>Author a new skill</td></tr>
+          <tr><td><code>edit</code></td><td>Replace a skill's content</td></tr>
+          <tr><td><code>patch</code></td><td>Make a targeted change to a skill</td></tr>
+          <tr><td><code>delete</code></td><td>Remove a skill</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="sk-config">Configuration</h2>
+      <p>Skills are controlled by the optional <code>skills</code> block in <code>config.json</code>:</p>
+      <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg> data/config.json</div>
+      <pre><code>{
+  <span style="color:var(--blue)">"skills"</span>: {
+    <span style="color:var(--blue)">"enabled"</span>: <span style="color:var(--purple)">true</span>  <span style="color:var(--text-muted)">// load skill_manage + inject the catalog</span>
+  }
+}</code></pre>
+      <p>When disabled, the <code>skill_manage</code> tool is not loaded and no catalog is injected. The default is <code>true</code>.</p>
+    </div>
+
     <!-- ═══════════════════════════════════════ WEB CONTROL PANEL ═══════════════════════════════════════ -->
     <div class="doc-page" id="page-web-panel">
       <div class="doc-breadcrumb">Guides</div>
@@ -1617,6 +1781,22 @@ docker compose up -d</code></pre>
           </div>
         </div>
       </div>
+
+      <h2 id="wp-pages">What's in the panel</h2>
+      <table>
+        <thead><tr><th>Page</th><th>What you do there</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Dashboard</strong></td><td>Live status at a glance - agent online/offline (heartbeat), reasoning-memory count, deriver state, and a config summary</td></tr>
+          <tr><td><strong>Main Agent</strong></td><td>Name, model, channel, and the verbose / reasoning toggles</td></tr>
+          <tr><td><strong>Providers &amp; Models</strong></td><td>Add, edit, or remove LLM providers and model instances; run live connectivity tests</td></tr>
+          <tr><td><strong>Channels &amp; Agents</strong></td><td>Manage Matrix channels and sub-agents; test channel connections</td></tr>
+          <tr><td><strong>Memory</strong></td><td>Tune the reasoning-memory block - backend, recall mode, derivation depth, consolidation</td></tr>
+          <tr><td><strong>Memory Admin</strong></td><td>Browse, search, add, edit, and delete conclusions; edit and freeze peer cards; pause the deriver; export/import</td></tr>
+          <tr><td><strong>Secrets</strong></td><td>View which secrets are referenced and set or rotate their values</td></tr>
+          <tr><td><strong>Voice</strong></td><td>Enable local transcription and pick the model tier and language</td></tr>
+          <tr><td><strong>Panel Settings</strong></td><td>The panel's own auth token, port, and CORS dev origins</td></tr>
+        </tbody>
+      </table>
 
       <h2 id="wp-config">Configuration editor</h2>
       <p>Edit your whole <code>config.json</code> through a structured UI instead of hand-editing JSON:</p>
@@ -1691,6 +1871,158 @@ docker compose up -d</code></pre>
         <span class="callout-tag warn">warn</span>
         <div class="callout-body">If you ever expose the panel beyond <code>localhost</code> (e.g. over a VPN or reverse proxy), you <strong>must</strong> set <code>MEMTRIX_WEB_TOKEN</code> and terminate TLS in front of it. The panel can change configuration and read memory - treat its token like a password.</div>
       </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ VOICE & TRANSCRIPTION ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-voice">
+      <div class="doc-breadcrumb">Guides</div>
+      <h1>Voice &amp; Transcription</h1>
+      <p class="lead">Send Memtrix a voice note in Matrix and it transcribes it locally, on-device, then treats the text as normal input. No audio ever leaves your machine.</p>
+
+      <div class="callout note">
+        <span class="callout-tag note">note</span>
+        <div class="callout-body">Voice transcription is <strong>off by default</strong>. Enable it in the <code>voice</code> config block or from the Web Control Panel's Voice page.</div>
+      </div>
+
+      <h2 id="vc-how">How it works</h2>
+      <ol>
+        <li>You record a voice message in any Matrix client - it arrives as an <code>m.audio</code> event.</li>
+        <li>Memtrix downloads the audio file to the agent's <code>attachments/</code> directory.</li>
+        <li>The local speech-to-text engine transcribes it to text.</li>
+        <li>The transcript is forwarded into the normal agent loop as your message context - so the agent answers as if you had typed it.</li>
+      </ol>
+      <p>The model is loaded <strong>lazily</strong> on first use, so enabling voice does not slow startup. Failures and timeouts degrade gracefully - a transcription error never breaks message handling.</p>
+
+      <h2 id="vc-engine">The engine</h2>
+      <p>Transcription uses a local <a href="https://github.com/SYSTRAN/faster-whisper">faster-whisper</a> model (provider <code>local</code>). Choose a model tier to trade speed for accuracy:</p>
+      <table>
+        <thead><tr><th>Model</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>tiny</code></td><td>Fastest, lowest accuracy - fine for short, clear notes</td></tr>
+          <tr><td><code>base</code> <span style="color:var(--text-muted)">(default)</span></td><td>Good balance of speed and accuracy</td></tr>
+          <tr><td><code>small</code></td><td>More accurate, slower</td></tr>
+          <tr><td><code>medium</code></td><td>High accuracy, noticeably slower</td></tr>
+          <tr><td><code>large</code></td><td>Best accuracy, heaviest - needs more RAM/CPU</td></tr>
+        </tbody>
+      </table>
+      <p>The model is downloaded to <code>data/models/</code> on first use and reused across restarts.</p>
+
+      <h2 id="vc-config">Configuration</h2>
+      <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg> data/config.json</div>
+      <pre><code>{
+  <span style="color:var(--blue)">"voice"</span>: {
+    <span style="color:var(--blue)">"enabled"</span>: <span style="color:var(--purple)">false</span>,
+    <span style="color:var(--blue)">"provider"</span>: <span style="color:var(--orange)">"local"</span>,        <span style="color:var(--text-muted)">// currently the only provider</span>
+    <span style="color:var(--blue)">"model"</span>: <span style="color:var(--orange)">"base"</span>,            <span style="color:var(--text-muted)">// tiny | base | small | medium | large</span>
+    <span style="color:var(--blue)">"language"</span>: <span style="color:var(--purple)">null</span>,          <span style="color:var(--text-muted)">// null = auto-detect, or an ISO code like "en"</span>
+    <span style="color:var(--blue)">"max_audio_bytes"</span>: <span style="color:var(--accent)">25000000</span>, <span style="color:var(--text-muted)">// 25 MB cap; larger files are skipped</span>
+    <span style="color:var(--blue)">"timeout_seconds"</span>: <span style="color:var(--accent)">180</span>      <span style="color:var(--text-muted)">// give up after this long</span>
+  }
+}</code></pre>
+      <table>
+        <thead><tr><th>Key</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>enabled</code></td><td><code>false</code></td><td>Turn local voice transcription on or off</td></tr>
+          <tr><td><code>provider</code></td><td><code>local</code></td><td>Transcription backend (only <code>local</code> today)</td></tr>
+          <tr><td><code>model</code></td><td><code>base</code></td><td>faster-whisper model tier</td></tr>
+          <tr><td><code>language</code></td><td><code>null</code></td><td>Force a language, or auto-detect when null</td></tr>
+          <tr><td><code>max_audio_bytes</code></td><td><code>25000000</code></td><td>Maximum audio size accepted (bytes)</td></tr>
+          <tr><td><code>timeout_seconds</code></td><td><code>180</code></td><td>Transcription timeout before giving up</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="callout-tag tip">tip</span>
+        <div class="callout-body">If you mostly speak one language, set <code>language</code> explicitly (e.g. <code>"en"</code>) - it is slightly faster and more accurate than auto-detection.</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ SSH REMOTE ADMIN ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-ssh">
+      <div class="doc-breadcrumb">Guides</div>
+      <h1>SSH Remote Admin</h1>
+      <p class="lead">Memtrix can act as a sysadmin on your remote hosts. It opens a <strong>persistent interactive session</strong> and works inside it across many commands - so <code>cd</code> and environment changes persist, just like a human at a terminal - then closes it.</p>
+
+      <div class="callout warn">
+        <span class="callout-tag warn">warn</span>
+        <div class="callout-body">SSH lets the agent run commands on hosts <strong>you explicitly register</strong> - never on the Memtrix container itself, and never on internal services or loopback addresses. It is available to the <strong>main agent only</strong> and loads only when <code>ssh.enabled</code> is true.</div>
+      </div>
+
+      <h2 id="ssh-setup">Setting it up</h2>
+      <div class="steps">
+        <div class="step">
+          <div></div>
+          <div class="step-content">
+            <h4>Generate the agent's key</h4>
+            <p>Ask Memtrix to generate its SSH key (<code>ssh_gen_key</code>). It creates its own ed25519 keypair; the private key is written <code>0600</code> and never disclosed.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div></div>
+          <div class="step-content">
+            <h4>Install the public key</h4>
+            <p>Memtrix returns its public key (<code>ssh_get_pub_key</code>). Add it to the remote host's <code>~/.ssh/authorized_keys</code>. Authentication is <strong>key-only</strong> - no passwords.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div></div>
+          <div class="step-content">
+            <h4>Register the host</h4>
+            <p>Tell Memtrix the host details (<code>ssh_add_host</code>): a short alias, hostname, username, port, and optionally a sudo password. The alias must match <code>^[A-Za-z0-9._-]{1,64}$</code>.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div></div>
+          <div class="step-content">
+            <h4>Connect and work</h4>
+            <p>Memtrix opens a session (<code>ssh_connect</code>) - confirming the host key fingerprint on first use - then runs commands (<code>ssh_run</code>) that share working directory and environment, and finally closes it (<code>ssh_disconnect</code>).</p>
+          </div>
+        </div>
+      </div>
+
+      <h2 id="ssh-tools">The tools</h2>
+      <table>
+        <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>ssh_gen_key</code></td><td>Generate Memtrix's own ed25519 key; returns the public key</td></tr>
+          <tr><td><code>ssh_get_pub_key</code></td><td>Return the public key to install in <code>authorized_keys</code></td></tr>
+          <tr><td><code>ssh_add_host</code></td><td>Register a host (alias, hostname, username, port, optional sudo password)</td></tr>
+          <tr><td><code>ssh_remove_host</code></td><td>Unregister a host alias</td></tr>
+          <tr><td><code>ssh_get_remote_hosts</code></td><td>List registered hosts and their connection status</td></tr>
+          <tr><td><code>ssh_connect</code></td><td>Open a persistent session (trust-on-first-use host-key confirmation)</td></tr>
+          <tr><td><code>ssh_run</code></td><td>Run a command in the open session; state persists; optional <code>sudo</code></td></tr>
+          <tr><td><code>ssh_disconnect</code></td><td>Close the open session</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="ssh-sudo">sudo handling</h2>
+      <p>Pass <code>sudo</code> as a parameter to <code>ssh_run</code> - never embed it in the command string (if you do, the tool auto-corrects and warns). When <code>sudo=true</code>:</p>
+      <ul>
+        <li>Memtrix first tries non-interactive <code>sudo -n</code>. If passwordless sudo (NOPASSWD) is configured, the command runs immediately - no prompt.</li>
+        <li>Only if a password is actually required does it ask you via the human-in-the-loop prompt.</li>
+        <li>The sudo password is kept <strong>in memory only</strong> and never written to disk.</li>
+      </ul>
+
+      <h2 id="ssh-security">Security model</h2>
+      <ul>
+        <li><strong>Key-only auth</strong> - you install Memtrix's public key on each host; it never uses passwords to authenticate.</li>
+        <li><strong>Host-key pinning</strong> - host keys are pinned trust-on-first-use with an explicit SHA256 fingerprint confirmation, stored in <code>data/ssh/known_hosts</code>.</li>
+        <li><strong>Destructive-command confirmation</strong> - <code>rm</code>, <code>dd</code>, <code>mkfs</code>, <code>shutdown</code>/<code>reboot</code>, recursive <code>chmod</code>/<code>chown</code>, block-device writes and similar require explicit approval.</li>
+        <li><strong>Blocked targets</strong> - SSH to Memtrix's own services (<code>conduit</code>, <code>chroma</code>, <code>searxng</code>, <code>memtrix</code>) and to loopback/link-local addresses is refused; private LAN hosts are allowed.</li>
+        <li><strong>Output capped</strong> - command output is truncated to <code>max_output_chars</code> (default 20,000).</li>
+        <li>Open sessions are closed cleanly on shutdown.</li>
+      </ul>
+
+      <h2 id="ssh-config">Configuration</h2>
+      <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg> data/config.json</div>
+      <pre><code>{
+  <span style="color:var(--blue)">"ssh"</span>: {
+    <span style="color:var(--blue)">"enabled"</span>: <span style="color:var(--purple)">true</span>,
+    <span style="color:var(--blue)">"connect_timeout"</span>: <span style="color:var(--accent)">15</span>,   <span style="color:var(--text-muted)">// seconds to open a connection</span>
+    <span style="color:var(--blue)">"command_timeout"</span>: <span style="color:var(--accent)">120</span>,  <span style="color:var(--text-muted)">// seconds per command</span>
+    <span style="color:var(--blue)">"max_output_chars"</span>: <span style="color:var(--accent)">20000</span> <span style="color:var(--text-muted)">// output cap returned to the model</span>
+  }
+}</code></pre>
+      <p>Set <code>enabled</code> to <code>false</code> to remove the SSH capability entirely - the tools are never loaded.</p>
     </div>
 
     <!-- ═══════════════════════════════════════ CUSTOM TOOLS ═══════════════════════════════════════ -->
@@ -2076,7 +2408,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
     <div class="doc-page" id="page-tools-ref">
       <div class="doc-breadcrumb">Reference</div>
       <h1>Tools Reference</h1>
-      <p class="lead">All 28 built-in tools, auto-discovered at startup. Drop a new file in <code>src/tools/</code> to add your own - see <a onclick="navigate('custom-tools')" style="cursor:pointer;color:var(--accent)">Custom Tools</a>.</p>
+      <p class="lead">All 35 built-in tools, auto-discovered at startup. Some are <strong>gated</strong> by config (reasoning memory, SSH, skills) or by channel (Matrix-only). Drop a new file in <code>src/tools/</code> to add your own - see <a onclick="navigate('custom-tools')" style="cursor:pointer;color:var(--accent)">Custom Tools</a>.</p>
 
       <h2 id="tr-time">Time</h2>
       <table>
@@ -2182,13 +2514,21 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
           <tr><td><code>ssh_connect</code></td><td>Open a persistent session (trust-on-first-use host-key confirmation)</td></tr>
           <tr><td><code>ssh_run</code></td><td>Run a command in the open session; state persists between calls; optional <code>sudo</code></td></tr>
           <tr><td><code>ssh_disconnect</code></td><td>Close an open SSH session</td></tr>
-          <tr><td><code>skill_manage</code></td><td>Create, view, list, edit, patch, or delete the agent's own reusable skills</td></tr>
         </tbody>
       </table>
       <div class="callout note">
         <span class="callout-tag note">note</span>
-        <div class="callout-body">Authentication is key-only (you install Memtrix's public key on each host). Host keys are pinned trust-on-first-use; potentially destructive commands (<code>rm</code>, <code>dd</code>, <code>mkfs</code>, <code>shutdown</code>, recursive <code>chmod</code>/<code>chown</code>, block-device writes) require confirmation; <code>sudo</code> passwords are kept in memory only and never written to disk.</div>
+        <div class="callout-body">Authentication is key-only (you install Memtrix's public key on each host). Host keys are pinned trust-on-first-use; potentially destructive commands (<code>rm</code>, <code>dd</code>, <code>mkfs</code>, <code>shutdown</code>, recursive <code>chmod</code>/<code>chown</code>, block-device writes) require confirmation; <code>sudo</code> passwords are kept in memory only and never written to disk. Full details on the <a onclick="navigate('ssh')" style="cursor:pointer;color:var(--accent)">SSH Remote Admin</a> page.</div>
       </div>
+
+      <h2 id="tr-skills">Skills</h2>
+      <p>Available to every agent when <code>skills.enabled</code> is true. Lets the agent author and reuse its own task workflows. See <a onclick="navigate('skills')" style="cursor:pointer;color:var(--accent)">Skills</a>.</p>
+      <table>
+        <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>skill_manage</code></td><td>Create, view, list, edit, patch, or delete the agent's own reusable skills (actions: <code>create</code>, <code>view</code>, <code>list</code>, <code>edit</code>, <code>patch</code>, <code>delete</code>)</td></tr>
+        </tbody>
+      </table>
 
       <div class="callout warn">
         <span class="callout-tag warn">warn</span>
@@ -2331,6 +2671,61 @@ docker compose build && docker compose up -d</code></pre>
       </div>
     </div>
 
+    <!-- ═══════════════════════════════════════ PERFORMANCE & STARTUP ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-performance">
+      <div class="doc-breadcrumb">Reference</div>
+      <h1>Performance &amp; Startup</h1>
+      <p class="lead">Memtrix is designed to connect and start responding within seconds, then do the heavy lifting - embedding, indexing, reasoning - in the background, off the request path.</p>
+
+      <h2 id="pf-nonblocking">Non-blocking startup</h2>
+      <p>Rather than waiting 40-90 seconds for the embedding model and indexes before accepting messages, the agent connects to Matrix and starts responding right away. The expensive work is deferred:</p>
+      <ul>
+        <li>The on-device embedding model is loaded <strong>lazily</strong> on first use, on a background thread - and warmed at boot off the request path so the first message doesn't pay the one-time load cost.</li>
+        <li>Initial conversation and documentation indexing runs on the periodic-sync thread, not the startup path.</li>
+        <li>The embedding model is a thread-safe lazy singleton shared across the conversation, docs, and reasoning-memory indexes - it loads once even with concurrent callers.</li>
+      </ul>
+
+      <h2 id="pf-embedding">Embedding &amp; CPU</h2>
+      <p>The local embedding model (<code>nomic-embed-text-v1.5</code>) runs in-process. To keep the agent responsive while it indexes:</p>
+      <ul>
+        <li>Indexing upserts in <strong>bounded batches</strong> that release the GIL between passes, so the Matrix event loop and request handler aren't starved.</li>
+        <li>Embedding is capped to leave <strong>one CPU core free</strong> for the agent. Override the thread count with the <code>MEMTRIX_EMBED_THREADS</code> environment variable.</li>
+        <li>Embeddings are truncated to 256 dimensions (Matryoshka) for efficiency without meaningful quality loss.</li>
+      </ul>
+
+      <h2 id="pf-incremental">Incremental, restart-safe indexing</h2>
+      <p>Conversation indexing is incremental and survives restarts via a per-chunk content-hash cache (<code>.chunk-hashes.json</code> stored alongside the index):</p>
+      <ul>
+        <li>Growing conversations only embed their <strong>newest</strong> chunks.</li>
+        <li>Deleted sessions are pruned from the index.</li>
+        <li>Warm starts skip re-embedding unchanged history.</li>
+        <li>A chunk is re-embedded whenever its hash changed <em>or</em> it is missing from the collection, so a wiped or partially rebuilt index heals itself.</li>
+      </ul>
+      <p>The documentation index is content-hashed too - it only rebuilds when the docs actually change. Both run a background sync roughly every 300 seconds.</p>
+
+      <h2 id="pf-background">Background work</h2>
+      <table>
+        <thead><tr><th>Worker</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td>Heartbeat</td><td>Writes agent liveness every ~10s so the Web Control Panel can tell if the agent is up</td></tr>
+          <tr><td>Deriver</td><td>Reasoning-memory extraction and daily consolidation (see <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>)</td></tr>
+          <tr><td>Conversation sync</td><td>Embeds new conversation chunks on a periodic interval</td></tr>
+          <tr><td>Docs sync</td><td>Keeps the documentation index current</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="pf-firststart">First start vs. warm start</h2>
+      <ul>
+        <li><strong>First start</strong> downloads the embedding model (~100 MB) into <code>data/cache/</code> and, for voice, the whisper model into <code>data/models/</code> on first use. The agent stays responsive throughout.</li>
+        <li><strong>Warm start</strong> reuses the cached models and the hash caches, so there is no re-download and only new/changed content is re-embedded.</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="callout-tag tip">tip</span>
+        <div class="callout-body">On a busy machine, lowering <code>MEMTRIX_EMBED_THREADS</code> keeps the agent snappier during large reindex passes at the cost of slower indexing. On a dedicated box you can raise it to index faster.</div>
+      </div>
+    </div>
+
     <!-- ═══════════════════════════════════════ TROUBLESHOOTING ═══════════════════════════════════════ -->
     <div class="doc-page" id="page-troubleshooting">
       <div class="doc-breadcrumb">Reference</div>
@@ -2431,6 +2826,8 @@ docker compose up -d</code></pre>
     'web-panel': 'web-panel',
     'security': 'security',
     'secrets': 'security',
+    'agentic-loop': 'getting-started', 'skills': 'getting-started',
+    'voice': 'getting-started', 'ssh': 'getting-started', 'performance': 'getting-started',
     'persona': 'getting-started', 'custom-providers': 'getting-started',
     'commands': 'getting-started', 'docker': 'getting-started', 'troubleshooting': 'getting-started'
   };
