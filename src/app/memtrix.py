@@ -14,7 +14,7 @@ from src.core.config import CONFIG_PATH, resolve_agent_config, resolve_skills_co
 from src.memory.deriver import Deriver
 from src.indexing.docs import DocsIndex
 from src.core.lifecycle import install_signal_handlers, start_heartbeat
-from src.memory.index import MemoryIndex
+from src.memory.index import ConversationIndex
 from src.agents.orchestrator import Orchestrator
 from src.providers.base import BaseProvider
 from src.memory.store import RepresentationStore, resolve_memory_config
@@ -155,9 +155,9 @@ class Memtrix:
 
         tools: list[BaseTool] = discover_tools(workspace_dir=workspace_dir, exclude=tool_exclude)
 
-        # Eagerly initialize the memory index so existing files are indexed at startup
-        index: MemoryIndex = MemoryIndex.get_instance(workspace_dir=workspace_dir)
-        index.start_periodic_sync()
+        # Eagerly initialize the conversation index so past sessions are searchable
+        conversation_index: ConversationIndex = ConversationIndex.get_instance(workspace_dir=workspace_dir)
+        conversation_index.start_periodic_sync()
 
         # Initialize the documentation index so the agent can research its own docs
         docs_index: DocsIndex = DocsIndex.get_instance()

@@ -10,9 +10,8 @@ from src.tools.base import BaseTool
 # Maximum characters to return from a file
 MAX_CONTENT_LENGTH: int = 50000
 
-# Files that must be accessed via dedicated tools (read_core_file / read_memory_file)
+# Files that must be accessed via dedicated tools (read_core_file)
 BLOCKED_FILES: set[str] = {"AGENT.md", "BEHAVIOR.md", "MEMORY.md", "SOUL.md", "USER.md"}
-BLOCKED_DIRS: set[str] = {"memory"}
 
 # Directories containing untrusted external content
 UNTRUSTED_DIRS: set[str] = {"attachments", "downloads"}
@@ -25,15 +24,15 @@ class ReadFileTool(BaseTool):
     def __init__(self, workspace_dir: str) -> None:
         """
         This is the ReadFileTool which reads files from the workspace.
-        Automatically extracts text from PDFs. Core persona files and daily memory files
-        are excluded — use the dedicated tools for those.
+        Automatically extracts text from PDFs. Core persona files are excluded
+        — use the dedicated tools for those.
         """
         self._workspace_dir: str = workspace_dir
         super().__init__(
             name="read_file",
             description=(
                 "Read the content of a file in the workspace. Supports text files and PDFs (extracted automatically). "
-                "Cannot read core persona files (AGENT.md, BEHAVIOR.md, SOUL.md, USER.md, MEMORY.md) or daily memory files (memory/) — use the dedicated tools for those."
+                "Cannot read core persona files (AGENT.md, BEHAVIOR.md, SOUL.md, USER.md, MEMORY.md) — use the dedicated tools for those."
             ),
             parameters={
                 "type": "object",
@@ -94,11 +93,6 @@ class ReadFileTool(BaseTool):
         basename: str = os.path.basename(filepath)
         if basename in BLOCKED_FILES:
             return f"Error: '{basename}' is a core file. Use read_core_file instead."
-
-        # Block memory directory files
-        relpath: str = os.path.relpath(filepath, self._workspace_dir)
-        if relpath.startswith("memory" + os.sep) or relpath.startswith("memory/"):
-            return "Error: memory files must be accessed via read_memory_file."
 
         if not os.path.isfile(path=filepath):
             return f"Error: file not found: {path}"

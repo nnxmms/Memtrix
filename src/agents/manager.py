@@ -21,7 +21,7 @@ from src.core.session import Session
 from src.indexing.docs import DocsIndex
 from src.indexing.skills import SKILL_TOOL_FILES, SkillsCatalog
 from src.integrations.ssh import SSH_TOOL_FILES
-from src.memory.index import MemoryIndex
+from src.memory.index import ConversationIndex
 from src.providers.base import BaseProvider
 from src.tools import discover_tools
 from src.tools.base import BaseTool
@@ -745,8 +745,14 @@ class AgentManager:
             if skills_catalog is not None and hasattr(tool, "set_skills_catalog"):
                 tool.set_skills_catalog(catalog=skills_catalog)
 
-        # Initialize memory index for this agent (registers in the instances cache)
-        index: MemoryIndex = MemoryIndex.get_instance(workspace_dir=workspace_dir, collection_name=f"agent_{name}")
+        # Initialize the conversation index for this agent over its own sessions
+        # directory (registers in the instances cache for the search_memory tool)
+        agent_sessions_dir: str = os.path.join(os.path.dirname(CONFIG_PATH), "sessions", name)
+        index: ConversationIndex = ConversationIndex.get_instance(
+            workspace_dir=workspace_dir,
+            sessions_dir=agent_sessions_dir,
+            collection_name=f"agent_{name}",
+        )
         index.start_periodic_sync()
 
         # Create orchestrator

@@ -94,7 +94,7 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
 <td>
 
 🧠 **Persistent Memory**<br>
-<sub>Daily journals with semantic search (RAG) powered by on-device embeddings.</sub>
+<sub>Searchable conversation history with semantic search (RAG) powered by on-device embeddings.</sub>
 
 </td>
 </tr>
@@ -208,9 +208,7 @@ Built-in tools are automatically discovered at startup:
 | `get_current_time` | Returns the current date and time |
 | `read_core_file` | Reads a core persona file (BEHAVIOR, SOUL, USER, MEMORY) |
 | `write_core_file` | Updates a writable persona file (BEHAVIOR, SOUL only; enforces read-before-write) |
-| `read_memory_file` | Reads today's daily memory journal |
-| `write_memory_file` | Updates today's daily memory journal |
-| `search_memory` | Semantic search across all daily memories via embeddings |
+| `search_memory` | Semantic search across your past conversation transcripts via embeddings |
 | `memory_profile` | Returns the compact profile cards for the user and the agent (no LLM) |
 | `memory_search` | Semantic search over reasoned conclusions about the user and agent |
 | `memory_context` | Synthesizes a natural-language answer from reasoned memory |
@@ -281,7 +279,7 @@ It's automatically discovered and available to the LLM on the next restart.
 
 ## 🧠 Memory System
 
-Memtrix combines a journal-based memory with a reasoning layer:
+Memtrix combines a searchable conversation history with a reasoning layer:
 
 **Reasoning Memory** — A background **deriver** thread continuously reasons over each conversation and distills durable conclusions about both the user and the agent itself: explicit observations, certain deductions, and observed patterns. Conclusions are vector-indexed locally (ChromaDB, `data/representations`) and the most relevant ones are injected into the prompt before each reply, so Memtrix recalls durable facts across sessions. Inspired by [Honcho](https://honcho.dev), but implemented entirely on-device — no external service.
 
@@ -289,33 +287,15 @@ Memtrix combines a journal-based memory with a reasoning layer:
 
 **Profile Cards** (`USER.md` about you, `MEMORY.md` about the agent) — Compact, always-current cards that the deriver curates automatically and keeps within a character budget. They are injected into every system prompt and are no longer hand-edited by the agent.
 
-**Daily Journals** (`memory/yyyy-mm-dd.md`) — Chronological, append-only logs of each day's conversations:
-
-```markdown
-# 2026-03-18
-
-## Conversations
-- Brief summaries of what was discussed.
-
-## Learned
-- New facts about the user.
-
-## Decisions
-- Agreements or directions decided.
-
-## Tasks
-- Things requested, completed, or pending.
-
-## Notes
-- Anything else worth remembering.
-```
+**Conversation Memory** — Every conversation is automatically saved as a raw session transcript and embedded into the vector store in the background. The agent writes no journals itself; instead it can semantically search its entire conversation history with the `search_memory` tool — ask about a tool, project, decision, or name discussed weeks ago and it returns the date plus a transcript excerpt. Inter-agent and internal sessions are skipped, and each sub-agent indexes only its own conversations.
 
 > [!NOTE]
-> **Incremental indexing:** journal files are embedded into the vector store in the
-> background, and a content-hash cache (`.file-hashes.json`, stored alongside the
-> index) persists across restarts. On reboot Memtrix re-embeds only files that are
-> new or changed and prunes entries for deleted files, so warm starts skip
-> re-embedding unchanged history entirely.
+> **Incremental indexing:** session transcripts are split into windowed chunks and
+> embedded into the vector store in the background. A content-hash cache
+> (`.chunk-hashes.json`, stored alongside the index) persists across restarts. On
+> reboot Memtrix re-embeds only chunks that are new or changed and prunes entries
+> for deleted sessions, so growing conversations only embed their newest chunks and
+> warm starts skip re-embedding unchanged history entirely.
 
 ### Reasoning Memory Tools
 
@@ -361,14 +341,13 @@ When disabled, voice messages are handled as regular file attachments.
 
 ### Semantic Search (RAG)
 
-Daily journals are embedded using a local model ([`nomic-embed-text-v1.5`](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) via `sentence-transformers`) and stored in ChromaDB. The model runs entirely on-device — no external API calls.
+Conversation transcripts are embedded using a local model ([`nomic-embed-text-v1.5`](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) via `sentence-transformers`) and stored in ChromaDB. The model runs entirely on-device — no external API calls.
 
 ```
 User: "Remember that cake recipe I told you about?"
   → search_memory("cake recipe")
-  → Finds 2026-03-12.md (distance: 0.23)
-  → read_memory_file()
-  → Returns the full context from today’s memory
+  → Finds a conversation from 2026-03-12 (distance: 0.23)
+  → Returns the transcript excerpt where you discussed the recipe
 ```
 
 <br>
@@ -512,7 +491,7 @@ Memtrix can create specialist sub-agents — fully independent agents with their
 |:--|:--|
 | **Matrix user** | A separate bot account (e.g. `@dennis:memtrix.local`) the user can invite to any room |
 | **Isolated workspace** | Own directory under `agents/<name>/` with core files, memory, attachments, downloads |
-| **Own memory** | Separate daily journals and ChromaDB vector index for semantic search |
+| **Own memory** | Separate searchable conversation history and ChromaDB vector index for semantic search |
 | **Inherited behavior** | Copies the main agent's `BEHAVIOR.md` and symlinks `USER.md` (shared across all agents) |
 | **Customized persona** | `SOUL.md` and `AGENT.md` are tailored to the sub-agent's name and expertise |
 | **Full tool access** | All tools except agent management (`create_agent`, `list_agents`, `delete_agent`) |
@@ -763,7 +742,7 @@ Memtrix/
 │   │   ├── agents/                   # create/list/delete/ask sub-agent tools
 │   │   ├── docs/                     # ask/search bundled documentation
 │   │   ├── files/                    # read/write/create/delete files & dirs, git, downloads
-│   │   ├── memory/                   # search/profile/conclude reasoning memory + journals
+│   │   ├── memory/                   # search/profile/conclude reasoning memory + conversation search
 │   │   ├── ssh/                      # gen-key, host registry, connect/run/disconnect
 │   │   ├── web/                      # web search + URL fetch
 │   │   └── misc/                     # time, react, skill management

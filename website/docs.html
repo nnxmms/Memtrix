@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.22.1</span>
+    memtrix<span class="ver">v2.23.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -773,7 +773,7 @@
       <ul>
         <li>Search the web and fetch URLs</li>
         <li>Manage files, clone repos, download content</li>
-        <li>Remember everything - daily journals, semantic search, and a reasoning-memory layer that distills durable facts about you</li>
+        <li>Remember everything - searchable conversation history, semantic search, and a reasoning-memory layer that distills durable facts about you</li>
         <li>Create specialist sub-agents with their own identity and memory</li>
         <li>Update its own personality and knowledge of you over time</li>
       </ul>
@@ -786,7 +786,7 @@
       <ul>
         <li><strong>Self-hosted</strong> - LLM, homeserver, search engine, vector DB - everything on your hardware</li>
         <li><strong>Multi-provider</strong> - local models via Ollama or 200+ cloud models via OpenRouter</li>
-        <li><strong>Persistent memory</strong> - daily-journal RAG plus a reasoning-memory layer (auto-curated peer cards &amp; conclusions), all on-device</li>
+        <li><strong>Persistent memory</strong> - searchable conversation-history RAG plus a reasoning-memory layer (auto-curated peer cards &amp; conclusions), all on-device</li>
         <li><strong>Agentic</strong> - iterative reasoning loop with 28 auto-discovered tools</li>
         <li><strong>Multi-agent</strong> - create specialist sub-agents that can consult each other</li>
         <li><strong>Web Control Panel</strong> - configure, test connections, manage secrets, and curate memory from the browser</li>
@@ -849,7 +849,7 @@ docker compose up -d</code></pre>
       <h2 id="ft-memory">Persistent Memory</h2>
       <p>Memtrix layers two complementary memory systems:</p>
       <ul>
-        <li><strong>Daily Journals</strong> (<code>memory/yyyy-mm-dd.md</code>) - chronological logs searchable via on-device RAG embeddings</li>
+        <li><strong>Conversation Memory</strong> (<code>sessions/</code>) - raw conversation transcripts, chunked and searchable via on-device RAG embeddings</li>
         <li><strong>Reasoning Memory</strong> - a background deriver distills conversations into typed conclusions and auto-curated peer cards (<code>USER.md</code>, <code>MEMORY.md</code>)</li>
       </ul>
       <p>Semantic search is powered by <code>nomic-embed-text-v1.5</code> running entirely on-device. No external API calls. See <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>.</p>
@@ -941,7 +941,7 @@ docker compose up -d</code></pre>
           <tr><td>LLM Backend</td><td>Ollama, OpenRouter</td></tr>
           <tr><td>Embeddings</td><td>nomic-embed-text-v1.5 (local, sentence-transformers)</td></tr>
           <tr><td>Vector Store</td><td>ChromaDB (standalone <code>chroma</code> service, persistent)</td></tr>
-          <tr><td>Memory</td><td>Daily-journal RAG + reasoning-memory deriver (peer cards &amp; conclusions)</td></tr>
+          <tr><td>Memory</td><td>Conversation-history RAG + reasoning-memory deriver (peer cards &amp; conclusions)</td></tr>
           <tr><td>Communication</td><td>Matrix protocol (matrix-nio)</td></tr>
           <tr><td>Homeserver</td><td>Conduit (bundled) or any external Matrix homeserver</td></tr>
           <tr><td>Web Panel</td><td>FastAPI + Uvicorn backend, React single-page app</td></tr>
@@ -957,7 +957,7 @@ docker compose up -d</code></pre>
         <li>You send a message in Element (or any Matrix client)</li>
         <li>The homeserver (Conduit or external) delivers it to Memtrix via matrix-nio</li>
         <li>Memtrix's orchestrator builds the system prompt (injecting persona &amp; memory files)</li>
-        <li>Relevant long-term memory is recalled (daily-journal RAG + reasoning-memory cards) and injected as context</li>
+        <li>Relevant long-term memory is recalled (conversation-history RAG + reasoning-memory cards) and injected as context</li>
         <li>The LLM is called with conversation history + tool schemas</li>
         <li>If the LLM requests tools → tools execute → results returned → loop continues (up to 10 iterations)</li>
         <li>Final response is sent back through the homeserver to your Matrix client</li>
@@ -1186,11 +1186,11 @@ docker compose up -d</code></pre>
       <p>When you send a message, Memtrix:</p>
       <ol>
         <li><strong>Builds the system prompt</strong> - injects <code>SOUL.md</code>, <code>BEHAVIOR.md</code>, <code>USER.md</code>, and <code>MEMORY.md</code> into the <code>AGENT.md</code> template</li>
-        <li><strong>Recalls memory</strong> - silently pulls relevant context from daily journals and the reasoning-memory store (peer cards &amp; conclusions)</li>
+        <li><strong>Recalls memory</strong> - silently pulls relevant context from past conversations and the reasoning-memory store (peer cards &amp; conclusions)</li>
         <li><strong>Calls the LLM</strong> with conversation history and all 26 tool schemas</li>
         <li><strong>Executes tools</strong> if the LLM requests them (web search, memory lookup, etc.)</li>
         <li><strong>Responds</strong> with the final answer</li>
-        <li><strong>Learns in the background</strong> - after replying, the reasoning-memory deriver updates the auto-curated peer cards (<code>USER.md</code>, <code>MEMORY.md</code>) and records conclusions, while daily journals capture the raw exchange</li>
+        <li><strong>Learns in the background</strong> - after replying, the reasoning-memory deriver updates the auto-curated peer cards (<code>USER.md</code>, <code>MEMORY.md</code>) and records conclusions, while the raw conversation transcript is saved and embedded for future recall</li>
       </ol>
 
       <div class="callout note">
@@ -1228,7 +1228,7 @@ docker compose up -d</code></pre>
         <tbody>
           <tr><td><strong>Matrix user</strong></td><td>A separate bot account (e.g. <code>@dennis:memtrix.local</code>)</td></tr>
           <tr><td><strong>Isolated workspace</strong></td><td>Own directory under <code>agents/&lt;name&gt;/</code> with core files, memory, attachments</td></tr>
-          <tr><td><strong>Own memory</strong></td><td>Separate daily journals and ChromaDB vector index</td></tr>
+          <tr><td><strong>Own memory</strong></td><td>Separate searchable conversation history and ChromaDB vector index</td></tr>
           <tr><td><strong>Inherited behavior</strong></td><td>Copies main agent's <code>BEHAVIOR.md</code>, symlinks <code>USER.md</code> (shared)</td></tr>
           <tr><td><strong>Custom persona</strong></td><td><code>SOUL.md</code> and <code>AGENT.md</code> tailored to the agent's expertise</td></tr>
           <tr><td><strong>Full tool access</strong></td><td>All tools except agent management (<code>create_agent</code>, <code>delete_agent</code>)</td></tr>
@@ -1357,57 +1357,39 @@ docker compose up -d</code></pre>
     <div class="doc-page" id="page-memory">
       <div class="doc-breadcrumb">Guides</div>
       <h1>Memory &amp; RAG</h1>
-      <p class="lead">Memtrix remembers across sessions through a layered memory system - auto-curated peer cards, distilled conclusions, and searchable daily journals powered by on-device embeddings.</p>
+      <p class="lead">Memtrix remembers across sessions through a layered memory system - auto-curated peer cards, distilled conclusions, and searchable conversation history powered by on-device embeddings.</p>
 
       <div class="callout note">
         <span class="callout-tag note">note</span>
-        <div class="callout-body">This page covers the <strong>daily-journal RAG</strong> layer. The newer <strong>reasoning-memory</strong> layer (the deriver, peer cards, and conclusions) is documented on the <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a> page.</div>
+        <div class="callout-body">This page covers the <strong>conversation-history RAG</strong> layer. The <strong>reasoning-memory</strong> layer (the deriver, peer cards, and conclusions) is documented on the <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a> page.</div>
       </div>
 
       <h2 id="mm-core">Core Memory</h2>
       <p><code>MEMORY.md</code> is a curated, compact summary of the most important long-term knowledge - key facts, recurring themes, lasting context. It is the agent's <strong>brain</strong>, maintained automatically by the reasoning-memory deriver (not edited directly by the agent's write tools).</p>
 
-      <h2 id="mm-daily">Daily Journals</h2>
-      <p>Files in <code>memory/yyyy-mm-dd.md</code> are chronological, append-only logs of each day's conversations:</p>
-      <pre><code><span style="color:var(--accent)"># 2026-03-18</span>
-
-<span style="color:var(--blue)">## Conversations</span>
-- Brief summaries of what was discussed.
-
-<span style="color:var(--blue)">## Learned</span>
-- New facts about the user.
-
-<span style="color:var(--blue)">## Decisions</span>
-- Agreements or directions decided.
-
-<span style="color:var(--blue)">## Tasks</span>
-- Things requested, completed, or pending.
-
-<span style="color:var(--blue)">## Notes</span>
-- Anything else worth remembering.</code></pre>
+      <h2 id="mm-daily">Conversation Memory</h2>
+      <p>Every conversation is saved as a raw session transcript under <code>sessions/</code>. The agent writes no journals by hand - transcripts are split into windowed chunks (~800 tokens each), embedded, and stored in the vector store so the agent can recall any past exchange by meaning. Inter-agent and internal sessions are skipped, and each sub-agent only indexes its own conversations.</p>
 
       <h2 id="mm-rag">Semantic Search (RAG)</h2>
-      <p>Daily journals are embedded using <a href="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5">nomic-embed-text-v1.5</a> via <code>sentence-transformers</code> and stored in ChromaDB. The model runs entirely on-device - no external API calls.</p>
+      <p>Conversation transcripts are embedded using <a href="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5">nomic-embed-text-v1.5</a> via <code>sentence-transformers</code> and stored in ChromaDB. The model runs entirely on-device - no external API calls.</p>
       <ul>
         <li><strong>Embedding dimensions:</strong> 768→256 (Matryoshka truncation for efficiency)</li>
         <li><strong>Sync interval:</strong> every 300 seconds</li>
         <li><strong>Singleton model:</strong> loaded once, shared across all agents</li>
         <li><strong>Local-only loading:</strong> if cached, skips all HuggingFace Hub network calls</li>
-        <li><strong>Persistent hash cache:</strong> a <code>.file-hashes.json</code> stored alongside the index survives restarts, so warm starts re-embed only new or changed files and prune deleted ones</li>
+        <li><strong>Persistent hash cache:</strong> a <code>.chunk-hashes.json</code> stored alongside the index survives restarts, so warm starts re-embed only new or changed chunks and prune deleted sessions</li>
       </ul>
 
       <h3>How search works</h3>
       <pre><code><span style="color:var(--blue)">User:</span>     "Remember that cake recipe I told you about?"
   → <span style="color:var(--accent)">search_memory</span>("cake recipe")
-  → Finds 2026-03-12.md (distance: 0.23)
-  → <span style="color:var(--accent)">read_memory_file</span>()
-  → Returns full context from that day</code></pre>
+  → Finds a conversation from 2026-03-12 (distance: 0.23)
+  → Returns the transcript excerpt where you discussed it</code></pre>
 
       <h2 id="mm-auto">Automatic memory management</h2>
       <p>Memtrix manages memory without you asking. After each exchange:</p>
       <ul>
-        <li><strong>Daily journal</strong> - today's <code>memory/yyyy-mm-dd.md</code> is appended with a summary of what was discussed, learned, decided, and requested</li>
-        <li><strong>Embedding sync</strong> - new journal entries are embedded and added to the vector store for future recall</li>
+        <li><strong>Conversation memory</strong> - the session transcript is saved automatically and its new chunks are embedded for future recall</li>
         <li><strong>Peer cards</strong> - the reasoning-memory deriver updates <code>USER.md</code> and <code>MEMORY.md</code> in the background (see <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>)</li>
         <li><strong>Behavior</strong> - <code>BEHAVIOR.md</code> is updated if you correct the agent's communication style</li>
       </ul>
@@ -2107,13 +2089,11 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
         </tbody>
       </table>
 
-      <h2 id="tr-memory">Memory (daily journals)</h2>
+      <h2 id="tr-memory">Memory (conversation history)</h2>
       <table>
         <thead><tr><th>Tool</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>read_memory_file</code></td><td>Reads today's daily memory journal (date derived automatically)</td></tr>
-          <tr><td><code>write_memory_file</code></td><td>Updates today's daily memory journal</td></tr>
-          <tr><td><code>search_memory</code></td><td>Semantic search across all daily memories via embeddings</td></tr>
+          <tr><td><code>search_memory</code></td><td>Semantic search across your past conversation transcripts via embeddings</td></tr>
         </tbody>
       </table>
 

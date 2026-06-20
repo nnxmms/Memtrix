@@ -8,7 +8,6 @@ from src.tools.utils import confirm_with_user
 
 # Files that must be managed via dedicated tools
 BLOCKED_FILES: set[str] = {"AGENT.md", "BEHAVIOR.md", "MEMORY.md", "SOUL.md", "USER.md"}
-BLOCKED_DIRS: set[str] = {"memory"}
 
 
 class CreateFileTool(BaseTool):
@@ -16,14 +15,14 @@ class CreateFileTool(BaseTool):
     def __init__(self, workspace_dir: str) -> None:
         """
         This is the CreateFileTool which creates or overwrites text files in the workspace.
-        Core persona files and memory files are excluded — use the dedicated tools for those.
+        Core persona files are excluded — use the dedicated tools for those.
         """
         self._workspace_dir: str = workspace_dir
         super().__init__(
             name="create_file",
             description=(
                 "Create or overwrite a text file in the workspace. Parent directories are created automatically. "
-                "Cannot write core persona files or memory files — use the dedicated tools for those."
+                "Cannot write core persona files — use the dedicated tools for those."
             ),
             parameters={
                 "type": "object",
@@ -60,11 +59,6 @@ class CreateFileTool(BaseTool):
         basename: str = os.path.basename(filepath)
         if basename in BLOCKED_FILES:
             return f"Error: '{basename}' is a core file. Use write_core_file instead."
-
-        # Block memory directory files
-        relpath: str = os.path.relpath(filepath, self._workspace_dir)
-        if relpath.startswith("memory" + os.sep) or relpath.startswith("memory/"):
-            return "Error: memory files must be written via write_memory_file."
 
         # Confirm overwrite if file already exists
         if os.path.isfile(path=filepath):

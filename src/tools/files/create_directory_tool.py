@@ -5,9 +5,6 @@ from typing import Any
 
 from src.tools.base import BaseTool
 
-# Directories that must not be created at the workspace root
-BLOCKED_DIRS: set[str] = {"memory"}
-
 
 class CreateDirectoryTool(BaseTool):
 
@@ -44,12 +41,6 @@ class CreateDirectoryTool(BaseTool):
         # Prevent path traversal
         if not os.path.realpath(dirpath).startswith(os.path.realpath(self._workspace_dir)):
             return "Error: path must be within the workspace directory."
-
-        # Block protected directories
-        relpath: str = os.path.relpath(dirpath, self._workspace_dir)
-        top_level: str = relpath.split(os.sep)[0]
-        if top_level in BLOCKED_DIRS:
-            return f"Error: '{top_level}/' is managed by dedicated tools."
 
         if os.path.isdir(s=dirpath):
             return f"Directory already exists: {path}"

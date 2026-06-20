@@ -9,7 +9,7 @@ from src.tools.base import BaseTool
 from src.tools.utils import validate_url_not_internal
 
 # Directories that must not be used as clone targets
-BLOCKED_DIRS: set[str] = {"memory", "attachments"}
+BLOCKED_DIRS: set[str] = {"attachments"}
 
 # Only allow URLs that look like legitimate git remotes
 _URL_PATTERN: re.Pattern[str] = re.compile(

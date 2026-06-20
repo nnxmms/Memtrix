@@ -43,7 +43,7 @@ _PROMPT_SOURCE_FILES: tuple[str, ...] = ("AGENT.md", "BEHAVIOR.md", "SOUL.md", "
 # Tools that mutate state, manage sessions/connections, or depend on execution
 # order — these never run concurrently with siblings in the same tool-call batch.
 _SEQUENTIAL_TOOL_NAMES: frozenset[str] = frozenset({
-    "read_core_file", "write_core_file", "read_memory_file", "write_memory_file",
+    "read_core_file", "write_core_file",
     "create_file", "delete_file", "download_file", "create_directory", "delete_directory",
     "git_clone", "create_agent", "delete_agent", "ask_agent", "memory_conclude",
     "send_file", "skill_manage", "ssh_connect", "ssh_disconnect", "ssh_add_host",
