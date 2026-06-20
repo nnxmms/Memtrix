@@ -695,9 +695,11 @@ All file and directory tools enforce:
 
 ### Prompt Injection Mitigation
 
-Content from external sources is clearly marked so the LLM can distinguish trusted instructions from untrusted data:
+Everything that does not come from the user is treated as untrusted data, and it is both marked and actively screened:
 
-- **Web search results**, **fetched URLs**, **downloaded files**, and **user-uploaded attachments** are all prefixed with an untrusted-content disclaimer
+- **Web search results**, **fetched URLs**, **remote SSH command output**, **downloaded files**, and **user-uploaded attachments** are all prefixed with an untrusted-content disclaimer
+- **Active screening with [Llama Prompt Guard 2](https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M)** — before any untrusted tool output reaches the model, it is run through a local prompt-injection classifier (no data leaves the container). If the content is flagged as an injection or jailbreak attempt, the tool result is replaced with a tool-error so the malicious text never enters the conversation, and the model is told the source is untrusted
+- Screening is configured under the `prompt_guard` block: `enabled` (default `true`), `model` (`86M` multilingual or `22M` lighter English-only), `threshold` (default `0.5`), `max_chars`, and `fail_closed` (default `false` — fails open if the classifier cannot load). The model downloads once to `data/models/` and is reused across restarts
 - Attachment filenames are sanitized with `os.path.basename()` and auto-incremented on collision to prevent overwrites
 
 ### Secret Management

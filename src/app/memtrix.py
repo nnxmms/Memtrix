@@ -3,6 +3,7 @@
 import importlib
 import logging
 import os
+import threading
 from types import ModuleType
 from typing import Any, Callable
 
@@ -10,7 +11,8 @@ from src.agents.manager import AgentManager
 from src.channels.cli import CLIChannel
 from src.channels.matrix import MatrixChannel
 from src.core.commands import Commands
-from src.core.config import CONFIG_PATH, resolve_agent_config, resolve_skills_config, resolve_ssh_config, resolve_voice_config, update_config
+from src.core.config import CONFIG_PATH, resolve_agent_config, resolve_prompt_guard_config, resolve_skills_config, resolve_ssh_config, resolve_voice_config, update_config
+from src.integrations.prompt_guard import PromptGuard
 from src.memory.deriver import Deriver
 from src.indexing.docs import DocsIndex
 from src.core.lifecycle import install_signal_handlers, start_heartbeat
@@ -218,6 +220,18 @@ class Memtrix:
 
         logger.info("Discovered %d tools", len(tools))
 
+        # Prompt-injection screening for untrusted tool output (web pages, search
+        # results, remote command output, untrusted files). The classifier is loaded
+        # lazily on a background thread so it never blocks startup; obtaining the
+        # shared singleton here is cheap.
+        pg_cfg: dict[str, Any] = resolve_prompt_guard_config(config=self._config)
+        prompt_guard: PromptGuard | None = None
+        if pg_cfg["enabled"]:
+            model_dir: str = os.path.join(os.path.dirname(CONFIG_PATH), "models")
+            prompt_guard = PromptGuard.get_instance(model_dir=model_dir, config=pg_cfg)
+            threading.Thread(target=prompt_guard.warm_up, name="prompt-guard-warmup", daemon=True).start()
+            logger.info("Prompt-injection screening enabled (Llama Prompt Guard 2, model=%s)", pg_cfg["model"])
+
         self._orchestrator = Orchestrator(
             provider=self._provider,
             model=self._model,
@@ -228,6 +242,8 @@ class Memtrix:
             representation=representation,
             memory_config=mem_cfg,
             skills_catalog=skills_catalog,
+            prompt_guard=prompt_guard,
+            prompt_guard_fail_closed=pg_cfg["fail_closed"],
             max_iterations=agent_cfg["max_iterations"],
             max_history=agent_cfg["max_history"],
         )

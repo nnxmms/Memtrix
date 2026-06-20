@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.28.0
+
+- Memtrix now **actively screens untrusted content for prompt injection** with [Llama Prompt Guard 2](https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M). Everything that does not come from the user — web search results, fetched web pages, remote SSH command output, and untrusted files (attachments and downloads) — is treated as untrusted data and run through a local classifier before it ever reaches the model. If the content is flagged as a prompt-injection or jailbreak attempt, the tool result is replaced with a tool-error: the malicious text never enters the conversation, and the model is told the source is untrusted so it can warn you. The classifier runs entirely inside the container (no data leaves the host), loads lazily on a background thread so it never slows startup, and downloads once to `data/models/` to be reused across restarts. Screening is shared by every agent, including sub-agents.
+- Added a `prompt_guard` config block to control it: `enabled` (default `true`), `model` (`86M` multilingual or `22M` lighter English-only), `threshold` (malicious-probability cutoff, default `0.5`), `max_chars` (per-result screening cap), and `fail_closed` (when the classifier cannot load, `true` blocks untrusted content while the default `false` fails open and lets it through).
+- Remote SSH command output is now tagged with an untrusted-content disclaimer like the web and file tools, closing a gap where a compromised or hostile host could feed instructions back to the agent — and bringing it under the new injection screening.
+
 ## 2.27.0
 
 - Added an **`ssh_scp`** tool so the main agent can move files to and from remote hosts over the existing SSH connection. Set `direction` to `upload` to push a workspace file to a host, or `download` to pull a remote file into the workspace (defaulting to `downloads/<filename>`). Transfers run over SFTP on the already-trusted session — no new authentication or host-key prompt — and reuse the same safeguards as the rest of the file tooling: the local side is confined to the workspace (no path traversal), downloads never silently overwrite an existing file, uploads to a remote directory keep the original filename, and every transfer is capped at 100 MB and confirmed with you before it runs.

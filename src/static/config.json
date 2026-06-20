@@ -23,6 +23,13 @@
         "dual_peer": true,
         "inject_top_k": 5
     },
+    "prompt_guard": {
+        "enabled": true,
+        "model": "86M",
+        "threshold": 0.5,
+        "max_chars": 20000,
+        "fail_closed": false
+    },
     "providers": {},
     "models": {},
     "channels": {}

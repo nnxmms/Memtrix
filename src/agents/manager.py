@@ -16,11 +16,12 @@ import requests
 
 from src.agents.orchestrator import Orchestrator
 from src.channels.matrix import MatrixChannel
-from src.core.config import CONFIG_PATH, CONFIG_LOCK, resolve_agent_config, resolve_skills_config
+from src.core.config import CONFIG_PATH, CONFIG_LOCK, resolve_agent_config, resolve_prompt_guard_config, resolve_skills_config
 from src.core.session import Session
 from src.indexing.docs import DocsIndex
 from src.indexing.skills import SKILL_TOOL_FILES, SkillsCatalog
 from src.integrations.ssh import SSH_TOOL_FILES
+from src.integrations.prompt_guard import PromptGuard
 from src.memory.index import ConversationIndex
 from src.providers.base import BaseProvider
 from src.tools import discover_tools
@@ -757,6 +758,15 @@ class AgentManager:
 
         # Create orchestrator
         agent_cfg: dict[str, Any] = resolve_agent_config(config=self._config)
+
+        # Share the prompt-injection screener so sub-agents screen untrusted tool
+        # output just like the main agent (singleton — no extra model load).
+        pg_cfg: dict[str, Any] = resolve_prompt_guard_config(config=self._config)
+        prompt_guard: PromptGuard | None = None
+        if pg_cfg["enabled"]:
+            model_dir: str = os.path.join(os.path.dirname(CONFIG_PATH), "models")
+            prompt_guard = PromptGuard.get_instance(model_dir=model_dir, config=pg_cfg)
+
         orchestrator: Orchestrator = Orchestrator(
             provider=provider,
             model=model_name,
@@ -764,6 +774,8 @@ class AgentManager:
             workspace_dir=workspace_dir,
             think=think,
             skills_catalog=skills_catalog,
+            prompt_guard=prompt_guard,
+            prompt_guard_fail_closed=pg_cfg["fail_closed"],
             max_iterations=agent_cfg["max_iterations"],
             max_history=agent_cfg["max_history"],
         )

@@ -108,6 +108,25 @@ def resolve_agent_config(config: dict[str, Any]) -> dict[str, Any]:
     return {**defaults, **user_cfg}
 
 
+def resolve_prompt_guard_config(config: dict[str, Any]) -> dict[str, Any]:
+    """
+    This function returns the prompt-injection screening configuration merged with
+    safe defaults so that installs without a "prompt_guard" section keep working
+    unchanged. When enabled, untrusted tool output (web pages, search results, remote
+    command output, untrusted files) is screened with Llama Prompt Guard 2 before it
+    reaches the conversation; flagged content is replaced with a tool-error.
+    """
+    defaults: dict[str, Any] = {
+        "enabled": True,        # screen untrusted tool output for prompt injection
+        "model": "86M",         # 86M (multilingual, recommended) | 22M (lighter, English)
+        "threshold": 0.5,       # malicious-probability cutoff (0-1) to block content
+        "max_chars": 20000,     # cap characters screened per tool result
+        "fail_closed": False,   # block untrusted content if the screener errors / can't load
+    }
+    user_cfg: dict[str, Any] = config.get("prompt_guard", {}) or {}
+    return {**defaults, **user_cfg}
+
+
 def resolve_voice_config(config: dict[str, Any]) -> dict[str, Any]:
     """
     This function returns the voice-transcription configuration merged with safe
