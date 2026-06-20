@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.23.2
+
+- Fixed updated agent instructions not reaching existing deployments. The workspace `AGENT.md` (the system-prompt template) was only ever seeded on first setup and never refreshed, so after the v2.23.0 memory rework the running agent still followed the old daily-journal instructions — reading stale `memory/yyyy-mm-dd.md` files with `read_file` instead of using conversation search. `AGENT.md` is now re-synced from the bundled static template on every startup (re-applying the agent's chosen name), so instruction changes ship on restart. The mutable persona and memory cards (`BEHAVIOR.md`, `SOUL.md`, `USER.md`, `MEMORY.md`) are never overwritten. (Sub-agent templates are not yet auto-refreshed.)
+
 ## 2.23.1
 
 - Fixed `read_file` crashing with `name 'relpath' is not defined` on every call. When the daily-memory directory guards were removed in v2.23.0, the line that computed the file's workspace-relative path was dropped along with them, but the untrusted-content check below still referenced it — so reading any file raised. Restored the `relpath` computation, so reads work again and attachments/downloads are still correctly flagged as untrusted external content.

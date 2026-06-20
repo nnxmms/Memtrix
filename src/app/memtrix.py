@@ -75,6 +75,37 @@ class Memtrix:
         # Sessions directory
         self._sessions_dir: str = os.path.join(os.path.dirname(CONFIG_PATH), "sessions")
 
+    def _sync_agent_template(self, workspace_dir: str) -> None:
+        """
+        This function refreshes the workspace AGENT.md from the bundled static template
+        so that updated agent instructions take effect on restart. AGENT.md is a
+        read-only system-prompt template (no tool can write it), so overwriting it is
+        safe; the agent's chosen name is re-applied to preserve the persona. The
+        mutable persona/memory files (BEHAVIOR.md, SOUL.md, USER.md, MEMORY.md) are
+        never touched here.
+        """
+        static_agent_md: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "AGENT.md")
+        workspace_agent_md: str = os.path.join(workspace_dir, "AGENT.md")
+        try:
+            with open(file=static_agent_md, mode="r", encoding="utf-8") as f:
+                content: str = f.read()
+        except OSError as e:
+            logger.warning("Could not read static AGENT.md template: %s", e)
+            return
+
+        agent_name: str = self._config["main-agent"].get("name", "Memtrix")
+        if agent_name != "Memtrix":
+            content = content.replace(
+                "You are **Memtrix**, a personal AI assistant.",
+                f"You are **{agent_name}**, a personal AI assistant."
+            )
+
+        try:
+            with open(file=workspace_agent_md, mode="w", encoding="utf-8") as f:
+                f.write(content)
+        except OSError as e:
+            logger.warning("Could not refresh workspace AGENT.md: %s", e)
+
     def _load_provider(self) -> None:
         """
         This function loads the provider configured for the main agent.
@@ -104,6 +135,11 @@ class Memtrix:
         # Discover tools and create the orchestrator
         workspace_dir: str = self._config["workspace-directory"]
         think: bool = model_config.get("think", False)
+
+        # Refresh the AGENT.md system-prompt template from the bundled static copy so
+        # instruction updates ship on restart. AGENT.md is not agent-editable, so it is
+        # safe to overwrite; the mutable persona/memory cards are left untouched.
+        self._sync_agent_template(workspace_dir=workspace_dir)
 
         # Resolve reasoning-memory configuration
         mem_cfg: dict[str, Any] = resolve_memory_config(config=self._config)
