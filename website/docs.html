@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.20.3</span>
+    memtrix<span class="ver">v2.21.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -1393,6 +1393,7 @@ docker compose up -d</code></pre>
         <li><strong>Sync interval:</strong> every 300 seconds</li>
         <li><strong>Singleton model:</strong> loaded once, shared across all agents</li>
         <li><strong>Local-only loading:</strong> if cached, skips all HuggingFace Hub network calls</li>
+        <li><strong>Persistent hash cache:</strong> a <code>.file-hashes.json</code> stored alongside the index survives restarts, so warm starts re-embed only new or changed files and prune deleted ones</li>
       </ul>
 
       <h3>How search works</h3>

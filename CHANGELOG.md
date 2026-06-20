@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.21.0
+
+- Memory journal indexing now persists a content-hash cache (`.file-hashes.json`) alongside the vector index, so restarts re-embed only files that are new or changed instead of re-embedding the entire journal history every boot. For users with many daily memory files this removes most of the post-startup background indexing cost on warm starts.
+- The background indexing pass now also prunes index entries (and cached hashes) for journal files that have been deleted from disk, keeping the vector store in sync with the memory directory.
+- Hardened the incremental sync against cache/index divergence: a file is re-embedded whenever its hash changed OR it is missing from the collection, so a wiped or partially rebuilt index still heals itself. The initial-index and periodic-sync paths now share one reconciliation routine (replacing the previous duplicated logic), and journal reads consistently use UTF-8.
+
 ## 2.20.3
 
 - Tightened several hot-ish read paths for clarity and concision: the memory and reasoning-store result builders, the memory-search tool output, and the web conclusions endpoint now use comprehensions instead of manual append loops. The memory `search()` result builder also iterates with `zip` rather than re-indexing the result arrays by position on every row.

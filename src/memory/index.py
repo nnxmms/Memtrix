@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import hashlib
+import json
 import logging
 import os
 import threading
@@ -168,7 +169,9 @@ class MemoryIndex:
         # Memory directory
         self._memory_dir: str = os.path.join(workspace_dir, "memory")
 
-        # Content hashes to detect changes (filename -> md5 hex)
+        # Content hashes to detect changes (filename -> md5 hex), persisted next to
+        # the collection so a restart can skip re-embedding unchanged files.
+        self._hash_path: str = os.path.join(persist_dir, ".file-hashes.json")
         self._hashes: dict[str, str] = {}
 
         # Indexing runs on the background sync thread (see start_periodic_sync) so
@@ -184,14 +187,63 @@ class MemoryIndex:
         """
         return hashlib.md5(content.encode()).hexdigest()
 
+    def _load_hashes(self) -> dict[str, str]:
+        """
+        This function loads the persisted filename -> content-hash cache, returning
+        an empty mapping when it is missing or unreadable.
+        """
+        try:
+            with open(file=self._hash_path, mode="r", encoding="utf-8") as f:
+                data: Any = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        return {str(k): str(v) for k, v in data.items()}
+
+    def _save_hashes(self) -> None:
+        """
+        This function atomically persists the filename -> content-hash cache so the
+        next startup can skip re-embedding unchanged files.
+        """
+        try:
+            tmp_path: str = self._hash_path + ".tmp"
+            with open(file=tmp_path, mode="w", encoding="utf-8") as f:
+                json.dump(self._hashes, f)
+            os.replace(src=tmp_path, dst=self._hash_path)
+        except OSError as e:
+            logger.warning("Could not persist memory hash cache: %s", e)
+
     def _reindex_all(self) -> None:
         """
-        This function indexes all memory files in a single batched embedding pass.
-        An unreadable file is skipped with a warning rather than aborting the rest.
+        This function performs the initial index on startup. It loads the persisted
+        hash cache first, so only files that are new or changed since the last run
+        are embedded — unchanged files already in the collection are skipped.
+        """
+        self._hashes = self._load_hashes()
+        self._scan_and_index()
+
+    def sync_changed(self) -> None:
+        """
+        This function checks for new, modified, or deleted memory files and updates
+        the index incrementally.
+        """
+        self._scan_and_index()
+
+    def _scan_and_index(self) -> None:
+        """
+        This function reconciles the vector store with the memory directory: it
+        embeds new or changed files in a single batched upsert, drops entries for
+        files that no longer exist, and persists the hash cache when anything moved.
+        A file is re-embedded only when its content hash changed or it is missing
+        from the collection (guarding against collection/cache divergence).
         """
         if not os.path.isdir(s=self._memory_dir):
             return
 
+        existing_ids: set[str] = set(self._collection.get(include=[]).get("ids", []) or [])
+
+        on_disk: set[str] = set()
         ids: list[str] = []
         documents: list[str] = []
         metadatas: list[dict[str, str]] = []
@@ -199,6 +251,7 @@ class MemoryIndex:
         for filename in sorted(os.listdir(self._memory_dir)):
             if not filename.endswith(".md"):
                 continue
+            on_disk.add(filename)
 
             path: str = os.path.join(self._memory_dir, filename)
             try:
@@ -211,50 +264,28 @@ class MemoryIndex:
             if not content.strip():
                 continue
 
-            self._hashes[filename] = self._hash_content(content=content)
+            content_hash: str = self._hash_content(content=content)
+            if self._hashes.get(filename) == content_hash and filename in existing_ids:
+                continue
+
+            self._hashes[filename] = content_hash
             ids.append(filename)
             documents.append(content)
             metadatas.append({"date": filename.replace(".md", ""), "filename": filename})
 
-        # One batched upsert lets ChromaDB embed every file in a single pass.
+        # One batched upsert lets ChromaDB embed every changed file in a single pass.
         if ids:
             self._collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
 
-    def sync_changed(self) -> None:
-        """
-        This function checks for new or modified memory files and reindexes them.
-        """
-        if not os.path.isdir(s=self._memory_dir):
-            return
+        # Drop index entries and cached hashes for files that no longer exist.
+        stale_ids: list[str] = [doc_id for doc_id in existing_ids if doc_id not in on_disk]
+        if stale_ids:
+            self._collection.delete(ids=stale_ids)
+        for cached in [name for name in self._hashes if name not in on_disk]:
+            del self._hashes[cached]
 
-        for filename in sorted(os.listdir(self._memory_dir)):
-            if not filename.endswith(".md"):
-                continue
-
-            path: str = os.path.join(self._memory_dir, filename)
-            with open(file=path, mode="r") as f:
-                content: str = f.read()
-
-            if not content.strip():
-                continue
-
-            content_hash: str = self._hash_content(content=content)
-            if self._hashes.get(filename) == content_hash:
-                continue
-
-            self._hashes[filename] = content_hash
-            self._index_memory(filename=filename, content=content)
-
-    def _index_memory(self, filename: str, content: str) -> None:
-        """
-        This function indexes or updates a memory file in the vector store.
-        """
-        date_str: str = filename.replace(".md", "")
-        self._collection.upsert(
-            ids=[filename],
-            documents=[content],
-            metadatas=[{"date": date_str, "filename": filename}]
-        )
+        if ids or stale_ids:
+            self._save_hashes()
 
     def start_periodic_sync(self) -> None:
         """

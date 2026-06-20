@@ -310,6 +310,13 @@ Memtrix combines a journal-based memory with a reasoning layer:
 - Anything else worth remembering.
 ```
 
+> [!NOTE]
+> **Incremental indexing:** journal files are embedded into the vector store in the
+> background, and a content-hash cache (`.file-hashes.json`, stored alongside the
+> index) persists across restarts. On reboot Memtrix re-embeds only files that are
+> new or changed and prunes entries for deleted files, so warm starts skip
+> re-embedding unchanged history entirely.
+
 ### Reasoning Memory Tools
 
 When `recall_mode` is `tools` or `hybrid`, Memtrix can query its reasoning memory directly:
