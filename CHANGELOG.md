@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.20.2
+
+- Tidied lint warnings flagged across the backend: cleaned up the import block in the agent manager (the tool base import had been wedged into the middle of the standard-library imports, and several first-party imports sat below the logger definition) and removed three stray `f` prefixes on strings that contained no placeholders. No behavior changes; the backend is now warning-clean under pyflakes.
+
 ## 2.20.1
 
 - Swept the backend for dead code and removed it: an unused `json` import, the never-called `LocalEmbeddingFunction.embed_query` method, the unused `SOURCES` constant, the unused Bitwarden client `list_secrets`/`get_secret` methods, and the unused `delete_managed_secret`/`get_sanitized_env` secret helpers. Also dropped the `AgentManager` `main_handler_factory` parameter, which was always passed as `None` and never read.

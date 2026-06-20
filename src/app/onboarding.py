@@ -79,9 +79,9 @@ class Onboarding:
         provider_names: list[str] = list[str](providers.keys())
 
         _say(
-            message=f"First things first — I need you to set up an [bold]LLM Provider[/bold].\n"
-            f"A provider is the backend that hosts your models.\n\n"
-            f"Currently we support the following providers:"
+            message="First things first — I need you to set up an [bold]LLM Provider[/bold].\n"
+            "A provider is the backend that hosts your models.\n\n"
+            "Currently we support the following providers:"
         )
 
         # Choose provider type using enforced selection
@@ -140,7 +140,7 @@ class Onboarding:
             return self.setup_new_model()
 
         # Give this model instance a name
-        _say(message=f"Give this model a friendly instance name so you can refer to it later.")
+        _say(message="Give this model a friendly instance name so you can refer to it later.")
         instance_name: str = Prompt.ask(" [cyan]>[/cyan] Instance name", default=model).strip()
         if not instance_name:
             _say(message="[bold red]Oops, instance name can't be empty.[/bold red] Let's try that again.")

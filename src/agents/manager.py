@@ -7,7 +7,6 @@ import os
 import re
 import secrets
 import shutil
-from src.tools.base import BaseTool
 import string
 import threading
 from types import ModuleType
@@ -15,18 +14,19 @@ from typing import Any, Callable
 
 import requests
 
+from src.agents.orchestrator import Orchestrator
 from src.channels.matrix import MatrixChannel
 from src.core.config import CONFIG_PATH, CONFIG_LOCK, resolve_agent_config, resolve_skills_config
-from src.indexing.docs import DocsIndex
-from src.memory.index import MemoryIndex
-from src.agents.orchestrator import Orchestrator
-
-logger: logging.Logger = logging.getLogger(__name__)
-from src.providers.base import BaseProvider
 from src.core.session import Session
+from src.indexing.docs import DocsIndex
 from src.indexing.skills import SKILL_TOOL_FILES, SkillsCatalog
 from src.integrations.ssh import SSH_TOOL_FILES
+from src.memory.index import MemoryIndex
+from src.providers.base import BaseProvider
 from src.tools import discover_tools
+from src.tools.base import BaseTool
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 # Valid agent name: letters, spaces, hyphens. 2–24 chars.
 _AGENT_NAME_PATTERN: re.Pattern[str] = re.compile(r"^[A-Za-z][A-Za-z \-]{1,23}$")

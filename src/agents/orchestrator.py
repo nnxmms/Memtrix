@@ -285,7 +285,7 @@ class Orchestrator:
 
                 # Notify about the tool response
                 if notify:
-                    notify(f"→ Tool response received")
+                    notify("→ Tool response received")
 
                 tool_result: dict[str, str] = {"role": "tool", "content": result}
                 if getattr(tool_call, "id", None):
