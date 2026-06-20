@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.23.1
+
+- Fixed `read_file` crashing with `name 'relpath' is not defined` on every call. When the daily-memory directory guards were removed in v2.23.0, the line that computed the file's workspace-relative path was dropped along with them, but the untrusted-content check below still referenced it — so reading any file raised. Restored the `relpath` computation, so reads work again and attachments/downloads are still correctly flagged as untrusted external content.
+
 ## 2.23.0
 
 - Replaced the agent-authored daily memory journals with an automatic, searchable conversation memory. Memtrix no longer writes a `memory/yyyy-mm-dd.md` journal by hand; instead every conversation is already persisted as a raw session transcript, and those transcripts are now indexed directly. Each session is split into windowed ~800-token chunks, embedded on-device with `nomic-embed-text-v1.5`, and stored in a dedicated `conversations` collection so the agent can recall anything it discussed weeks ago by meaning rather than by date. This removes a whole class of journaling failure modes (forgotten entries, malformed structure, read-before-write churn) while making recall strictly more complete, since it searches what was actually said.

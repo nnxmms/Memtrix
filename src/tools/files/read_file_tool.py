@@ -110,6 +110,7 @@ class ReadFileTool(BaseTool):
             content = content[:MAX_CONTENT_LENGTH] + "\n\n[… content truncated]"
 
         # Prefix untrusted content from external sources (e.g. attachments)
+        relpath: str = os.path.relpath(filepath, self._workspace_dir)
         top_level: str = relpath.split(os.sep)[0]
         if top_level in UNTRUSTED_DIRS:
             return f"{UNTRUSTED_PREFIX}\n\n{content}"
