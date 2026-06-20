@@ -8,10 +8,11 @@ from fastapi import APIRouter, HTTPException, status
 
 from src.core.config import load_config, save_config
 from src.integrations.secrets import SECRET_PREFIX
-from src.core.verification import test_channel, test_provider, validate_config
+from src.core.verification import discover_models, test_channel, test_provider, validate_config
 from src.web.schemas import (
     ConfigPayload,
     MessageResponse,
+    ModelDiscoveryResult,
     TestResult,
     TestTarget,
     ValidateResponse,
@@ -111,6 +112,16 @@ def test_channel_endpoint(target: TestTarget) -> TestResult:
     """
     ok, detail = test_channel(channel_type=target.type, params=_resolve_params(params=target.params))
     return TestResult(ok=ok, detail=detail)
+
+
+@router.post("/discover/models", response_model=ModelDiscoveryResult)
+def discover_models_endpoint(target: TestTarget) -> ModelDiscoveryResult:
+    """
+    This endpoint asks a provider for the model identifiers it exposes so the panel
+    can offer them as suggestions instead of requiring the user to type them.
+    """
+    ok, models, detail = discover_models(provider_type=target.type, params=_resolve_params(params=target.params))
+    return ModelDiscoveryResult(ok=ok, models=models, detail=detail)
 
 
 def _resolve_params(params: dict[str, Any]) -> dict[str, Any]:

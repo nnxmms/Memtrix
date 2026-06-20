@@ -6,7 +6,7 @@ const PROVIDERS: ResourceSpec = {
   subtitle: "LLM backends that models run on.",
   noun: "provider",
   typeField: "type",
-  typeOptions: ["ollama", "openrouter"],
+  typeOptions: ["ollama", "openrouter", "openai_compatible"],
   test: "provider",
   fields: [
     {
@@ -22,6 +22,19 @@ const PROVIDERS: ResourceSpec = {
       secret: true,
       hint: "Reference a secret with $OPENROUTER_API_KEY, or paste a literal key.",
     },
+    {
+      name: "base_url",
+      label: "Base URL",
+      onlyForType: "openai_compatible",
+      hint: "OpenAI-compatible endpoint, e.g. http://host.docker.internal:8000/v1 or https://api.openai.com/v1",
+    },
+    {
+      name: "api_key",
+      label: "API key",
+      onlyForType: "openai_compatible",
+      secret: true,
+      hint: "Optional. Reference a secret with $OPENAI_API_KEY, paste a literal key, or leave blank for key-less local servers.",
+    },
   ],
 };
 
@@ -32,7 +45,12 @@ const MODELS: ResourceSpec = {
   noun: "model",
   fields: [
     { name: "provider", label: "Provider", optionsFrom: "providers" },
-    { name: "model", label: "Model name", hint: "e.g. llama3, anthropic/claude-3.5-sonnet" },
+    {
+      name: "model",
+      label: "Model name",
+      hint: "e.g. llama3, anthropic/claude-3.5-sonnet. Pick a provider, then Discover to list available models.",
+      discoverFrom: "provider",
+    },
   ],
 };
 

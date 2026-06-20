@@ -10,6 +10,12 @@ export interface TestResult {
   detail: string;
 }
 
+export interface ModelDiscoveryResult {
+  ok: boolean;
+  models: string[];
+  detail: string;
+}
+
 export interface SecretInfo {
   key: string;
   value: string;
@@ -128,6 +134,11 @@ export const api = {
     request<TestResult>("POST", "/api/config/test/provider", { type, params }),
   testChannel: (type: string, params: Record<string, any>) =>
     request<TestResult>("POST", "/api/config/test/channel", { type, params }),
+  discoverModels: (type: string, params: Record<string, any>) =>
+    request<ModelDiscoveryResult>("POST", "/api/config/discover/models", {
+      type,
+      params,
+    }),
 
   // secrets
   listSecrets: () => request<SecretListResponse>("GET", "/api/secrets"),

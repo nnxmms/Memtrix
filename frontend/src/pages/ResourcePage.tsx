@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Pencil, Plus, Trash2, Zap } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, Zap } from "lucide-react";
 import { api, ApiError, type Config } from "../api";
 import { Badge, Card, Empty, Field, PageHeader } from "../components/ui";
 import { Modal } from "../components/Modal";
@@ -16,6 +16,9 @@ export interface FieldSpec {
   onlyForType?: string;
   // A select whose options derive from another config section
   optionsFrom?: string;
+  // A text field that can discover suggestions from the provider named in the
+  // referenced field (e.g. "provider"), shown as autocomplete options.
+  discoverFrom?: string;
 }
 
 export interface ResourceSpec {
@@ -222,11 +225,45 @@ function InstanceModal({
   );
   const [values, setValues] = useState<Instance>({ ...initial });
   const [nameError, setNameError] = useState<string>("");
+  const toast = useToast();
+  const [discovered, setDiscovered] = useState<Record<string, string[]>>({});
+  const [discovering, setDiscovering] = useState<string>("");
 
   const visibleFields = useMemo(
     () => spec.fields.filter((f) => !f.onlyForType || f.onlyForType === type),
     [spec.fields, type]
   );
+
+  const discover = async (f: FieldSpec) => {
+    const providerName = f.discoverFrom ? values[f.discoverFrom] : "";
+    if (!providerName) {
+      toast.error("Pick a provider first.");
+      return;
+    }
+    const provider = (config?.providers as any)?.[providerName];
+    if (!provider || !provider.type) {
+      toast.error(`Provider "${providerName}" is not configured.`);
+      return;
+    }
+    setDiscovering(f.name);
+    try {
+      const { type: ptype, ...params } = provider;
+      const res = await api.discoverModels(ptype, params);
+      if (res.ok) {
+        setDiscovered((d) => ({ ...d, [f.name]: res.models }));
+        toast.success(
+          res.models.length ? res.detail : "Connected, but no models were returned."
+        );
+      } else {
+        toast.error(res.detail);
+      }
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "Model discovery failed.");
+    } finally {
+      setDiscovering("");
+    }
+  };
+
 
   const buildInstance = (): Instance => {
     const out: Instance = { ...initial };
@@ -297,6 +334,30 @@ function InstanceModal({
                 </option>
               ))}
             </select>
+          ) : f.discoverFrom ? (
+            <div className="discover-row">
+              <input
+                className="input"
+                list={`discover-${f.name}`}
+                value={values[f.name] ?? ""}
+                onChange={(e) => setValues({ ...values, [f.name]: e.target.value })}
+                placeholder="Type a model name or Discover"
+              />
+              <datalist id={`discover-${f.name}`}>
+                {(discovered[f.name] ?? []).map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => discover(f)}
+                disabled={discovering === f.name}
+              >
+                <Search size={15} />
+                {discovering === f.name ? "Discovering…" : "Discover"}
+              </button>
+            </div>
           ) : (
             <input
               className="input"

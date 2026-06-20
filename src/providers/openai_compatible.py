@@ -1,0 +1,159 @@
+#!/usr/bin/python3
+
+import json
+import logging
+from typing import Any
+
+from openai import OpenAI
+
+from src.providers.base import BaseProvider
+from src.providers.utils import with_retries
+
+logger: logging.Logger = logging.getLogger(__name__)
+
+
+class _ToolFunction:
+    """Wraps a tool call function to provide arguments as a dict."""
+
+    def __init__(self, name: str, arguments: dict[str, Any]) -> None:
+        self.name: str = name
+        self.arguments: dict[str, Any] = arguments
+
+
+class _ToolCall:
+    """Wraps a tool call to match the expected interface."""
+
+    def __init__(self, function: _ToolFunction, id: str | None = None) -> None:
+        self.function: _ToolFunction = function
+        self.id: str | None = id
+
+
+class _Message:
+    """Wraps an OpenAI message to match the Ollama message interface."""
+
+    def __init__(self, content: str | None, tool_calls: list[_ToolCall] | None, thinking: str | None = None) -> None:
+        self.content: str | None = content
+        self.tool_calls: list[_ToolCall] | None = tool_calls
+        self.thinking: str | None = thinking
+
+
+class OpenAICompatibleProvider(BaseProvider):
+
+    # Provider type name, overridden by subclasses (e.g. OpenRouter).
+    _provider_name: str = "openai_compatible"
+
+    def __init__(self, base_url: str, api_key: str = "") -> None:
+        """
+        This is the OpenAICompatibleProvider class which supports any endpoint that
+        speaks the OpenAI chat-completions API — local servers (llama.cpp, vLLM,
+        LM Studio, Ollama's OpenAI shim), gateways, or hosted services. The API key
+        is optional so key-less local servers work; when omitted a harmless
+        placeholder is sent because the OpenAI client requires a non-empty value.
+        """
+        super().__init__(name=self._provider_name)
+
+        # Normalised base URL (no trailing slash) and OpenAI-compatible client
+        self.base_url: str = base_url.rstrip("/")
+        self._client: OpenAI = OpenAI(
+            base_url=self.base_url,
+            api_key=api_key or "sk-no-key-required",
+        )
+
+    @staticmethod
+    def _sanitize_history(history: list[dict]) -> list[dict]:
+        """
+        This function ensures the message history conforms to OpenAI's strict format.
+        Ollama stores tool call arguments as dicts; OpenAI requires JSON strings.
+        """
+        sanitized: list[dict[str, Any]] = []
+        for msg in history:
+            if msg.get("tool_calls"):
+                msg = dict(msg)
+                msg["tool_calls"] = [
+                    {
+                        "id": tc.get("id", f"call_{i}"),
+                        "type": "function",
+                        "function": {
+                            "name": tc["function"]["name"],
+                            "arguments": json.dumps(tc["function"]["arguments"]) if isinstance(tc["function"]["arguments"], dict) else tc["function"]["arguments"]
+                        }
+                    }
+                    for i, tc in enumerate(msg["tool_calls"])
+                ]
+            sanitized.append(msg)
+        return sanitized
+
+    @staticmethod
+    def _sanitize_tools(tools: list[dict]) -> list[dict]:
+        """
+        This function ensures tool schemas are strictly OpenAI-compatible.
+        Some endpoints are stricter about the format than Ollama.
+        """
+        sanitized: list[dict[str, Any]] = []
+        for tool in tools:
+            func: dict[str, Any] = dict(tool.get("function", {}))
+            params: dict[str, Any] = func.get("parameters", {})
+            # Drop empty parameters entirely — OpenAI treats missing as no-args
+            if not params.get("properties"):
+                func.pop("parameters", None)
+            sanitized.append({"type": "function", "function": func})
+        return sanitized
+
+    def completions(self, model: str, history: list[dict], tools: list[dict] | None = None, think: bool = False) -> _Message:
+        """
+        This function takes the chat history and returns the model's message response.
+        """
+        kwargs: dict[str, Any] = {"model": model, "messages": self._sanitize_history(history=history)}
+        if tools:
+            kwargs["tools"] = self._sanitize_tools(tools=tools)
+        if think:
+            kwargs["extra_body"] = {"include_reasoning": True}
+
+        response: Any = with_retries(
+            lambda: self._client.chat.completions.create(**kwargs),
+            label=f"{self.name} completion (model={model})",
+        )
+        message: Any = response.choices[0].message
+        logger.debug("%s response received (model=%s)", self.name, model)
+
+        # Extract reasoning content when the endpoint exposes it
+        thinking: str | None = getattr(message, "reasoning", None) or getattr(message, "reasoning_content", None)
+
+        # Parse tool call arguments from JSON strings to dicts
+        wrapped_tool_calls: list[_ToolCall] | None = None
+        if message.tool_calls:
+            wrapped_tool_calls = [
+                _ToolCall(
+                    id=tc.id,
+                    function=_ToolFunction(
+                        name=tc.function.name,
+                        arguments=self._parse_arguments(raw=tc.function.arguments, name=tc.function.name)
+                    )
+                )
+                for tc in message.tool_calls
+            ]
+
+        return _Message(
+            content=message.content,
+            tool_calls=wrapped_tool_calls,
+            thinking=thinking
+        )
+
+    @staticmethod
+    def _parse_arguments(raw: Any, name: str) -> dict[str, Any]:
+        """
+        This function parses a tool call's arguments into a dict, tolerating malformed
+        JSON from the model so a single bad tool call cannot crash the whole request.
+        On failure it returns an empty dict, letting the orchestrator surface a clear
+        validation error the model can correct on the next round.
+        """
+        if isinstance(raw, dict):
+            return raw
+        if not isinstance(raw, str) or not raw.strip():
+            return {}
+        try:
+            parsed: Any = json.loads(raw)
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning("Could not parse arguments for tool '%s': %s", name, e)
+            return {}
+        return parsed if isinstance(parsed, dict) else {}

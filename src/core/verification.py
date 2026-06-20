@@ -11,6 +11,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 PROVIDER_REQUIRED_PARAMS: dict[str, list[str]] = {
     "ollama": ["base_url"],
     "openrouter": ["api_key"],
+    "openai_compatible": ["base_url"],
 }
 
 # Channel types and the parameter keys they require
@@ -174,9 +175,72 @@ def test_provider(provider_type: str, params: dict[str, Any]) -> tuple[bool, str
                 return False, "API key rejected (unauthorized)."
             return False, f"OpenRouter returned HTTP {response.status_code}."
 
+        if provider_type == "openai_compatible":
+            base_url = str(params.get("base_url", "")).rstrip("/")
+            if not base_url:
+                return False, "Missing base_url."
+            headers: dict[str, str] = {}
+            api_key = str(params.get("api_key", ""))
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            response = requests.get(url=f"{base_url}/models", headers=headers, timeout=TEST_TIMEOUT)
+            if response.status_code == 200:
+                models = response.json().get("data", [])
+                return True, f"Reachable — {len(models)} model(s) available."
+            if response.status_code in (401, 403):
+                return False, "Endpoint rejected the API key (unauthorized)."
+            return False, f"Endpoint returned HTTP {response.status_code}."
+
         return False, f"Unknown provider type '{provider_type}'."
     except requests.exceptions.RequestException as exc:
         return False, f"Connection failed: {exc}"
+
+
+def discover_models(provider_type: str, params: dict[str, Any]) -> tuple[bool, list[str], str]:
+    """
+    This function queries a provider for the list of model identifiers it exposes.
+    Returns (ok, sorted_model_ids, detail). It speaks each backend's discovery
+    endpoint: Ollama's /api/tags, and the OpenAI-compatible /models for OpenRouter
+    and any OpenAI-compatible endpoint. The API key is optional for key-less local
+    servers. Never raises on network errors — failures are reported via the tuple.
+    """
+    try:
+        if provider_type == "ollama":
+            base_url: str = str(params.get("base_url", "")).rstrip("/")
+            if not base_url:
+                return False, [], "Missing base_url."
+            response: requests.Response = requests.get(url=f"{base_url}/api/tags", timeout=TEST_TIMEOUT)
+            if response.status_code != 200:
+                return False, [], f"Ollama returned HTTP {response.status_code}."
+            models: list[str] = sorted(
+                m.get("name", "") for m in response.json().get("models", []) if m.get("name")
+            )
+            return True, models, f"Found {len(models)} model(s)."
+
+        if provider_type in ("openrouter", "openai_compatible"):
+            if provider_type == "openrouter":
+                base_url = "https://openrouter.ai/api/v1"
+            else:
+                base_url = str(params.get("base_url", "")).rstrip("/")
+                if not base_url:
+                    return False, [], "Missing base_url."
+            headers: dict[str, str] = {}
+            api_key: str = str(params.get("api_key", ""))
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            response = requests.get(url=f"{base_url}/models", headers=headers, timeout=TEST_TIMEOUT)
+            if response.status_code in (401, 403):
+                return False, [], "API key rejected (unauthorized)."
+            if response.status_code != 200:
+                return False, [], f"Endpoint returned HTTP {response.status_code}."
+            models = sorted(m.get("id", "") for m in response.json().get("data", []) if m.get("id"))
+            return True, models, f"Found {len(models)} model(s)."
+
+        return False, [], f"Unknown provider type '{provider_type}'."
+    except requests.exceptions.RequestException as exc:
+        return False, [], f"Connection failed: {exc}"
+    except (ValueError, KeyError, TypeError) as exc:
+        return False, [], f"Unexpected response from endpoint: {exc}"
 
 
 def test_matrix(homeserver: str, access_token: str) -> tuple[bool, str]:

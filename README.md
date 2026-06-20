@@ -80,7 +80,7 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
 <td width="50%">
 
 🔌 **Multi-Provider**<br>
-<sub>Local models via Ollama or 200+ cloud models via OpenRouter.</sub>
+<sub>Local models via Ollama, 200+ cloud models via OpenRouter, or any OpenAI-compatible endpoint.</sub>
 
 </td>
 </tr>
@@ -186,6 +186,7 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
          ▼
     Ollama (LLM)
     OpenRouter (cloud LLMs)
+    OpenAI-compatible (llama.cpp, vLLM, LM Studio, OpenAI, ...)
 ```
 
 | Component | Role |
@@ -196,6 +197,7 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
 | **ChromaDB** | Embedded vector database for semantic memory search |
 | **Ollama** | Local LLM inference (runs separately) |
 | **OpenRouter** | Cloud LLM gateway — OpenAI, Anthropic, Google, and more |
+| **OpenAI-compatible** | Any endpoint speaking the OpenAI chat-completions API — llama.cpp, vLLM, LM Studio, an OpenAI-shim, a self-hosted gateway, or OpenAI itself (optional API key) |
 
 <br>
 
@@ -599,6 +601,11 @@ All configuration lives in `data/config.json`. Secrets are stored in `.env` and 
         "my-openrouter": {
             "type": "openrouter",
             "api_key": "$OPENROUTER_API_KEY"
+        },
+        "my-openai-compatible": {
+            "type": "openai_compatible",
+            "base_url": "http://host.docker.internal:8000/v1",
+            "api_key": "$OPENAI_API_KEY"
         }
     },
     "models": {
@@ -628,6 +635,8 @@ All configuration lives in `data/config.json`. Secrets are stored in `.env` and 
 ```
 
 Values starting with `$` are resolved at startup. By default they read from environment variables (prefixed with `MEMTRIX_SECRET_`) — for example, `$MATRIX_ACCESS_TOKEN` reads from `MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN` in `.env`. If the optional Bitwarden backend is enabled, placeholders resolve from Bitwarden Secrets Manager first (by the placeholder name, e.g. `MATRIX_ACCESS_TOKEN`), falling back to the environment.
+
+The `openai_compatible` provider points at any endpoint that speaks the OpenAI chat-completions API (llama.cpp, vLLM, LM Studio, an OpenAI-shim, a self-hosted gateway, or OpenAI itself). Its `api_key` is optional — leave it out for key-less local servers. In the web control panel, the Models page can **Discover** the model identifiers a provider exposes so you can pick one instead of typing it by hand.
 
 When `voice.enabled` is `true`, Matrix voice notes are transcribed locally with the configured model and passed into the normal agent flow as text.
 

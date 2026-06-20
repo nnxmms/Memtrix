@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.26.0
+
+- Added a new **OpenAI-Compatible** provider, so Memtrix can now run on any endpoint that speaks the OpenAI chat-completions API — local servers like llama.cpp, vLLM, LM Studio, and Ollama's OpenAI shim, self-hosted gateways, or hosted services such as OpenAI itself. Pick the `openai_compatible` type, point it at a base URL (e.g. `http://host.docker.internal:8000/v1`), and optionally supply an API key. The key is optional so key-less local servers work out of the box; when supplied it is sent as a standard `Authorization: Bearer` header and can be stored as a secret reference like any other credential.
+- Added **model discovery**. When configuring a model in the web control panel, pick a provider and hit *Discover* to fetch the live list of model identifiers the backend exposes — Ollama's installed models, OpenRouter's catalogue, or any OpenAI-compatible endpoint's `/models` — and pick from an autocomplete list instead of typing model names by hand. Discovery resolves secret references server-side so your keys are never exposed to the browser.
+- The Providers page in the dashboard now offers the OpenAI-Compatible type with Base URL and optional API key fields, and the live *Test connection* check validates reachability against the endpoint's `/models` route.
+
 ## 2.25.0
 
 - Overhauled the background reasoning memory for sharper, more reliable recall. Every conclusion the deriver extracts now carries a **confidence** (high/medium/low): explicit statements and certain deductions are high, well-supported inferences are medium, and tentative patterns are low. Confidence flows through everywhere — it ranks which memories surface first, weights how the `USER.md`/`MEMORY.md` profile cards are curated, and guides the daily consolidation pass. When the same conclusion is independently re-derived, it is now promoted in confidence rather than just bumped, so repeatedly-observed facts rise to the top.

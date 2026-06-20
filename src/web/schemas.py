@@ -35,6 +35,14 @@ class TestResult(BaseModel):
     detail: str
 
 
+class ModelDiscoveryResult(BaseModel):
+    """The list of model identifiers a provider exposes."""
+
+    ok: bool
+    models: list[str] = Field(default_factory=list)
+    detail: str
+
+
 # -------------------------------------------------------------------- secrets
 
 

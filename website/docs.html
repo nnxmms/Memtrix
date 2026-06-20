@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.25.0</span>
+    memtrix<span class="ver">v2.26.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -793,7 +793,7 @@
       <h2 id="ov-different">What makes it different?</h2>
       <ul>
         <li><strong>Self-hosted</strong> - LLM, homeserver, search engine, vector DB - everything on your hardware</li>
-        <li><strong>Multi-provider</strong> - local models via Ollama or 200+ cloud models via OpenRouter</li>
+        <li><strong>Multi-provider</strong> - local models via Ollama, 200+ cloud models via OpenRouter, or any OpenAI-compatible endpoint</li>
         <li><strong>Persistent memory</strong> - searchable conversation-history RAG plus a reasoning-memory layer (auto-curated peer cards &amp; conclusions), all on-device</li>
         <li><strong>Agentic</strong> - iterative reasoning loop with 35 auto-discovered tools, parallel tool execution, and schema-validated calls</li>
         <li><strong>Multi-agent</strong> - create specialist sub-agents that can consult each other</li>
@@ -872,7 +872,7 @@ docker compose up -d</code></pre>
       <p>Memtrix can research its own documentation. The <code>search_docs</code> and <code>ask_docs</code> tools let the agent - and every sub-agent - answer "how does Memtrix work?" questions from the bundled docs, with citations. The docs are parsed into a vector-indexed <code>documentation</code> collection at startup and refreshed automatically. See <a onclick="navigate('tools-ref')" style="cursor:pointer;color:var(--accent)">Tools Reference</a>.</p>
 
       <h2 id="ft-providers">Multi-Provider LLMs</h2>
-      <p>Run local models via <strong>Ollama</strong> (Llama, Mistral, Gemma, etc.) or tap 200+ cloud models through <strong>OpenRouter</strong> (OpenAI, Anthropic, Google). Configure multiple providers and switch models per-agent.</p>
+      <p>Run local models via <strong>Ollama</strong> (Llama, Mistral, Gemma, etc.), tap 200+ cloud models through <strong>OpenRouter</strong> (OpenAI, Anthropic, Google), or point at any <strong>OpenAI-compatible</strong> endpoint - llama.cpp, vLLM, LM Studio, an OpenAI-shim, a self-hosted gateway, or OpenAI itself. Configure multiple providers and switch models per-agent. The control panel can <strong>discover</strong> the models a provider exposes so you pick from a list instead of typing names.</p>
 
       <h2 id="ft-persona">Evolving Persona</h2>
       <p>Memtrix's identity is defined by markdown files. It freely edits <code>SOUL.md</code> and <code>BEHAVIOR.md</code> as it learns your preferences, while <code>USER.md</code> and <code>MEMORY.md</code> are auto-curated by the reasoning-memory deriver. Its personality genuinely grows with every conversation.</p>
@@ -2087,6 +2087,18 @@ description: Steps to audit a remote host's security posture
       <h1>Custom Providers</h1>
       <p class="lead">Add support for any LLM API by dropping a provider file into <code>src/providers/</code>.</p>
 
+      <h2 id="cp-builtin">Built-in providers</h2>
+      <p>Three provider types ship out of the box. Most setups never need a custom one:</p>
+      <table>
+        <thead><tr><th>Type</th><th>Parameters</th><th>Use for</th></tr></thead>
+        <tbody>
+          <tr><td><code>ollama</code></td><td><code>base_url</code></td><td>Local models served by Ollama</td></tr>
+          <tr><td><code>openrouter</code></td><td><code>api_key</code></td><td>200+ cloud models via the OpenRouter gateway</td></tr>
+          <tr><td><code>openai_compatible</code></td><td><code>base_url</code>, optional <code>api_key</code></td><td>Any endpoint speaking the OpenAI chat-completions API - llama.cpp, vLLM, LM Studio, an OpenAI-shim, a self-hosted gateway, or OpenAI itself</td></tr>
+        </tbody>
+      </table>
+      <p>The <code>openai_compatible</code> API key is optional, so key-less local servers work without one. When supplied it is sent as a standard <code>Authorization: Bearer</code> header and can be stored as a <code>$SECRET</code> reference. In the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">control panel</a>, the Models page can <strong>Discover</strong> the model identifiers any provider exposes (Ollama's installed models, OpenRouter's catalogue, or an OpenAI-compatible <code>/models</code> route) so you pick from a list rather than typing names. Discovery resolves secret references server-side, so keys are never exposed to the browser.</p>
+
       <h2 id="cp-add">Adding a provider</h2>
       <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg> src/providers/my_provider.py</div>
       <pre><code><span style="color:var(--purple)">from</span> src.providers.base <span style="color:var(--purple)">import</span> BaseProvider
@@ -2132,6 +2144,11 @@ description: Steps to audit a remote host's security posture
         <span style="color:var(--accent)">"my-openrouter"</span>: {
             <span style="color:var(--accent)">"type"</span>: <span style="color:var(--orange)">"openrouter"</span>,
             <span style="color:var(--accent)">"api_key"</span>: <span style="color:var(--orange)">"$OPENROUTER_API_KEY"</span>
+        },
+        <span style="color:var(--accent)">"my-openai-compatible"</span>: {
+            <span style="color:var(--accent)">"type"</span>: <span style="color:var(--orange)">"openai_compatible"</span>,
+            <span style="color:var(--accent)">"base_url"</span>: <span style="color:var(--orange)">"http://host.docker.internal:8000/v1"</span>,
+            <span style="color:var(--accent)">"api_key"</span>: <span style="color:var(--orange)">"$OPENAI_API_KEY"</span>
         }
     },
     <span style="color:var(--accent)">"models"</span>: {
