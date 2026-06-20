@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import uuid
+from datetime import date
 from typing import Any, Callable
 
 from src.memory.deriver import Deriver
@@ -85,6 +86,7 @@ class Orchestrator:
         self._workspace_dir: str = workspace_dir
         self._system_prompt: str = self._build_system_prompt(workspace_dir=workspace_dir)
         self._prompt_source_mtimes: dict[str, float] = self._source_mtimes()
+        self._prompt_date: str = date.today().isoformat()
 
         # Reasoning-memory layer (optional)
         self._deriver: Deriver | None = deriver
@@ -120,13 +122,16 @@ class Orchestrator:
     def _refresh_system_prompt(self, session: Session) -> None:
         """
         This function rebuilds the system prompt when any source file has changed since
-        the last build (notably the background-curated USER.md/MEMORY.md cards) and
-        syncs the latest prompt into the given session so mid-session updates take effect.
+        the last build (notably the background-curated USER.md/MEMORY.md cards) or when
+        the calendar day has rolled over, and syncs the latest prompt into the given
+        session so mid-session updates take effect.
         """
         current: dict[str, float] = self._source_mtimes()
-        if current != self._prompt_source_mtimes:
+        today: str = date.today().isoformat()
+        if current != self._prompt_source_mtimes or today != self._prompt_date:
             self._system_prompt = self._build_system_prompt(workspace_dir=self._workspace_dir)
             self._prompt_source_mtimes = current
+            self._prompt_date = today
         session.set_system_prompt(content=self._system_prompt)
 
     def _build_system_prompt(self, workspace_dir: str) -> str:
@@ -141,6 +146,9 @@ class Orchestrator:
 
         with open(file=agent_path, mode="r") as f:
             template: str = f.read()
+
+        # Inject today's date so the agent can resolve relative/natural dates.
+        template = template.replace("{{DATE}}", date.today().isoformat())
 
         # Map placeholders to their source files
         placeholders: dict[str, str] = {

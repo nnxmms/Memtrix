@@ -419,21 +419,62 @@ class ConversationIndex:
         thread: threading.Thread = threading.Thread(target=_sync_loop, daemon=True, name="conversation-sync")
         thread.start()
 
-    def search(self, query: str, n_results: int = 5) -> list[dict[str, Any]]:
+    def search(
+        self,
+        query: str = "",
+        n_results: int = 5,
+        dates: list[str] | None = None,
+        max_day_chunks: int = 10,
+    ) -> list[dict[str, Any]]:
         """
         This function searches the conversation index and returns matching transcript
-        chunks ranked by semantic similarity.
+        chunks. With a query it ranks chunks by semantic similarity; an optional list
+        of dates restricts the search to those days. When only dates are given (no
+        query), it returns that day's (or range's) chunks in chronological order so
+        the agent can recall everything discussed on a specific date.
         """
-        # Don't request more results than we have documents
+        # Don't query an empty collection
         total: int = self._collection.count()
         if total == 0:
             return []
 
-        n: int = min(n_results, total)
+        # Build the optional date metadata filter (single day or a set of days).
+        where: dict[str, Any] | None = None
+        if dates:
+            where = {"date": dates[0]} if len(dates) == 1 else {"date": {"$in": dates}}
 
+        # Date-only recall: fetch the matching chunks and order them chronologically.
+        if not query.strip():
+            if where is None:
+                return []
+            fetched: dict[str, Any] = self._collection.get(
+                where=where, include=["documents", "metadatas"]
+            )
+            rows: list[dict[str, Any]] = [
+                {
+                    "session_id": meta["session_id"],
+                    "date": meta["date"],
+                    "snippet": document[:400],
+                    "distance": None,
+                    "chunk_index": self._chunk_index_of(chunk_id),
+                }
+                for chunk_id, meta, document in zip(
+                    fetched.get("ids", []),
+                    fetched.get("metadatas", []),
+                    fetched.get("documents", []),
+                )
+            ]
+            rows.sort(key=lambda r: (r["date"], r["session_id"], r["chunk_index"]))
+            for row in rows:
+                del row["chunk_index"]
+            return rows[:max_day_chunks]
+
+        # Semantic search, optionally constrained to the given days.
+        n: int = min(n_results, total)
         results: dict[str, Any] = self._collection.query(
             query_texts=[query],
-            n_results=n
+            n_results=n,
+            where=where,
         )
 
         return [
@@ -447,3 +488,16 @@ class ConversationIndex:
                 results["metadatas"][0], results["documents"][0], results["distances"][0]
             )
         ]
+
+    @staticmethod
+    def _chunk_index_of(chunk_id: str) -> int:
+        """
+        This function parses the trailing chunk index from a 'session_id:index' id,
+        returning 0 when it cannot be parsed so chronological sorting stays stable.
+        """
+        _, _, suffix = chunk_id.rpartition(":")
+        try:
+            return int(suffix)
+        except ValueError:
+            return 0
+

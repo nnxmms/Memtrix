@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.24.0
+
+- Added date-based conversation recall. Asking what was discussed on a specific day or period now works — previously this failed because the conversation index is semantic, and a date like "June 15" doesn't resemble the *content* of that day's chats, so vector search returned nothing. The `search_memory` tool now takes optional `date` (one day) or `start_date`+`end_date` (a range) parameters that filter on each chunk's stored day metadata instead of embedding distance, returning that day's conversation in chronological order. `query` is now optional, and meaning-based and date-based recall can be combined to search a topic within a time window. Ranges are capped at 62 days and validated as strict ISO `YYYY-MM-DD`.
+- The agent is now told today's date in its system prompt (a `{{DATE}}` placeholder, refreshed on restart and at midnight on long-running processes), so it can resolve relative or natural dates like "yesterday", "last Wednesday", or "the 15th" into a concrete ISO date before searching — no extra `get_current_time` round-trip needed. The memory instructions in `AGENT.md` were updated to direct the agent to use the date parameters (not a semantic query) for day/period questions.
+
 ## 2.23.2
 
 - Fixed updated agent instructions not reaching existing deployments. The workspace `AGENT.md` (the system-prompt template) was only ever seeded on first setup and never refreshed, so after the v2.23.0 memory rework the running agent still followed the old daily-journal instructions — reading stale `memory/yyyy-mm-dd.md` files with `read_file` instead of using conversation search. `AGENT.md` is now re-synced from the bundled static template on every startup (re-applying the agent's chosen name), so instruction changes ship on restart. The mutable persona and memory cards (`BEHAVIOR.md`, `SOUL.md`, `USER.md`, `MEMORY.md`) are never overwritten. (Sub-agent templates are not yet auto-refreshed.)

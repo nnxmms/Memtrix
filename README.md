@@ -208,7 +208,7 @@ Built-in tools are automatically discovered at startup:
 | `get_current_time` | Returns the current date and time |
 | `read_core_file` | Reads a core persona file (BEHAVIOR, SOUL, USER, MEMORY) |
 | `write_core_file` | Updates a writable persona file (BEHAVIOR, SOUL only; enforces read-before-write) |
-| `search_memory` | Semantic search across your past conversation transcripts via embeddings |
+| `search_memory` | Recall past conversations by meaning (`query`) and/or by date (`date`, or `start_date`+`end_date`) |
 | `memory_profile` | Returns the compact profile cards for the user and the agent (no LLM) |
 | `memory_search` | Semantic search over reasoned conclusions about the user and agent |
 | `memory_context` | Synthesizes a natural-language answer from reasoned memory |
@@ -287,7 +287,7 @@ Memtrix combines a searchable conversation history with a reasoning layer:
 
 **Profile Cards** (`USER.md` about you, `MEMORY.md` about the agent) — Compact, always-current cards that the deriver curates automatically and keeps within a character budget. They are injected into every system prompt and are no longer hand-edited by the agent.
 
-**Conversation Memory** — Every conversation is automatically saved as a raw session transcript and embedded into the vector store in the background. The agent writes no journals itself; instead it can semantically search its entire conversation history with the `search_memory` tool — ask about a tool, project, decision, or name discussed weeks ago and it returns the date plus a transcript excerpt. Inter-agent and internal sessions are skipped, and each sub-agent indexes only its own conversations.
+**Conversation Memory** — Every conversation is automatically saved as a raw session transcript and embedded into the vector store in the background. The agent writes no journals itself; instead it recalls its history with the `search_memory` tool, which works two ways and can combine them: **by meaning** (a `query` like a tool, project, decision, or name discussed weeks ago) and **by date** (`date` for one day, or `start_date`+`end_date` for a period). Because a date can't be matched semantically, date/range questions ("what did we talk about on the 15th?", "anything from last week?") filter on each chunk's day metadata instead of embedding distance — and the agent is told today's date so it can resolve "yesterday" or "last Wednesday" to an ISO date on its own. Inter-agent and internal sessions are skipped, and each sub-agent indexes only its own conversations.
 
 > [!NOTE]
 > **Incremental indexing:** session transcripts are split into windowed chunks and
@@ -341,13 +341,17 @@ When disabled, voice messages are handled as regular file attachments.
 
 ### Semantic Search (RAG)
 
-Conversation transcripts are embedded using a local model ([`nomic-embed-text-v1.5`](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) via `sentence-transformers`) and stored in ChromaDB. The model runs entirely on-device — no external API calls.
+Conversation transcripts are embedded using a local model ([`nomic-embed-text-v1.5`](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) via `sentence-transformers`) and stored in ChromaDB. The model runs entirely on-device — no external API calls. Recall can be semantic, date-scoped, or both.
 
 ```
 User: "Remember that cake recipe I told you about?"
-  → search_memory("cake recipe")
+  → search_memory(query="cake recipe")
   → Finds a conversation from 2026-03-12 (distance: 0.23)
   → Returns the transcript excerpt where you discussed the recipe
+
+User: "What did we talk about on the 15th?"
+  → search_memory(date="2026-06-15")          # resolved from "the 15th" + today's date
+  → Returns that day's conversation, in order — no query needed
 ```
 
 <br>

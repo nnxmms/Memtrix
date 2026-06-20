@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.23.2</span>
+    memtrix<span class="ver">v2.24.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -1368,7 +1368,7 @@ docker compose up -d</code></pre>
       <p><code>MEMORY.md</code> is a curated, compact summary of the most important long-term knowledge - key facts, recurring themes, lasting context. It is the agent's <strong>brain</strong>, maintained automatically by the reasoning-memory deriver (not edited directly by the agent's write tools).</p>
 
       <h2 id="mm-daily">Conversation Memory</h2>
-      <p>Every conversation is saved as a raw session transcript under <code>sessions/</code>. The agent writes no journals by hand - transcripts are split into windowed chunks (~800 tokens each), embedded, and stored in the vector store so the agent can recall any past exchange by meaning. Inter-agent and internal sessions are skipped, and each sub-agent only indexes its own conversations.</p>
+      <p>Every conversation is saved as a raw session transcript under <code>sessions/</code>. The agent writes no journals by hand - transcripts are split into windowed chunks (~800 tokens each), embedded, and stored in the vector store so the agent can recall any past exchange. Recall works two ways and can combine them: <strong>by meaning</strong> (a natural-language <code>query</code>) and <strong>by date</strong> (a single <code>date</code> or a <code>start_date</code>+<code>end_date</code> range). A date can't be matched semantically, so date questions filter on each chunk's day metadata instead; the agent is given today's date and resolves "yesterday" or "last Wednesday" to an ISO date itself. Inter-agent and internal sessions are skipped, and each sub-agent only indexes its own conversations.</p>
 
       <h2 id="mm-rag">Semantic Search (RAG)</h2>
       <p>Conversation transcripts are embedded using <a href="https://huggingface.co/nomic-ai/nomic-embed-text-v1.5">nomic-embed-text-v1.5</a> via <code>sentence-transformers</code> and stored in ChromaDB. The model runs entirely on-device - no external API calls.</p>
@@ -1382,9 +1382,13 @@ docker compose up -d</code></pre>
 
       <h3>How search works</h3>
       <pre><code><span style="color:var(--blue)">User:</span>     "Remember that cake recipe I told you about?"
-  → <span style="color:var(--accent)">search_memory</span>("cake recipe")
+  → <span style="color:var(--accent)">search_memory</span>(query="cake recipe")
   → Finds a conversation from 2026-03-12 (distance: 0.23)
-  → Returns the transcript excerpt where you discussed it</code></pre>
+  → Returns the transcript excerpt where you discussed it
+
+<span style="color:var(--blue)">User:</span>     "What did we talk about on the 15th?"
+  → <span style="color:var(--accent)">search_memory</span>(date="2026-06-15")   <span style="color:var(--text-muted)">// resolved from today's date</span>
+  → Returns that day's conversation in order - no query needed</code></pre>
 
       <h2 id="mm-auto">Automatic memory management</h2>
       <p>Memtrix manages memory without you asking. After each exchange:</p>
@@ -2093,7 +2097,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
       <table>
         <thead><tr><th>Tool</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>search_memory</code></td><td>Semantic search across your past conversation transcripts via embeddings</td></tr>
+          <tr><td><code>search_memory</code></td><td>Recall past conversations by meaning (<code>query</code>) and/or by date (<code>date</code>, or <code>start_date</code>+<code>end_date</code>)</td></tr>
         </tbody>
       </table>
 
