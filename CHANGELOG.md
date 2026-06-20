@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.28.1
+
+- Swapped the prompt-injection screener's default model from Llama Prompt Guard 2 to [ProtectAI's `deberta-v3-base-prompt-injection-v2`](https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2). The DeBERTa detector is openly licensed, so screening now works out of the box with **no HuggingFace token and no gated-model license acceptance** — the model downloads automatically on first run. The `prompt_guard.model` setting now accepts either a short name (`deberta`) or any full HuggingFace repo id of a prompt-injection sequence classifier, so you can still point it at a different detector if you prefer.
+
 ## 2.28.0
 
 - Memtrix now **actively screens untrusted content for prompt injection** with [Llama Prompt Guard 2](https://huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M). Everything that does not come from the user — web search results, fetched web pages, remote SSH command output, and untrusted files (attachments and downloads) — is treated as untrusted data and run through a local classifier before it ever reaches the model. If the content is flagged as a prompt-injection or jailbreak attempt, the tool result is replaced with a tool-error: the malicious text never enters the conversation, and the model is told the source is untrusted so it can warn you. The classifier runs entirely inside the container (no data leaves the host), loads lazily on a background thread so it never slows startup, and downloads once to `data/models/` to be reused across restarts. Screening is shared by every agent, including sub-agents.

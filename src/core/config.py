@@ -118,7 +118,7 @@ def resolve_prompt_guard_config(config: dict[str, Any]) -> dict[str, Any]:
     """
     defaults: dict[str, Any] = {
         "enabled": True,        # screen untrusted tool output for prompt injection
-        "model": "86M",         # 86M (multilingual, recommended) | 22M (lighter, English)
+        "model": "deberta",     # short name (deberta) or a full HuggingFace repo id
         "threshold": 0.5,       # malicious-probability cutoff (0-1) to block content
         "max_chars": 20000,     # cap characters screened per tool result
         "fail_closed": False,   # block untrusted content if the screener errors / can't load

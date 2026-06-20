@@ -8,16 +8,15 @@ from typing import Any
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-# Llama Prompt Guard 2 model ids on the HuggingFace Hub, keyed by the short name
-# used in config. The 86M variant is multilingual and recommended; the 22M variant
-# is English-only but lighter and faster.
+# Prompt-injection classifier ids on the HuggingFace Hub, keyed by the short name
+# used in config. The default model is ProtectAI's DeBERTa-v3 detector, which is
+# openly licensed (no HuggingFace token or gated-model acceptance required).
 MODEL_IDS: dict[str, str] = {
-    "86M": "meta-llama/Llama-Prompt-Guard-2-86M",
-    "22M": "meta-llama/Llama-Prompt-Guard-2-22M",
+    "deberta": "protectai/deberta-v3-base-prompt-injection-v2",
 }
 
 # Default model when the configured one is unknown.
-DEFAULT_MODEL: str = "86M"
+DEFAULT_MODEL: str = "deberta"
 
 # Cap classifier CPU parallelism so screening cannot peg every core and starve the
 # asyncio event loop or the agent's handler thread. Override with MEMTRIX_GUARD_THREADS.
@@ -28,7 +27,7 @@ GUARD_THREADS: int = (
     else max(1, (os.cpu_count() or 2) - 1)
 )
 
-# Characters per screening window. Llama Prompt Guard 2 has a 512-token context;
+# Characters per screening window. The classifier has a 512-token context;
 # ~2000 characters is a safe upper bound that the tokenizer truncates to fit.
 WINDOW_CHARS: int = 2000
 
@@ -65,7 +64,7 @@ class PromptGuard:
     def __init__(self, model_dir: str, config: dict[str, Any]) -> None:
         """
         This is the PromptGuard which screens untrusted text for prompt-injection and
-        jailbreak attempts using a local Llama Prompt Guard 2 classifier. Construction
+        jailbreak attempts using a local sequence-classification model. Construction
         is intentionally cheap: the model is loaded lazily on the first scan (or via
         warm_up) rather than here, so creating the instance never blocks startup.
         """
@@ -74,8 +73,10 @@ class PromptGuard:
         os.environ.setdefault("HF_HOME", model_dir)
         os.environ.setdefault("TRANSFORMERS_CACHE", model_dir)
 
-        short_name: str = str(config.get("model", DEFAULT_MODEL))
-        self._model_id: str = MODEL_IDS.get(short_name, MODEL_IDS[DEFAULT_MODEL])
+        # Accept either a friendly short name (looked up in MODEL_IDS) or a full
+        # HuggingFace repo id (anything containing a '/').
+        name: str = str(config.get("model", DEFAULT_MODEL))
+        self._model_id: str = name if "/" in name else MODEL_IDS.get(name, MODEL_IDS[DEFAULT_MODEL])
         self._threshold: float = float(config.get("threshold", 0.5))
         self._max_chars: int = int(config.get("max_chars", 20000))
 

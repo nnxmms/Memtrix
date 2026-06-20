@@ -16,5 +16,6 @@ python-multipart
 requests
 rich
 sentence-transformers
+sentencepiece
 transformers
 uvicorn[standard]

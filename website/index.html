@@ -295,7 +295,7 @@
       <a href="#top" class="brand">
         <img src="static/logo.png" alt="memtrix" width="26" height="26">
         memtrix<span class="cursor">_</span>
-        <span class="tag">v2.28.0</span>
+        <span class="tag">v2.28.1</span>
       </a>
       <button class="nav-toggle" aria-label="menu" onclick="document.getElementById('navLinks').classList.toggle('open')">
         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h14M3 11h14M3 16h14"/></svg>
@@ -405,7 +405,7 @@
         <div class="feat">
           <div class="idx">08</div>
           <h3>security hardened</h3>
-          <p>Non-root container, read-only root filesystem, all capabilities dropped, SSRF guards, and human-in-the-loop on destructive ops. Untrusted content from the web, remote hosts, and files is screened for prompt injection with Llama Prompt Guard 2 before it reaches the model.</p>
+          <p>Non-root container, read-only root filesystem, all capabilities dropped, SSRF guards, and human-in-the-loop on destructive ops. Untrusted content from the web, remote hosts, and files is screened for prompt injection by a local classifier before it reaches the model.</p>
         </div>
         <div class="feat">
           <div class="idx">09</div>
