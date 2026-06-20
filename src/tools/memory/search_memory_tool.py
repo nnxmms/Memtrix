@@ -42,8 +42,9 @@ class SearchMemoryTool(BaseTool):
         if not matches:
             return "No matching memories found."
 
-        lines: list[str] = []
-        for match in matches:
-            lines.append(f"**{match['date']}** ({match['filename']})\n{match['snippet']}")
+        lines: list[str] = [
+            f"**{match['date']}** ({match['filename']})\n{match['snippet']}"
+            for match in matches
+        ]
 
         return "\n\n---\n\n".join(lines)

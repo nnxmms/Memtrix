@@ -76,7 +76,7 @@ class Onboarding:
         """
         # Get available providers
         providers: dict[str, list[str]] = get_requirements()
-        provider_names: list[str] = list[str](providers.keys())
+        provider_names: list[str] = list(providers.keys())
 
         _say(
             message="First things first — I need you to set up an [bold]LLM Provider[/bold].\n"
@@ -121,7 +121,7 @@ class Onboarding:
         """
         This function is used to interactively setup a new model instance.
         """
-        provider_names: list[str] = list[str](self.config["providers"].keys())
+        provider_names: list[str] = list(self.config["providers"].keys())
 
         _say(
             message=f"Now let's configure a [bold]Model[/bold].\n"
@@ -423,7 +423,7 @@ class Onboarding:
             "cli": [],
             "matrix": ["homeserver", "user_id", "access_token"]
         }
-        type_names: list[str] = list[str](channel_types.keys())
+        type_names: list[str] = list(channel_types.keys())
 
         _say(
             message=f"Now let's set up a [bold]Channel[/bold].\n"
@@ -482,8 +482,8 @@ class Onboarding:
         """
         This function asks the user to select the model and channel for the main agent.
         """
-        model_names: list[str] = list[str](self.config["models"].keys())
-        channel_names: list[str] = list[str](self.config["channels"].keys())
+        model_names: list[str] = list(self.config["models"].keys())
+        channel_names: list[str] = list(self.config["channels"].keys())
 
         _say(
             message=f"Almost done! Which [bold]model[/bold] should your main agent use?\n\n"

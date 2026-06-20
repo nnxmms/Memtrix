@@ -259,14 +259,15 @@ class RepresentationStore:
         documents: list[str] = results.get("documents", []) or []
         metadatas: list[dict[str, Any]] = results.get("metadatas", []) or []
 
-        records: list[dict[str, Any]] = []
-        for content, meta in zip(documents, metadatas):
-            records.append({
+        records: list[dict[str, Any]] = [
+            {
                 "content": content,
                 "kind": meta.get("kind", ""),
                 "times_seen": int(meta.get("times_seen", 1)),
                 "ts": float(meta.get("ts", 0.0)),
-            })
+            }
+            for content, meta in zip(documents, metadatas)
+        ]
         records.sort(key=lambda r: (r["times_seen"], r["ts"]), reverse=True)
         return records[:limit]
 

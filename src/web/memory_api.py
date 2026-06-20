@@ -82,15 +82,15 @@ def list_conclusions(
     if q:
         matches: list[dict[str, Any]] = store.search(query=q, peer=peer, kinds=kinds, n_results=limit)
         # search() returns lightweight rows; resolve full records for editing
-        results: list[Conclusion] = []
-        for match in matches:
-            results.append(Conclusion(
+        return [
+            Conclusion(
                 id=match.get("id", ""),
                 content=match.get("content", ""),
                 peer=match.get("peer", ""),
                 kind=match.get("kind", ""),
-            ))
-        return results
+            )
+            for match in matches
+        ]
     records: list[dict[str, Any]] = store.list_conclusions(peer=peer, kinds=kinds, limit=limit, offset=offset)
     return [Conclusion(**record) for record in records]
 

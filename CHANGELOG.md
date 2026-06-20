@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.20.3
+
+- Tightened several hot-ish read paths for clarity and concision: the memory and reasoning-store result builders, the memory-search tool output, and the web conclusions endpoint now use comprehensions instead of manual append loops. The memory `search()` result builder also iterates with `zip` rather than re-indexing the result arrays by position on every row.
+- Replaced an unusual `list[str](...)` constructor pattern in onboarding with plain `list(...)` in six places. No behavior changes; the backend remains warning-clean under pyflakes.
+
 ## 2.20.2
 
 - Tidied lint warnings flagged across the backend: cleaned up the import block in the agent manager (the tool base import had been wedged into the middle of the standard-library imports, and several first-party imports sat below the logger definition) and removed three stray `f` prefixes on strings that contained no placeholders. No behavior changes; the backend is now warning-clean under pyflakes.

@@ -302,13 +302,14 @@ class MemoryIndex:
             n_results=n
         )
 
-        matches: list[dict[str, Any]] = []
-        for i in range(len(results["ids"][0])):
-            matches.append({
-                "filename": results["metadatas"][0][i]["filename"],
-                "date": results["metadatas"][0][i]["date"],
-                "snippet": results["documents"][0][i][:300],
-                "distance": results["distances"][0][i]
-            })
-
-        return matches
+        return [
+            {
+                "filename": meta["filename"],
+                "date": meta["date"],
+                "snippet": document[:300],
+                "distance": distance,
+            }
+            for meta, document, distance in zip(
+                results["metadatas"][0], results["documents"][0], results["distances"][0]
+            )
+        ]
