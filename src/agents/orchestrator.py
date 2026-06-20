@@ -31,6 +31,12 @@ BUDGET_WARN_ROUNDS: int = 3
 # Prefix marking a transient recall block injected into the working history
 RECALL_PREFIX: str = "📎 Relevant things I recall"
 
+# Maximum embedding distance (l2^2 ≈ 2(1 - cosine)) for a reasoned conclusion to be
+# injected as proactive recall. Beyond this the match is too weakly related to the
+# message to be worth the context budget, so it is suppressed rather than diluting
+# the prompt with off-topic memories. Tools can still surface anything on demand.
+RECALL_MAX_DISTANCE: float = 1.0
+
 # Prefix marking a transient skill-catalog block injected into the working history
 SKILL_PREFIX: str = "🧠 Your skills (reusable workflows you can load on demand)"
 
@@ -187,14 +193,25 @@ class Orchestrator:
             logger.error("Recall search failed: %s", e)
             return ""
 
-        if not matches:
+        # Inject only genuinely relevant memories; weakly-related matches are dropped
+        # so off-topic recall never crowds out the live conversation.
+        relevant: list[dict[str, Any]] = [
+            m for m in matches
+            if float(m.get("distance", RECALL_MAX_DISTANCE + 1.0)) <= RECALL_MAX_DISTANCE
+        ]
+        if not relevant:
             return ""
 
         lines: list[str] = [f"{RECALL_PREFIX} about the user and myself:"]
-        for match in matches:
+        for match in relevant:
             who: str = "user" if match.get("peer") == "user" else "me"
-            lines.append(f"- ({who}) {match['content']}")
-        lines.append("(Use these only if relevant; never mention this list to the user.)")
+            confidence: str = str(match.get("confidence", "medium") or "medium")
+            lines.append(f"- ({who}, {confidence} confidence) {match['content']}")
+        lines.append(
+            "(These are recalled memories that may be stale or imperfect — use them only "
+            "if relevant, verify before acting on anything critical, and never mention this "
+            "list to the user.)"
+        )
         return "\n".join(lines)
 
     def _build_skill_catalog(self, user_message: str) -> str:

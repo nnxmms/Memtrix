@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.24.1</span>
+    memtrix<span class="ver">v2.25.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -1453,7 +1453,7 @@ docker compose up -d</code></pre>
           <tr><td><code>inductive</code></td><td>Generalized from patterns</td><td>"User prefers concise replies."</td></tr>
         </tbody>
       </table>
-      <p>Conclusions also carry a <strong>provenance</strong>: <code>derived</code> (produced by the deriver) or <code>manual</code> (added by the agent via <code>memory_conclude</code> or by you in the panel). Near-duplicate conclusions are merged automatically using embedding similarity.</p>
+      <p>Conclusions also carry a <strong>provenance</strong>: <code>derived</code> (produced by the deriver) or <code>manual</code> (added by the agent via <code>memory_conclude</code> or by you in the panel). Each conclusion additionally carries a <strong>confidence</strong> - <code>high</code>, <code>medium</code>, or <code>low</code> - reflecting how certain it is: explicit statements and certain deductions are high, well-supported inferences medium, and tentative patterns low. Confidence ranks which memories surface first and how the cards are curated. Near-duplicate conclusions are merged automatically using embedding similarity, and a memory that is independently re-derived is <em>promoted</em> in confidence rather than merely re-counted, so repeatedly-observed facts rise to the top.</p>
 
       <h2 id="rm-deriver">The deriver</h2>
       <p>The <strong>deriver</strong> is a background worker thread. It never blocks your reply - it works after the conversation continues.</p>
@@ -1492,9 +1492,11 @@ docker compose up -d</code></pre>
       <p>When you talk to Memtrix a lot, the deriver produces many conclusions. A background <strong>consolidation</strong> pass runs once a day - like memory consolidation during sleep - and distills each peer's stored conclusions into a smaller, cleaner set.</p>
       <ul>
         <li><strong>Merges</strong> duplicates and near-duplicates into single clear statements</li>
-        <li><strong>Drops</strong> anything outdated, contradicted, trivial, or ephemeral</li>
+        <li><strong>Resolves contradictions</strong> by keeping the more-reinforced or more-recent fact and dropping the superseded one</li>
+        <li><strong>Drops</strong> anything outdated, trivial, or ephemeral</li>
         <li><strong>Synthesizes</strong> higher-order patterns from several related items</li>
-        <li><strong>Preserves</strong> your manually added (<code>manual</code>) conclusions untouched - only <code>derived</code> ones are distilled</li>
+        <li><strong>Decays</strong> weak memories - derived conclusions that are stale, never reinforced, and low confidence are pruned, while reinforced and high-confidence facts persist</li>
+        <li><strong>Preserves</strong> your manually added (<code>manual</code>) conclusions untouched - only <code>derived</code> ones are distilled or decayed</li>
       </ul>
       <p>The schedule is persisted to disk, so it survives restarts and runs roughly every <code>consolidation_interval_hours</code>. After a pass the peer card is re-curated from the distilled set. Run <code>/consolidate</code> in any room to trigger a pass immediately. Consolidation respects the deriver pause toggle.</p>
 
@@ -1509,7 +1511,7 @@ docker compose up -d</code></pre>
           <tr><td><code>off</code></td><td>Reasoning memory disabled entirely</td></tr>
         </tbody>
       </table>
-      <p>Peer cards are always injected regardless of mode. With auto-injection, the top <code>inject_top_k</code> (default 5) most relevant conclusions are added to the prompt.</p>
+      <p>Peer cards are always injected regardless of mode. With auto-injection, the top <code>inject_top_k</code> (default 5) conclusions are considered, but only those within a <strong>relevance threshold</strong> of your message are actually injected - weakly-related memories are suppressed so off-topic recall never crowds out the live conversation. Each injected memory is labelled with its confidence, and the agent is reminded that recall may be stale and should be verified before acting on anything critical.</p>
 
       <h2 id="rm-tools">Memory tools</h2>
       <p>When enabled, the agent can actively work with reasoning memory through four tools:</p>
@@ -1519,7 +1521,7 @@ docker compose up -d</code></pre>
           <tr><td><code>memory_profile</code></td><td>Returns the compact profile cards (durable facts about the user and the agent). Fast, no search.</td></tr>
           <tr><td><code>memory_search</code></td><td>Searches reasoned conclusions and returns the most relevant excerpts - for "what do you know about…" recall.</td></tr>
           <tr><td><code>memory_context</code></td><td>Answers a natural-language question grounded in reasoned memory - for nuanced questions like "what tone does the user prefer?".</td></tr>
-          <tr><td><code>memory_conclude</code></td><td>Immediately stores a high-signal durable fact (a stated preference, correction, or key context). Used sparingly.</td></tr>
+          <tr><td><code>memory_conclude</code></td><td>Permanently locks a single high-signal durable fact (a stated preference, correction, or key context) at high confidence. Stored as <code>manual</code> so consolidation never prunes or rewrites it. Used sparingly.</td></tr>
         </tbody>
       </table>
 

@@ -43,7 +43,8 @@ class MemoryConcludeTool(BaseTool):
 
     def execute(self, **kwargs: Any) -> str:
         """
-        This function stores a single durable fact as a deductive conclusion.
+        This function stores a single durable fact as an operator-locked conclusion so
+        the background consolidation pass never prunes or rewrites it.
         """
         if self._store is None:
             return "Memory is not available."
@@ -56,8 +57,11 @@ class MemoryConcludeTool(BaseTool):
         if peer not in ("user", "agent"):
             peer = "user"
 
-        added: int = self._store.add_conclusions(
+        record_id: str | None = self._store.add_manual_conclusion(
             peer=peer,
-            records=[{"kind": "deductive", "content": fact, "premises": ["explicitly stated by the user"]}],
+            kind="deductive",
+            content=fact,
+            premises=["explicitly committed to memory"],
+            confidence="high",
         )
-        return "Noted." if added else "Already remembered."
+        return "Noted." if record_id else "Could not store that."

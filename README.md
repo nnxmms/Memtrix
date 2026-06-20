@@ -281,9 +281,9 @@ It's automatically discovered and available to the LLM on the next restart.
 
 Memtrix combines a searchable conversation history with a reasoning layer:
 
-**Reasoning Memory** — A background **deriver** thread continuously reasons over each conversation and distills durable conclusions about both the user and the agent itself: explicit observations, certain deductions, and observed patterns. Conclusions are vector-indexed locally (ChromaDB, `data/representations`) and the most relevant ones are injected into the prompt before each reply, so Memtrix recalls durable facts across sessions. Inspired by [Honcho](https://honcho.dev), but implemented entirely on-device — no external service.
+**Reasoning Memory** — A background **deriver** thread continuously reasons over each conversation and distills durable conclusions about both the user and the agent itself: explicit observations, certain deductions, and observed patterns. Each conclusion carries a **confidence** (high/medium/low) that ranks how it surfaces and how the profile cards are curated; when the same conclusion is independently re-derived it is promoted rather than merely re-counted, so reinforced facts rise. Conclusions are vector-indexed locally (ChromaDB, `data/representations`) and the **most relevant** ones — filtered by a similarity threshold so off-topic memories are never injected — are added to the prompt before each reply, so Memtrix recalls durable facts across sessions. Inspired by [Honcho](https://honcho.dev), but implemented entirely on-device — no external service.
 
-**Memory Consolidation** — Once a day, a background pass distills each peer's accumulated conclusions into a smaller, higher-signal set — like memory consolidation during sleep. It merges duplicates, drops outdated or contradicted facts, and synthesizes patterns from related items, while preserving any conclusions you added manually. The schedule persists across restarts; run `/consolidate` to trigger a pass on demand.
+**Memory Consolidation** — Once a day, a background pass distills each peer's accumulated conclusions into a smaller, higher-signal set — like memory consolidation during sleep. It merges duplicates, explicitly resolves contradictions (keeping the more-reinforced or more-recent fact), synthesizes patterns from related items, and gently **decays** weak memories — derived conclusions that are stale, never reinforced, and low confidence are pruned, while reinforced, high-confidence, and manually-saved facts persist. Conclusions you add manually are preserved untouched. The schedule persists across restarts; run `/consolidate` to trigger a pass on demand.
 
 **Profile Cards** (`USER.md` about you, `MEMORY.md` about the agent) — Compact, always-current cards that the deriver curates automatically and keeps within a character budget. They are injected into every system prompt and are no longer hand-edited by the agent.
 
@@ -304,7 +304,7 @@ When `recall_mode` is `tools` or `hybrid`, Memtrix can query its reasoning memor
 - `memory_profile` — read the compact profile cards (fast, no LLM).
 - `memory_search` — semantically search reasoned conclusions for ranked excerpts.
 - `memory_context` — ask a natural-language question and get a synthesized answer grounded in memory.
-- `memory_conclude` — store a single high-signal durable fact immediately.
+- `memory_conclude` — permanently lock a single high-signal durable fact (high confidence, never pruned or rewritten by consolidation).
 
 The reasoning memory is configured via the optional `memory` section in `config.json`:
 

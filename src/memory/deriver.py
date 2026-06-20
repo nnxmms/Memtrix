@@ -165,9 +165,14 @@ class Deriver:
 
         records: list[dict[str, Any]] = []
         for item in conclusions.get("explicit", []):
-            content: str = item.get("content", "") if isinstance(item, dict) else str(item)
-            records.append({"kind": "observation", "content": content, "premises": []})
-        for kind in ("deductive", "inductive"):
+            if isinstance(item, dict):
+                content: str = item.get("content", "")
+                confidence: str = item.get("confidence", "high")
+            else:
+                content = str(item)
+                confidence = "high"
+            records.append({"kind": "observation", "content": content, "premises": [], "confidence": confidence})
+        for kind, default_conf in (("deductive", "high"), ("inductive", "medium")):
             for item in conclusions.get(kind, []):
                 if not isinstance(item, dict):
                     continue
@@ -175,6 +180,7 @@ class Deriver:
                     "kind": kind,
                     "content": item.get("conclusion", ""),
                     "premises": item.get("premises", []),
+                    "confidence": item.get("confidence", default_conf),
                 })
 
         self._store.add_conclusions(peer=peer, records=records)
@@ -191,21 +197,47 @@ class Deriver:
         deductive/inductive conclusions as strict JSON.
         """
         max_items: int = REASONING_LEVEL_ITEMS.get(self._reasoning_level, 4)
-        subject: str = "the user" if peer == "user" else "the AI assistant itself"
+        if peer == "user":
+            subject: str = "the user (the human in the conversation)"
+            focus: str = (
+                "Capture durable facts about who the user is and what they want: their "
+                "identity, stable preferences, recurring goals, working style, important "
+                "people/projects/tools in their life, and standing instructions for how "
+                "they want to be treated."
+            )
+        else:
+            subject = "the AI assistant itself (the 'assistant' role in the transcript)"
+            focus = (
+                "Capture durable SELF-knowledge the assistant should carry forward: its "
+                "persona and values, its operating environment and constraints, and "
+                "behavioral commitments it has made (how it should act in future). Do NOT "
+                "record the literal content of individual replies, one-off task outputs, "
+                "or restate what the user said — only stable truths about the assistant."
+            )
 
         system_prompt: str = (
-            "You are a reasoning engine that extracts durable knowledge from a conversation "
-            f"transcript about {subject}. Apply formal logic. Respond with ONLY a JSON object, "
-            "no prose, no code fences.\n\n"
+            "You are a reasoning engine that extracts durable, long-term knowledge from a "
+            f"slice of an ongoing conversation about {subject}. Apply careful, formal logic "
+            "and do not overreach beyond what the transcript supports. Respond with ONLY a "
+            "JSON object — no prose, no code fences.\n\n"
+            f"{focus}\n\n"
             "Schema:\n"
             "{\n"
-            '  "explicit": [{"content": "a fact explicitly stated"}],\n'
-            '  "deductive": [{"premises": ["..."], "conclusion": "a certain conclusion"}],\n'
-            '  "inductive": [{"premises": ["..."], "conclusion": "a likely pattern across messages"}]\n'
+            '  "explicit": [{"content": "a fact explicitly stated", "confidence": "high"}],\n'
+            '  "deductive": [{"premises": ["..."], "conclusion": "a certain conclusion", "confidence": "high|medium"}],\n'
+            '  "inductive": [{"premises": ["..."], "conclusion": "a likely pattern across messages", "confidence": "medium|low"}]\n'
             "}\n\n"
-            f"Rules: Only include durable, generalizable knowledge about {subject} — skip "
-            "small talk, transient task details, and anything ephemeral. Each list may be empty. "
-            f"Include at most {max_items} items per list. Be concise."
+            "Rules:\n"
+            f"- Only record durable, generalizable knowledge about {subject}. Aggressively "
+            "skip small talk, transient task state, one-off details, and anything that will "
+            "not still be true or useful next week.\n"
+            "- Write each item as a self-contained statement that stands on its own without "
+            "the transcript (resolve pronouns and references).\n"
+            "- Set confidence honestly: 'high' for clearly stated or logically certain facts, "
+            "'medium' for well-supported inferences, 'low' for tentative patterns. Prefer "
+            "omitting an item over recording a low-confidence guess.\n"
+            "- Do not invent, assume, or pad. Each list may be empty.\n"
+            f"- Include at most {max_items} items per list. Be concise and high-signal."
         )
         history: list[dict[str, str]] = [
             {"role": "system", "content": system_prompt},
@@ -278,24 +310,31 @@ class Deriver:
             return
         if peer == "user":
             subject_desc: str = (
-                "a compact profile of the USER: their name, what they like, their preferences, "
-                "goals, and relevant personal context"
+                "a compact profile of the USER: who they are (name, role, context), what "
+                "they care about, their stable preferences and goals, and the people, "
+                "projects, and tools that matter to them"
             )
         else:
             subject_desc = (
-                "a compact self-description of the AI assistant: its persona, where it runs "
-                "(e.g. VM/cloud), and how it should behave"
+                "a compact self-description of the AI assistant: its persona and values, "
+                "the environment it operates in, and the behavioral commitments it should "
+                "uphold — durable self-knowledge, not a log of past replies"
             )
 
         system_prompt: str = (
             f"You maintain {subject_desc}. Rewrite the card as concise Markdown bullet points. "
-            f"Keep it under {self._max_chars} characters. Merge duplicates, drop anything "
-            "outdated or contradicted, and keep only durable, high-signal information. "
-            "Every bullet must be atomic and complete; never output incomplete or dangling bullets. "
-            "Prefer fewer, stronger bullets over broad coverage. "
+            f"Keep it under {self._max_chars} characters. "
+            "The input bullets are tagged with a confidence; trust higher-confidence and "
+            "more-reinforced facts, and when two bullets conflict, keep the stronger or more "
+            "recent one and drop the other. Merge duplicates, remove anything outdated, "
+            "contradicted, or low-signal, and keep only durable, high-value information. "
+            "Group related facts so the card reads coherently. "
+            "Every bullet must be atomic, complete, and grammatical; never output incomplete "
+            "or dangling bullets. Prefer fewer, stronger bullets over broad coverage. "
             "Order the bullets from most to least important, so that if the card is later "
             "trimmed to fit, the least critical bullets are the ones dropped. "
-            "Respond with ONLY the card content, no preamble."
+            "Write only the durable facts themselves — no meta-commentary, headings, or "
+            "preamble. Respond with ONLY the card content."
         )
         user_prompt: str = (
             f"Current card:\n{existing or '(empty)'}\n\n"
@@ -327,7 +366,8 @@ class Deriver:
     def _shape_record_bullet(record: dict[str, Any]) -> str:
         """
         This function normalizes one conclusion into a compact bullet suitable for
-        peer-card curation prompts.
+        peer-card curation prompts, annotating it with its kind, confidence, and how
+        many times it has been reinforced so the curator can weigh it.
         """
         content: str = re.sub(pattern=r"\s+", repl=" ", string=str(record.get("content", "") or "")).strip()
         if not content:
@@ -335,7 +375,12 @@ class Deriver:
         if len(content) > CARD_SOURCE_ITEM_MAX_CHARS:
             content = content[:CARD_SOURCE_ITEM_MAX_CHARS].rstrip()
         kind: str = str(record.get("kind", "observation") or "observation")
-        return f"- ({kind}) {content}"
+        confidence: str = str(record.get("confidence", "medium") or "medium")
+        seen: int = int(record.get("times_seen", 1) or 1)
+        tag: str = f"{kind}, {confidence} confidence"
+        if seen > 1:
+            tag += f", seen {seen}x"
+        return f"- ({tag}) {content}"
 
     def _retry_compact_card(self, peer: str, subject_desc: str, card: str) -> str | None:
         """
@@ -427,8 +472,12 @@ class Deriver:
         """
         This function distills a single peer's derived conclusions into a smaller,
         higher-signal set and replaces them, then re-curates the peer card. Returns
-        (removed, added). Manual conclusions are preserved by the store.
+        (removed, added). Manual conclusions are preserved by the store. Stale,
+        never-reinforced, low-confidence derived items are pruned first so they do
+        not dilute the distillation input.
         """
+        self._store.prune_stale_derived(peer=peer)
+
         records: list[dict[str, Any]] = self._store.list_conclusions(peer=peer, limit=1000)
         derived: list[dict[str, Any]] = [r for r in records if r.get("source", "derived") != "manual"]
         if len(derived) < self._consolidation_min_items:
@@ -456,25 +505,33 @@ class Deriver:
         """
         subject: str = "the user" if peer == "user" else "the AI assistant itself"
         listing: str = "\n".join(
-            f"{i}. ({r.get('kind', 'observation')}, seen {int(r.get('times_seen', 1))}x) {r['content']}"
+            f"{i}. ({r.get('kind', 'observation')}, {r.get('confidence', 'medium')} confidence, "
+            f"seen {int(r.get('times_seen', 1))}x) {r['content']}"
             for i, r in enumerate(records, start=1)
         )
 
         system_prompt: str = (
             "You are a memory-consolidation engine, like a brain during sleep. You are given "
-            f"the full set of stored conclusions about {subject}. Distill them into a smaller, "
-            "cleaner set of durable knowledge. Respond with ONLY a JSON object, no prose, no "
-            "code fences.\n\n"
+            f"the full set of stored conclusions about {subject}, each tagged with its kind, "
+            "confidence, and how many times it has been independently observed. Distill them "
+            "into a smaller, cleaner, more reliable set of durable knowledge. Respond with "
+            "ONLY a JSON object — no prose, no code fences.\n\n"
             "Schema:\n"
             "{\n"
-            '  "conclusions": [{"kind": "observation|deductive|inductive", "content": "...", "premises": ["..."]}]\n'
+            '  "conclusions": [{"kind": "observation|deductive|inductive", "content": "...", "premises": ["..."], "confidence": "high|medium|low"}]\n'
             "}\n\n"
             "Rules:\n"
-            "- Merge duplicates and near-duplicates into a single clear statement.\n"
-            "- Drop anything outdated, contradicted by a newer item, trivial, or ephemeral.\n"
-            "- You may synthesize a higher-order conclusion from several related items (kind 'inductive').\n"
+            "- Merge duplicates and near-duplicates into a single clear statement, keeping the "
+            "highest confidence and summing the evidence.\n"
+            "- Resolve contradictions: when two items conflict, keep the one that is more "
+            "reinforced (seen more often) or more recent, and drop the superseded one. Never "
+            "keep both sides of a direct contradiction.\n"
+            "- Drop anything outdated, trivial, ephemeral, or low-signal. Be willing to remove "
+            "weak, once-seen, low-confidence guesses entirely.\n"
+            "- You may synthesize a higher-order conclusion from several related items "
+            "(kind 'inductive'); base its confidence on how strongly the inputs support it.\n"
             "- Keep only durable, high-signal knowledge. Prefer fewer, stronger statements.\n"
-            "- Do not invent facts that are not supported by the input.\n"
+            "- Carry a confidence on every item; do not invent facts unsupported by the input.\n"
             "- 'premises' may be empty; add short supporting premises for deductive/inductive items."
         )
         history: list[dict[str, str]] = [
@@ -499,7 +556,12 @@ class Deriver:
             premises: Any = item.get("premises", [])
             if not isinstance(premises, list):
                 premises = []
-            distilled.append({"kind": kind, "content": content, "premises": premises})
+            distilled.append({
+                "kind": kind,
+                "content": content,
+                "premises": premises,
+                "confidence": item.get("confidence", "medium"),
+            })
         return distilled
 
     @staticmethod

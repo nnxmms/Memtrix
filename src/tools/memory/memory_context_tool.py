@@ -65,13 +65,16 @@ class MemoryContextTool(BaseTool):
             return "I don't have anything in memory that answers that yet."
 
         evidence: str = "\n".join(
-            f"- ({'user' if m.get('peer') == 'user' else 'me'}, {m['kind']}) {m['content']}"
+            f"- ({'user' if m.get('peer') == 'user' else 'me'}, {m['kind']}, "
+            f"{m.get('confidence', 'medium')} confidence) {m['content']}"
             for m in matches
         )
         system_prompt: str = (
-            "You answer a question using only the provided memory about the user and the "
-            "assistant. Be direct and concise. If the memory does not support an answer, say "
-            "so plainly. Do not invent facts."
+            "You answer a question using ONLY the provided memory about the user and the "
+            "assistant. Be direct and concise. Weigh higher-confidence evidence more heavily, "
+            "and if items conflict, prefer the stronger one and note the uncertainty. If the "
+            "memory does not support an answer, say so plainly. Never invent facts or infer "
+            "beyond what the memory states."
         )
         user_prompt: str = (
             f"User profile:\n{user_card or '(none)'}\n\n"

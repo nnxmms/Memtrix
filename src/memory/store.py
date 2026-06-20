@@ -22,12 +22,37 @@ logger: logging.Logger = logging.getLogger(__name__)
 PEERS: set[str] = {"user", "agent"}
 KINDS: set[str] = {"observation", "deductive", "inductive"}
 
+# Valid confidence levels for a conclusion, ordered weakest -> strongest. A
+# conclusion's confidence governs how it is ranked at recall time and how
+# aggressively the consolidation pass is allowed to prune it.
+CONFIDENCE_LEVELS: tuple[str, ...] = ("low", "medium", "high")
+DEFAULT_CONFIDENCE: str = "medium"
+
+# Numeric weight per confidence level, used to rank recall candidates so that
+# stronger, better-supported memories surface ahead of weak guesses.
+CONFIDENCE_WEIGHT: dict[str, float] = {"low": 0.5, "medium": 1.0, "high": 1.5}
+
 # Peer card files (finite, always-injected summaries)
 PEER_CARD_FILES: dict[str, str] = {"user": "USER.md", "agent": "MEMORY.md"}
 
 # Two normalized embeddings are considered duplicates below this L2 distance
 # (l2^2 = 2(1 - cosine); 0.35 ≈ cosine similarity > 0.93)
 DEDUP_L2_THRESHOLD: float = 0.35
+
+# Consolidation decay policy: a derived conclusion is eligible for pruning only
+# when it is stale (last reinforced longer ago than this), was never reinforced
+# (seen exactly once), and is low confidence. Manual, reinforced, and high/medium
+# confidence conclusions are never dropped by decay alone.
+DERIVED_STALE_SECONDS: float = 30.0 * 24.0 * 3600.0
+
+
+def _normalize_confidence(value: Any) -> str:
+    """
+    This function coerces an arbitrary confidence value into one of the valid
+    levels, defaulting to DEFAULT_CONFIDENCE for anything unrecognized.
+    """
+    text: str = str(value or "").strip().lower()
+    return text if text in CONFIDENCE_LEVELS else DEFAULT_CONFIDENCE
 
 
 def resolve_memory_config(config: dict[str, Any]) -> dict[str, Any]:
@@ -142,7 +167,8 @@ class RepresentationStore:
         """
         This function stores a batch of conclusions for a peer, skipping near-duplicates
         (bumping their seen counter instead). Returns the number of new records added.
-        Each record is {"kind": str, "content": str, "premises": list[str]}.
+        Each record is {"kind": str, "content": str, "premises": list[str],
+        "confidence": str}. The confidence is optional and defaults to medium.
         """
         if peer not in PEERS:
             return 0
@@ -168,6 +194,7 @@ class RepresentationStore:
                         "ts": time.time(),
                         "times_seen": 1,
                         "source": "derived",
+                        "confidence": _normalize_confidence(record.get("confidence")),
                     }],
                 )
                 added += 1
@@ -199,6 +226,12 @@ class RepresentationStore:
             metadata: dict[str, Any] = results["metadatas"][0][0]
             metadata["times_seen"] = int(metadata.get("times_seen", 1)) + 1
             metadata["ts"] = time.time()
+            # Independent re-derivation of the same conclusion is corroborating
+            # evidence, so a reinforced memory is promoted at least to medium
+            # confidence and never decays as a one-off.
+            current: str = _normalize_confidence(metadata.get("confidence"))
+            if current == "low":
+                metadata["confidence"] = "medium"
             self._collection.update(ids=[existing_id], metadatas=[metadata])
             return True
         return False
@@ -245,12 +278,15 @@ class RepresentationStore:
                 "kind": meta.get("kind", ""),
                 "distance": results["distances"][0][i],
                 "source": meta.get("source", "derived"),
+                "confidence": _normalize_confidence(meta.get("confidence")),
             })
         return matches
 
     def all_for_peer(self, peer: str, limit: int = 100) -> list[dict[str, Any]]:
         """
-        This function returns stored conclusions for a peer, most-seen first.
+        This function returns stored conclusions for a peer, strongest first. Records
+        are ranked by a blend of confidence and reinforcement so the highest-signal
+        conclusions lead the card-curation input, with recency breaking ties.
         """
         if peer not in PEERS or self._collection.count() == 0:
             return []
@@ -265,10 +301,17 @@ class RepresentationStore:
                 "kind": meta.get("kind", ""),
                 "times_seen": int(meta.get("times_seen", 1)),
                 "ts": float(meta.get("ts", 0.0)),
+                "confidence": _normalize_confidence(meta.get("confidence")),
             }
             for content, meta in zip(documents, metadatas)
         ]
-        records.sort(key=lambda r: (r["times_seen"], r["ts"]), reverse=True)
+        records.sort(
+            key=lambda r: (
+                CONFIDENCE_WEIGHT.get(r["confidence"], 1.0) * r["times_seen"],
+                r["ts"],
+            ),
+            reverse=True,
+        )
         return records[:limit]
 
     def read_peer_card(self, peer: str) -> str:
@@ -420,6 +463,7 @@ class RepresentationStore:
                 "ts": time.time(),
                 "times_seen": int(existing.get("times_seen", 1)),
                 "source": existing.get("source", "derived"),
+                "confidence": _normalize_confidence(existing.get("confidence")),
             }
             if content is not None and content.strip():
                 # Updating the document re-computes the embedding
@@ -430,11 +474,14 @@ class RepresentationStore:
         return True
 
     def add_manual_conclusion(self, peer: str, kind: str, content: str,
-                              premises: list[str] | None = None) -> str | None:
+                              premises: list[str] | None = None,
+                              confidence: str = "high") -> str | None:
         """
-        This function adds an operator-authored conclusion, bypassing deduplication,
-        and tags it with source="manual". Returns the new record id or None on
-        invalid input.
+        This function adds an operator- or agent-authored conclusion, bypassing
+        deduplication, and tags it with source="manual" so the daily consolidation
+        pass never prunes or rewrites it. Such facts are high confidence by default
+        because they were explicitly committed rather than inferred. Returns the new
+        record id or None on invalid input.
         """
         content = (content or "").strip()
         if peer not in PEERS or kind not in KINDS or not content:
@@ -451,6 +498,7 @@ class RepresentationStore:
                     "ts": time.time(),
                     "times_seen": 1,
                     "source": "manual",
+                    "confidence": _normalize_confidence(confidence),
                 }],
             )
         logger.info("Added manual conclusion %s for peer '%s'", record_id, peer)
@@ -512,6 +560,7 @@ class RepresentationStore:
                         "ts": float(record.get("ts", time.time())) or time.time(),
                         "times_seen": int(record.get("times_seen", 1)),
                         "source": record.get("source", "derived"),
+                        "confidence": _normalize_confidence(record.get("confidence")),
                     }],
                 )
                 imported += 1
@@ -564,6 +613,7 @@ class RepresentationStore:
                     "ts": now,
                     "times_seen": 1,
                     "source": "derived",
+                    "confidence": _normalize_confidence(record.get("confidence")),
                 })
                 added += 1
 
@@ -580,6 +630,37 @@ class RepresentationStore:
             peer, len(derived_ids), added,
         )
         return (len(derived_ids), added)
+
+    def prune_stale_derived(self, peer: str, stale_seconds: float = DERIVED_STALE_SECONDS) -> int:
+        """
+        This function removes low-value derived conclusions that have aged out: a
+        record is pruned only when it is derived (never manual), low confidence, was
+        never reinforced (seen exactly once), and was last touched longer ago than
+        stale_seconds. Reinforced, high/medium confidence, and operator-authored
+        memories are always kept. Returns the number of records removed.
+        """
+        if peer not in PEERS or self._collection.count() == 0:
+            return 0
+
+        cutoff: float = time.time() - max(0.0, stale_seconds)
+        with self._write_lock:
+            existing: dict[str, Any] = self._collection.get(where={"peer": peer})
+            ids: list[str] = existing.get("ids", []) or []
+            metadatas: list[dict[str, Any]] = existing.get("metadatas", []) or []
+            stale_ids: list[str] = [
+                record_id
+                for record_id, meta in zip(ids, metadatas)
+                if (meta or {}).get("source", "derived") != "manual"
+                and _normalize_confidence((meta or {}).get("confidence")) == "low"
+                and int((meta or {}).get("times_seen", 1)) <= 1
+                and float((meta or {}).get("ts", 0.0)) < cutoff
+            ]
+            if stale_ids:
+                self._collection.delete(ids=stale_ids)
+
+        if stale_ids:
+            logger.info("Pruned %d stale derived conclusion(s) for peer '%s'", len(stale_ids), peer)
+        return len(stale_ids)
 
     def _build_where(self, peer: str | None, kinds: list[str] | None) -> dict[str, Any] | None:
         """
@@ -618,4 +699,5 @@ class RepresentationStore:
             "times_seen": int(meta.get("times_seen", 1)),
             "ts": float(meta.get("ts", 0.0)),
             "source": meta.get("source", "derived"),
+            "confidence": _normalize_confidence(meta.get("confidence")),
         }
