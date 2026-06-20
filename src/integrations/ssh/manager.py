@@ -42,6 +42,7 @@ SSH_TOOL_FILES: set[str] = {
     "ssh_get_remote_hosts_tool.py",
     "ssh_connect_tool.py",
     "ssh_run_tool.py",
+    "ssh_scp_tool.py",
     "ssh_disconnect_tool.py",
 }
 
@@ -412,6 +413,26 @@ class SSHManager:
             output, exit_code = conn.run(command=command, password=None)
 
         return output, exit_code
+
+
+    def scp(self, alias: str, direction: str, local_path: str, remote_path: str,
+            max_bytes: int) -> tuple[int, str]:
+        """
+        This function transfers a single file between the local workspace and a
+        connected host over SFTP. direction is 'upload' (local -> remote) or
+        'download' (remote -> local). It returns (bytes_transferred, resolved_path):
+        the resolved remote path for uploads, or the given local path for downloads.
+        """
+        conn: SSHConnection | None = self._connections.get(alias)
+        if conn is None or not conn.is_active():
+            raise SSHError(f"Not connected to '{alias}'. Open a session first with ssh_connect.")
+
+        if direction == "upload":
+            return conn.sftp_upload(local_path=local_path, remote_path=remote_path, max_bytes=max_bytes)
+        if direction == "download":
+            size: int = conn.sftp_download(remote_path=remote_path, local_path=local_path, max_bytes=max_bytes)
+            return size, local_path
+        raise SSHError("direction must be 'upload' or 'download'.")
 
 
     def disconnect(self, alias: str) -> bool:

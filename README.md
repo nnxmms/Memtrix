@@ -240,6 +240,7 @@ Built-in tools are automatically discovered at startup:
 | `ssh_get_remote_hosts` | Lists registered hosts and their connection status |
 | `ssh_connect` | Opens a persistent interactive SSH session to a host (trust-on-first-use host key) |
 | `ssh_run` | Runs a command in the open session — state persists between calls; optional `sudo` |
+| `ssh_scp` | Copies a single file to or from a connected host over SFTP (`upload` from / `download` into the workspace; max 100 MB) |
 | `ssh_disconnect` | Closes an open SSH session |
 | `skill_manage` | Creates, views, lists, edits, patches, or deletes the agent's own reusable skills |
 
@@ -370,6 +371,7 @@ Memtrix: → ssh_add_host(alias="pi", hostname="192.168.1.50", username="pi")
          → ssh_connect("pi")      (asks you to trust the host key on first contact)
          → ssh_run("cd /etc/apt && ls")
          → ssh_run("apt update", sudo=true)   (asks for the sudo password once)
+         → ssh_scp("pi", direction="download", remote_path="/var/log/syslog")
          → ssh_disconnect("pi")
 ```
 
@@ -378,6 +380,7 @@ Memtrix: → ssh_add_host(alias="pi", hostname="192.168.1.50", username="pi")
 - **Its own key** — `ssh_gen_key` creates an ed25519 keypair stored on the data volume (private key `0600`, never disclosed). Install the public key (`ssh_get_pub_key`) in each host's `authorized_keys`. Authentication is key-only; Memtrix never uses a login password.
 - **Host registry** — `ssh_add_host` / `ssh_remove_host` / `ssh_get_remote_hosts` manage named hosts in `data/ssh/hosts.json`.
 - **Persistent session** — `ssh_connect` opens a shell that subsequent `ssh_run` calls reuse; `ssh_disconnect` closes it. Sessions are also closed on shutdown.
+- **File transfer** — `ssh_scp` copies a single file over SFTP in either direction: `upload` sends a workspace file to the host, `download` pulls a remote file into the workspace (defaulting to `downloads/`). Transfers are capped at 100 MB and confirmed with you first.
 - **sudo** — pass `sudo=true` to `ssh_run`. Memtrix asks you for the sudo password, keeps it **in memory only** for the session (never written to disk), and feeds it to `sudo -S`.
 
 **Safety**

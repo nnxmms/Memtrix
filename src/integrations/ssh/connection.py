@@ -1,8 +1,10 @@
 #!/usr/bin/python3
 
 import logging
+import os
 import re
 import select
+import stat
 import threading
 import time
 import uuid
@@ -112,6 +114,83 @@ class SSHConnection:
         if len(output) > self._max_output:
             output = output[: self._max_output] + "\n... [output truncated]"
         return output, exit_code
+
+    def sftp_upload(self, local_path: str, remote_path: str, max_bytes: int) -> tuple[int, str]:
+        """
+        This function uploads a local file to the remote host over a fresh SFTP
+        channel and returns (bytes_transferred, resolved_remote_path). When
+        remote_path is an existing directory (or ends with '/'), the local
+        filename is appended so the file lands inside it.
+        """
+        transport: paramiko.Transport | None = self._client.get_transport()
+        if transport is None or not transport.is_active():
+            raise SSHError("The SSH session is not active.")
+
+        size: int = os.path.getsize(filename=local_path)
+        if size > max_bytes:
+            raise SSHError(f"File is too large ({size} bytes); the transfer limit is {max_bytes} bytes.")
+
+        sftp: paramiko.SFTPClient = self._client.open_sftp()
+        try:
+            target: str = self._resolve_remote_target(
+                sftp=sftp, remote_path=remote_path, basename=os.path.basename(local_path)
+            )
+            try:
+                sftp.put(localpath=local_path, remotepath=target)
+            except (IOError, OSError) as exc:
+                raise SSHError(f"Could not write to remote path '{target}': {exc}")
+            return size, target
+        finally:
+            sftp.close()
+
+    def sftp_download(self, remote_path: str, local_path: str, max_bytes: int) -> int:
+        """
+        This function downloads a remote file to a local path over a fresh SFTP
+        channel and returns the number of bytes transferred. Directories and
+        oversized files are refused before any data is written locally.
+        """
+        transport: paramiko.Transport | None = self._client.get_transport()
+        if transport is None or not transport.is_active():
+            raise SSHError("The SSH session is not active.")
+
+        sftp: paramiko.SFTPClient = self._client.open_sftp()
+        try:
+            try:
+                attr: paramiko.SFTPAttributes = sftp.stat(path=remote_path)
+            except (IOError, OSError):
+                raise SSHError(f"Remote file not found or inaccessible: {remote_path}")
+
+            if attr.st_mode is not None and stat.S_ISDIR(attr.st_mode):
+                raise SSHError(f"Remote path '{remote_path}' is a directory, not a file.")
+
+            size: int = attr.st_size or 0
+            if size > max_bytes:
+                raise SSHError(f"Remote file is too large ({size} bytes); the transfer limit is {max_bytes} bytes.")
+
+            try:
+                sftp.get(remotepath=remote_path, localpath=local_path)
+            except (IOError, OSError) as exc:
+                raise SSHError(f"Could not download '{remote_path}': {exc}")
+            return size or os.path.getsize(filename=local_path)
+        finally:
+            sftp.close()
+
+    def _resolve_remote_target(self, sftp: paramiko.SFTPClient, remote_path: str, basename: str) -> str:
+        """
+        This function resolves the final remote file path for an upload, appending
+        the local filename when the destination is an existing directory or ends
+        with a trailing slash.
+        """
+        is_dir: bool = remote_path.endswith("/")
+        if not is_dir:
+            try:
+                attr: paramiko.SFTPAttributes = sftp.stat(path=remote_path)
+                is_dir = attr.st_mode is not None and stat.S_ISDIR(attr.st_mode)
+            except (IOError, OSError):
+                is_dir = False
+        if is_dir:
+            return remote_path.rstrip("/") + "/" + basename
+        return remote_path
 
     def close(self) -> None:
         """

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.27.0
+
+- Added an **`ssh_scp`** tool so the main agent can move files to and from remote hosts over the existing SSH connection. Set `direction` to `upload` to push a workspace file to a host, or `download` to pull a remote file into the workspace (defaulting to `downloads/<filename>`). Transfers run over SFTP on the already-trusted session — no new authentication or host-key prompt — and reuse the same safeguards as the rest of the file tooling: the local side is confined to the workspace (no path traversal), downloads never silently overwrite an existing file, uploads to a remote directory keep the original filename, and every transfer is capped at 100 MB and confirmed with you before it runs.
+
 ## 2.26.0
 
 - Added a new **OpenAI-Compatible** provider, so Memtrix can now run on any endpoint that speaks the OpenAI chat-completions API — local servers like llama.cpp, vLLM, LM Studio, and Ollama's OpenAI shim, self-hosted gateways, or hosted services such as OpenAI itself. Pick the `openai_compatible` type, point it at a base URL (e.g. `http://host.docker.internal:8000/v1`), and optionally supply an API key. The key is optional so key-less local servers work out of the box; when supplied it is sent as a standard `Authorization: Bearer` header and can be stored as a secret reference like any other credential.
