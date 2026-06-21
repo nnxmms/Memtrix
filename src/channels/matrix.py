@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import mimetypes
 import os
 import time
 from urllib.parse import quote
@@ -215,6 +216,85 @@ class MatrixChannel:
         display_name: str = room.user_name(event.sender) or event.sender
         return self._sanitize_sender(name=display_name)
 
+    def _resolve_media_filename(self, event: Any) -> str:
+        """
+        This function derives a usable filename (with a correct extension) for an
+        incoming media event. Matrix clients put the *caption* in event.body when a
+        file is sent with text, so body is unreliable as a filename — an image sent
+        with a caption would otherwise be saved with no extension, defeating type
+        detection (e.g. vision attachment). The dedicated content.filename field is
+        preferred; otherwise body is used only when it looks like a real filename
+        (carries an extension); failing that a name is synthesised from the media id.
+        In all cases a missing extension is filled in from the declared MIME type.
+        """
+        content: dict[str, Any] = {}
+        try:
+            content = event.source.get("content", {}) or {}
+        except AttributeError:
+            content = {}
+        info: dict[str, Any] = content.get("info", {}) if isinstance(content.get("info"), dict) else {}
+
+        mimetype: str = info.get("mimetype") or content.get("mimetype") or getattr(event, "mimetype", "") or ""
+        ext_from_mime: str | None = mimetypes.guess_extension(mimetype.split(";")[0].strip()) if mimetype else None
+        if ext_from_mime == ".jpe":
+            ext_from_mime = ".jpg"
+
+        # Choose a base name: explicit filename field, else body only if it carries an
+        # extension (a true filename), else a stable base from the mxc media id.
+        filename_field: str = os.path.basename(content.get("filename") or "").strip()
+        body: str = os.path.basename(event.body or "").strip()
+
+        candidate: str
+        if filename_field:
+            candidate = filename_field
+        elif body and os.path.splitext(body)[1]:
+            candidate = body
+        else:
+            candidate = (event.url or "").rsplit("/", 1)[-1] or "attachment"
+
+        if not os.path.splitext(candidate)[1] and ext_from_mime:
+            candidate = f"{candidate}{ext_from_mime}"
+
+        return candidate or "attachment"
+
+    def _extract_caption(self, event: Any) -> str:
+        """
+        This function returns the human caption attached to a media message, if any.
+        When a file is sent with accompanying text, Matrix carries the caption in
+        event.body (with the real name in content.filename), so the user's actual
+        question would otherwise be lost. Bodies that are merely a filename (no caption
+        text — they carry a file extension or match the dedicated filename field) yield
+        an empty string.
+        """
+        content: dict[str, Any] = {}
+        try:
+            content = event.source.get("content", {}) or {}
+        except AttributeError:
+            content = {}
+
+        body: str = (event.body or "").strip()
+        if not body:
+            return ""
+
+        filename_field: str = content.get("filename") or ""
+        if filename_field:
+            # Extensible event: body is a caption unless it just repeats the filename.
+            return "" if body == filename_field else self._sanitize_caption(body)
+
+        # Legacy event: body is the filename. A real filename carries an extension;
+        # anything else is human caption text.
+        if os.path.splitext(body)[1]:
+            return ""
+        return self._sanitize_caption(body)
+
+    @staticmethod
+    def _sanitize_caption(text: str) -> str:
+        """
+        This function trims a caption and strips leading bracket characters so it cannot
+        spoof the channel/file framing markers prepended to the message.
+        """
+        return text.lstrip("[]").strip()[:2000]
+
     async def _on_file(self, room: MatrixRoom, event: Any) -> None:
         """
         This function handles incoming file messages (m.file, m.image, m.audio, m.video).
@@ -231,7 +311,7 @@ class MatrixChannel:
 
         # Get file info from the event
         mxc_url: str = event.url or ""
-        filename: str = event.body or "attachment"
+        filename: str = self._resolve_media_filename(event=event)
 
         if not mxc_url:
             return
@@ -244,7 +324,14 @@ class MatrixChannel:
         # Build a text message telling the agent about the file (use actual saved filename)
         saved_filename: str = os.path.basename(filepath)
         sender_label: str = self._get_sender_label(room=room, event=event)
-        user_message: str = f"[Channel: Matrix, Sender: {sender_label}]\n[File received: attachments/{saved_filename}]"
+        caption: str = self._extract_caption(event=event)
+        lines: list[str] = [
+            f"[Channel: Matrix, Sender: {sender_label}]",
+            f"[File received: attachments/{saved_filename}]",
+        ]
+        if caption:
+            lines.append(caption)
+        user_message: str = "\n".join(lines)
 
         logger.info("File received from %s in %s: %s", sender_label, room.room_id, saved_filename)
 

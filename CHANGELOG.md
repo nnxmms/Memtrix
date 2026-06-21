@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.29.1
+
+- Fixed vision not receiving images sent **with a caption**. Matrix puts the caption text in the message body, so an image sent with a question (e.g. "What do you see here?") was being saved with the caption as its filename and no file extension — the vision layer never recognised it as an image, and the agent fell back to trying to read it as a text file. Incoming media now gets a proper filename and extension derived from the dedicated filename field or the declared MIME type, so vision-capable models actually receive the picture. The caption itself is now also passed through as the user's message, so the question that accompanies an image is no longer lost (previously it only survived by accident as part of the bogus filename).
+
 ## 2.29.0
 
 - Memtrix can now **see images**. When a model is vision-capable, pictures the user sends in chat (PNG, JPG, GIF, WebP) are delivered to it as actual images rather than just a file path, so it can describe, read, or reason over them directly. Turn it on with a per-model `vision` toggle — a checkbox on the model in the web control panel, or `"vision": true` on the model in `config.json`. The same image works across every backend: it is expanded into each provider's native multimodal format at send time (Ollama's `images` field, or OpenAI-style `image_url` data URLs for OpenRouter and OpenAI-compatible endpoints). Received images are attached to the conversation and kept across turns so you can ask follow-up questions about them, bounded to the most recent few (capped at 4 images, 10 MB each) to keep requests lean. Non-vision models are completely unaffected. As a companion fix, `read_file` no longer returns a confusing binary-decode error on an image — it points the model to look at the picture it was already given.
