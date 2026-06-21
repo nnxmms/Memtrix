@@ -13,6 +13,9 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 class OllamaProvider(BaseProvider):
 
+    # Ollama uses native multimodal messages with an images=[base64...] key.
+    image_style: str = "ollama"
+
     def __init__(self, base_url: str) -> None:
         """
         This is the OllamaProvider class which provides Ollama LLM support.

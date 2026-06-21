@@ -206,16 +206,17 @@ class AgentManager:
             return user_id.split(sep=":", maxsplit=1)[1]
         return DEFAULT_SERVER_NAME
 
-    def _load_provider(self, agent_config: dict[str, Any]) -> tuple[BaseProvider, str, bool]:
+    def _load_provider(self, agent_config: dict[str, Any]) -> tuple[BaseProvider, str, bool, bool]:
         """
         This function loads the provider for a sub-agent.
-        Returns (provider_instance, model_name, think).
+        Returns (provider_instance, model_name, think, vision).
         """
         # Sub-agents use the same model config as specified
         model_instance: str = agent_config["model"]
         model_config: dict[str, Any] = self._config["models"][model_instance]
         model_name: str = model_config["model"]
         think: bool = model_config.get("think", False)
+        vision: bool = model_config.get("vision", False)
 
         provider_instance: str = model_config["provider"]
         provider_config: dict[str, Any] = self._config["providers"][provider_instance]
@@ -225,7 +226,7 @@ class AgentManager:
         for attr in vars(module).values():
             if isinstance(attr, type) and issubclass(attr, BaseProvider) and attr is not BaseProvider:
                 kwargs: dict[str, str] = {k: v for k, v in provider_config.items() if k != "type"}
-                return attr(**kwargs), model_name, think
+                return attr(**kwargs), model_name, think, vision
 
         raise RuntimeError(f"No provider class found for type '{provider_type}'.")
 
@@ -699,7 +700,7 @@ class AgentManager:
         This function starts a sub-agent on a background thread.
         """
         # Load provider
-        provider, model_name, think = self._load_provider(agent_config=agent_config)
+        provider, model_name, think, vision = self._load_provider(agent_config=agent_config)
 
         # Resolve workspace
         workspace_dir: str = agent_config["workspace"]
@@ -773,6 +774,7 @@ class AgentManager:
             tools=tools,
             workspace_dir=workspace_dir,
             think=think,
+            vision=vision,
             skills_catalog=skills_catalog,
             prompt_guard=prompt_guard,
             prompt_guard_fail_closed=pg_cfg["fail_closed"],

@@ -51,6 +51,12 @@ const MODELS: ResourceSpec = {
       hint: "e.g. llama3, anthropic/claude-3.5-sonnet. Pick a provider, then Discover to list available models.",
       discoverFrom: "provider",
     },
+    {
+      name: "vision",
+      label: "Vision",
+      boolean: true,
+      hint: "Enable if this model can see images. Lets it receive pictures the user sends in chat.",
+    },
   ],
 };
 

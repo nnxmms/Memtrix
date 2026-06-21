@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.28.2</span>
+    memtrix<span class="ver">v2.29.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -2100,6 +2100,9 @@ description: Steps to audit a remote host's security posture
       </table>
       <p>The <code>openai_compatible</code> API key is optional, so key-less local servers work without one. When supplied it is sent as a standard <code>Authorization: Bearer</code> header and can be stored as a <code>$SECRET</code> reference. In the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">control panel</a>, the Models page can <strong>Discover</strong> the model identifiers any provider exposes (Ollama's installed models, OpenRouter's catalogue, or an OpenAI-compatible <code>/models</code> route) so you pick from a list rather than typing names. Discovery resolves secret references server-side, so keys are never exposed to the browser.</p>
 
+      <h2 id="cp-vision">Vision (image input)</h2>
+      <p>Vision-capable models can <strong>see images</strong> the user sends in chat. Set <code>"vision": true</code> on the model (or tick the <strong>Vision</strong> checkbox on the Models page) and incoming pictures - PNG, JPG, GIF, WebP - are delivered to the model as actual images instead of a file path, so it can describe, read, or reason over them. The image is expanded into each backend's native multimodal format at send time: Ollama's <code>images</code> field, or OpenAI-style <code>image_url</code> data URLs for OpenRouter and OpenAI-compatible endpoints. Received images stay in context across turns so you can ask follow-ups, bounded to the most recent few (up to 4 images, 10 MB each) to keep requests lean. Leave the flag off for text-only models and nothing changes.</p>
+
       <h2 id="cp-add">Adding a provider</h2>
       <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg> src/providers/my_provider.py</div>
       <pre><code><span style="color:var(--purple)">from</span> src.providers.base <span style="color:var(--purple)">import</span> BaseProvider
@@ -2156,7 +2159,8 @@ description: Steps to audit a remote host's security posture
         <span style="color:var(--accent)">"my-model"</span>: {
             <span style="color:var(--accent)">"provider"</span>: <span style="color:var(--orange)">"my-ollama"</span>,
             <span style="color:var(--accent)">"model"</span>: <span style="color:var(--orange)">"llama3"</span>,
-            <span style="color:var(--accent)">"think"</span>: <span style="color:var(--purple)">true</span>
+            <span style="color:var(--accent)">"think"</span>: <span style="color:var(--purple)">true</span>,
+            <span style="color:var(--accent)">"vision"</span>: <span style="color:var(--purple)">false</span>
         }
     },
     <span style="color:var(--accent)">"channels"</span>: {

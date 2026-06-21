@@ -12,6 +12,7 @@ from src.memory.deriver import Deriver
 from src.providers.base import BaseProvider
 from src.memory.store import RepresentationStore
 from src.core.session import Session
+from src.integrations.images import expand_image_messages, extract_attachment_images
 from src.integrations.prompt_guard import PromptGuard
 from src.tools.base import BaseTool, validate_tool_args
 
@@ -73,7 +74,7 @@ _SCREENED_TOOL_NAMES: frozenset[str] = frozenset({"web_search", "fetch_url"})
 class Orchestrator:
 
     def __init__(self, provider: BaseProvider, model: str, tools: list[BaseTool], workspace_dir: str,
-                 think: bool = False, deriver: Deriver | None = None,
+                 think: bool = False, vision: bool = False, deriver: Deriver | None = None,
                  representation: RepresentationStore | None = None,
                  memory_config: dict[str, Any] | None = None,
                  skills_catalog: Any | None = None,
@@ -88,6 +89,11 @@ class Orchestrator:
         self._provider: BaseProvider = provider
         self._model: str = model
         self._think: bool = think
+
+        # When True the model is vision-capable, so user-supplied images (downloaded to
+        # the attachments/ or downloads/ media dirs) are attached to the user turn and
+        # expanded into the provider's multimodal format at send time.
+        self._vision: bool = vision
 
         # Tool registry keyed by name
         self._tools: dict[str, BaseTool] = {tool.name: tool for tool in tools}
@@ -257,13 +263,22 @@ class Orchestrator:
     def _compose_history(self, session: Session, recall_block: str) -> list[dict[str, Any]]:
         """
         This function returns the working history for a completion call, inserting the
-        transient recall block after the system prompt without persisting it.
+        transient recall block after the system prompt without persisting it, and (for
+        vision-capable models) expanding any image attachments into the provider's
+        multimodal format with the pixels encoded at send time.
         """
+        history: list[dict[str, Any]]
         if not recall_block:
-            return session.history
-        history: list[dict[str, Any]] = list(session.history)
-        insert_at: int = 1 if history and history[0].get("role") == "system" else 0
-        history.insert(insert_at, {"role": "system", "content": recall_block})
+            history = list(session.history) if self._vision else session.history
+        else:
+            history = list(session.history)
+            insert_at: int = 1 if history and history[0].get("role") == "system" else 0
+            history.insert(insert_at, {"role": "system", "content": recall_block})
+
+        if self._vision:
+            history = expand_image_messages(
+                history=history, workspace_dir=self._workspace_dir, style=self._provider.image_style
+            )
         return history
 
     def _serialize_message(self, message: Any) -> tuple[dict[str, Any], list[str]]:
@@ -409,8 +424,15 @@ class Orchestrator:
         else:
             self._refresh_system_prompt(session=session)
 
-        # Add the user message to the session
-        session.append(message={"role": "user", "content": user_message})
+        # Add the user message to the session. For vision-capable models, attach any
+        # image media referenced in the message (downloaded to attachments/ or
+        # downloads/) so the provider layer can deliver the pixels alongside the text.
+        user_msg: dict[str, Any] = {"role": "user", "content": user_message}
+        if self._vision:
+            images: list[str] = extract_attachment_images(text=user_message, workspace_dir=self._workspace_dir)
+            if images:
+                user_msg["images"] = images
+        session.append(message=user_msg)
 
         # Bound the session so long conversations cannot overflow the context window
         session.trim(max_messages=self._max_history)

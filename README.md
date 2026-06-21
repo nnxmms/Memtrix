@@ -101,6 +101,14 @@ Open Element → connect to `http://localhost:6167` → log in → invite `@memt
 <tr>
 <td>
 
+👁️ **Vision**<br>
+<sub>Flip on a model's <code>vision</code> flag and Memtrix sees the images you send — across Ollama, OpenRouter, and OpenAI-compatible endpoints.</sub>
+
+</td>
+</tr>
+<tr>
+<td>
+
 👤 **Self-Aware Persona**<br>
 <sub>Identity files that Memtrix reads, understands, and updates itself over time.</sub>
 
@@ -615,7 +623,8 @@ All configuration lives in `data/config.json`. Secrets are stored in `.env` and 
         "my-model": {
             "provider": "my-ollama",
             "model": "llama3",
-            "think": true
+            "think": true,
+            "vision": false
         }
     },
     "channels": {
@@ -640,6 +649,8 @@ All configuration lives in `data/config.json`. Secrets are stored in `.env` and 
 Values starting with `$` are resolved at startup. By default they read from environment variables (prefixed with `MEMTRIX_SECRET_`) — for example, `$MATRIX_ACCESS_TOKEN` reads from `MEMTRIX_SECRET_MATRIX_ACCESS_TOKEN` in `.env`. If the optional Bitwarden backend is enabled, placeholders resolve from Bitwarden Secrets Manager first (by the placeholder name, e.g. `MATRIX_ACCESS_TOKEN`), falling back to the environment.
 
 The `openai_compatible` provider points at any endpoint that speaks the OpenAI chat-completions API (llama.cpp, vLLM, LM Studio, an OpenAI-shim, a self-hosted gateway, or OpenAI itself). Its `api_key` is optional — leave it out for key-less local servers. In the web control panel, the Models page can **Discover** the model identifiers a provider exposes so you can pick one instead of typing it by hand.
+
+Set `"vision": true` on a model (or tick the **Vision** checkbox on the Models page) if it can see images. Pictures the user sends in chat — PNG, JPG, GIF, WebP — are then delivered to the model directly instead of as a file path, so it can describe and reason over them. The image is expanded into each backend's native multimodal format at send time (Ollama's `images` field, or OpenAI-style `image_url` data URLs for OpenRouter and OpenAI-compatible endpoints) and kept in context across turns, bounded to the most recent few (up to 4 images, 10 MB each).
 
 When `voice.enabled` is `true`, Matrix voice notes are transcribed locally with the configured model and passed into the normal agent flow as text.
 

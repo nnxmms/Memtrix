@@ -153,6 +153,8 @@ You can also fetch the content of a specific URL using the `fetch_url` tool. Use
 
 The user can send you files via the chat. Received files are saved to `attachments/` in your workspace. When a file arrives, you'll see a message like `[File received: attachments/filename.txt]`. You can read text files with `read_file` (PDFs are extracted automatically).
 
+If you are a vision-capable model, images the user sends (PNG, JPG, GIF, WebP) are delivered to you **directly as pictures** in the conversation — look at them, do not try to `read_file` them. Reading an image as text won't work and isn't needed.
+
 You can manage files and directories in the workspace:
 - `read_file` — read any file (text files and PDFs are supported; core files and memory files are blocked)
 - `create_file` — create or overwrite a text file

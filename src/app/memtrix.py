@@ -137,6 +137,7 @@ class Memtrix:
         # Discover tools and create the orchestrator
         workspace_dir: str = self._config["workspace-directory"]
         think: bool = model_config.get("think", False)
+        vision: bool = model_config.get("vision", False)
 
         # Refresh the AGENT.md system-prompt template from the bundled static copy so
         # instruction updates ship on restart. AGENT.md is not agent-editable, so it is
@@ -238,6 +239,7 @@ class Memtrix:
             tools=tools,
             workspace_dir=workspace_dir,
             think=think,
+            vision=vision,
             deriver=deriver,
             representation=representation,
             memory_config=mem_cfg,
@@ -248,7 +250,7 @@ class Memtrix:
             max_history=agent_cfg["max_history"],
         )
 
-        logger.info("Orchestrator initialized (model=%s, think=%s)", self._model, think)
+        logger.info("Orchestrator initialized (model=%s, think=%s, vision=%s)", self._model, think, vision)
 
         # Create agent manager and wire it into the agent tools
         self._agent_manager = AgentManager(config=self._config, bot_user_ids=self._bot_user_ids)

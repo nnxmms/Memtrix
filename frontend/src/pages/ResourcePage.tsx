@@ -12,6 +12,8 @@ export interface FieldSpec {
   label: string;
   hint?: string;
   secret?: boolean;
+  // Render as a checkbox storing a boolean value rather than a text input
+  boolean?: boolean;
   // When set, this field is only shown for the given discriminator value
   onlyForType?: string;
   // A select whose options derive from another config section
@@ -273,7 +275,11 @@ function InstanceModal({
       if (f.onlyForType && f.onlyForType !== type) delete out[f.name];
     });
     visibleFields.forEach((f) => {
-      out[f.name] = values[f.name] ?? "";
+      if (f.boolean) {
+        out[f.name] = Boolean(values[f.name]);
+      } else {
+        out[f.name] = values[f.name] ?? "";
+      }
     });
     return out;
   };
@@ -321,7 +327,15 @@ function InstanceModal({
 
       {visibleFields.map((f) => (
         <Field key={f.name} label={f.label} hint={f.hint}>
-          {f.optionsFrom ? (
+          {f.boolean ? (
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={Boolean(values[f.name])}
+                onChange={(e) => setValues({ ...values, [f.name]: e.target.checked })}
+              />
+            </label>
+          ) : f.optionsFrom ? (
             <select
               className="select"
               value={values[f.name] ?? ""}

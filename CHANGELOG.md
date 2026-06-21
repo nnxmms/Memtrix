@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.29.0
+
+- Memtrix can now **see images**. When a model is vision-capable, pictures the user sends in chat (PNG, JPG, GIF, WebP) are delivered to it as actual images rather than just a file path, so it can describe, read, or reason over them directly. Turn it on with a per-model `vision` toggle — a checkbox on the model in the web control panel, or `"vision": true` on the model in `config.json`. The same image works across every backend: it is expanded into each provider's native multimodal format at send time (Ollama's `images` field, or OpenAI-style `image_url` data URLs for OpenRouter and OpenAI-compatible endpoints). Received images are attached to the conversation and kept across turns so you can ask follow-up questions about them, bounded to the most recent few (capped at 4 images, 10 MB each) to keep requests lean. Non-vision models are completely unaffected. As a companion fix, `read_file` no longer returns a confusing binary-decode error on an image — it points the model to look at the picture it was already given.
+
 ## 2.28.2
 
 - Narrowed prompt-injection screening to the two web-fetching tools, `web_search` and `fetch_url`. These pull arbitrary content straight from external sites and are the primary indirect-injection vector; other tools (including remote SSH command output and untrusted files) are no longer run through the classifier. The untrusted-content disclaimers those tools prepend are unchanged — only the active classifier step is now scoped to web fetches.

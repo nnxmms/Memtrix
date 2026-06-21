@@ -5,6 +5,7 @@ from typing import Any
 
 import pymupdf
 
+from src.integrations.images import IMAGE_EXTS
 from src.tools.base import BaseTool
 
 # Maximum characters to return from a file
@@ -96,6 +97,16 @@ class ReadFileTool(BaseTool):
 
         if not os.path.isfile(path=filepath):
             return f"Error: file not found: {path}"
+
+        # Images cannot be read as text. When the agent is vision-capable, any image the
+        # user sent has already been delivered visually in the conversation, so point the
+        # model there instead of returning a confusing binary-decode error.
+        if filepath.lower().endswith(tuple(IMAGE_EXTS)):
+            return (
+                f"'{os.path.basename(filepath)}' is an image file. If it was shared with you, it has "
+                "already been provided to you visually in the conversation — look at it directly rather "
+                "than reading it as text."
+            )
 
         # Route by file extension
         if filepath.lower().endswith(".pdf"):

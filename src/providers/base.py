@@ -5,6 +5,10 @@ from typing import Any
 
 class BaseProvider:
 
+    # Multimodal message style used when expanding image attachments. "openai" emits a
+    # content list with image_url data URLs; "ollama" attaches a native images=[b64] key.
+    image_style: str = "openai"
+
     def __init__(self, name: str) -> None:
         """
         This is the BaseProvider class which all other provider classes inherit from.
