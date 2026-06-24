@@ -144,6 +144,7 @@ def resolve_email_config(config: dict[str, Any]) -> dict[str, Any]:
         "smtp_security": "starttls", # "starttls" (587), "ssl" (465) or "none"
         "username": "",             # mailbox login (usually the full address)
         "from_address": "",         # defaults to the username when unset
+        "from_name": "",            # display name; defaults to the agent's name when unset
         "password": "$EMAIL_PASSWORD",  # resolved from the EMAIL_PASSWORD secret
         "mailbox": "INBOX",
         "auto_mark_read": True,      # mark fetched messages read after retrieval
@@ -151,7 +152,11 @@ def resolve_email_config(config: dict[str, Any]) -> dict[str, Any]:
         "max_body_chars": 4000,      # cap body length returned to the model
     }
     user_cfg: dict[str, Any] = config.get("email", {}) or {}
-    return {**defaults, **user_cfg}
+    resolved: dict[str, Any] = {**defaults, **user_cfg}
+    # Default the outgoing display name to the agent's configured name.
+    if not str(resolved.get("from_name") or "").strip():
+        resolved["from_name"] = config.get("main-agent", {}).get("name", "Memtrix")
+    return resolved
 
 
 def resolve_voice_config(config: dict[str, Any]) -> dict[str, Any]:

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.32.0
+
+- Outgoing email now carries a proper **display name** ("Anzeigename"). The new **Email** page in the control panel lets you set the sender name shown to recipients, and when you leave it empty Memtrix uses the agent's own name automatically, so mail arrives as `Memtrix <you@example.com>` instead of a bare address. The name is sanitised against header injection and applied to the `From` header of every message `email_send` delivers.
+
 ## 2.31.0
 
 - Memtrix can now **do email**. With a mailbox configured, it reads your inbox over IMAP and sends mail over SMTP through three new tools: `email_check` fetches recent messages (unread first) with the sender, subject, date, body and a stable UID, and marks them read after retrieval (you can turn that off per call or globally); `email_mark_unread` puts messages back to unread by UID; and `email_send` sends a plain-text email (with optional CC/BCC) after asking you to confirm. Everything is configurable from a new **Email** page in the control panel — IMAP/SMTP hosts and ports, encryption (SSL or STARTTLS), the mailbox folder, auto-mark-read, and fetch limits — with a one-click **Test connection** button. The mailbox password lives where your other secrets do: as the `EMAIL_PASSWORD` secret in `.env`, Bitwarden, or the Secrets panel, never in `config.json`. Email is treated as untrusted input: message bodies are screened for prompt injection just like web pages, and the agent is told never to act on instructions hidden inside a message. The email tools are main-agent only and entirely opt-in (disabled by default).

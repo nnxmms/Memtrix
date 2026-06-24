@@ -10,7 +10,7 @@ import smtplib
 import ssl
 from email.header import decode_header, make_header
 from email.message import EmailMessage, Message
-from email.utils import getaddresses, parseaddr
+from email.utils import formataddr, getaddresses, parseaddr
 from typing import Any
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -163,6 +163,7 @@ class EmailManager:
         self._smtp_security: str = str(config.get("smtp_security") or "starttls").strip().lower()
         self._username: str = str(config.get("username") or "").strip()
         self._from_address: str = str(config.get("from_address") or "").strip() or self._username
+        self._from_name: str = _sanitize_header(str(config.get("from_name") or "").strip())
         password: str = str(config.get("password") or "")
         # An unresolved placeholder means the secret was never set — treat as empty.
         self._password: str = "" if password.strip() == EMAIL_PASSWORD_PLACEHOLDER else password
@@ -351,7 +352,7 @@ class EmailManager:
         recipients: list[str] = to_list + cc_list + bcc_list
 
         message: EmailMessage = EmailMessage()
-        message["From"] = from_addr
+        message["From"] = formataddr((self._from_name, from_addr)) if self._from_name else from_addr
         message["To"] = ", ".join(to_list)
         if cc_list:
             message["Cc"] = ", ".join(cc_list)

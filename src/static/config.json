@@ -40,6 +40,7 @@
         "smtp_security": "starttls",
         "username": "",
         "from_address": "",
+        "from_name": "",
         "password": "$EMAIL_PASSWORD",
         "mailbox": "INBOX",
         "auto_mark_read": true,

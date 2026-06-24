@@ -39,6 +39,7 @@ export function EmailPage() {
 
   if (loading || !config) return <Spinner />;
 
+  const agentName = String((config as any)?.["main-agent"]?.name ?? "Memtrix");
   const set = (k: string, v: any) => setDraft((d) => ({ ...d, [k]: v }));
 
   const buildSection = () => ({
@@ -111,6 +112,17 @@ export function EmailPage() {
               value={draft.from_address ?? ""}
               onChange={(e) => set("from_address", e.target.value)}
               placeholder="you@example.com"
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-2">
+          <Field label="Display name (Anzeigename)" hint={`Shown as the sender name. Leave empty to use the agent name (${agentName}).`}>
+            <input
+              className="input"
+              value={draft.from_name ?? ""}
+              onChange={(e) => set("from_name", e.target.value)}
+              placeholder={agentName}
             />
           </Field>
         </div>
