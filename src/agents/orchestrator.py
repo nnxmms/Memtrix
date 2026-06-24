@@ -57,7 +57,7 @@ _SEQUENTIAL_TOOL_NAMES: frozenset[str] = frozenset({
     "git_clone", "create_agent", "delete_agent", "ask_agent", "memory_conclude",
     "send_file", "skill_manage", "git_manage", "ssh_connect", "ssh_disconnect", "ssh_add_host",
     "ssh_remove_host", "ssh_gen_key", "ssh_run",
-    "email_mark_unread", "email_send",
+    "email_mark_unread", "email_send", "email_check",
 })
 
 # Argument-name substrings whose values are redacted in tool-call notifications.
