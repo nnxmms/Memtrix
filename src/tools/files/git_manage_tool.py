@@ -6,7 +6,7 @@ import subprocess
 from typing import Any
 from urllib.parse import urlparse, urlunparse
 
-from src.core.config import CONFIG_PATH
+from src.integrations.git import GIT_CONFIG_GLOBAL, GIT_DATA_DIR, build_git_env
 from src.tools.base import BaseTool
 from src.tools.utils import confirm_with_user
 
@@ -33,8 +33,8 @@ class GitManageTool(BaseTool):
         # The root filesystem is read-only, so the global git config is redirected to
         # the writable data volume. This makes `git config --global` persist across
         # restarts and apply to every repository in the workspace.
-        self._data_dir: str = os.path.dirname(CONFIG_PATH)
-        self._gitconfig_path: str = os.path.join(self._data_dir, ".gitconfig")
+        self._data_dir: str = GIT_DATA_DIR
+        self._gitconfig_path: str = GIT_CONFIG_GLOBAL
         super().__init__(
             name="git_manage",
             description=(
@@ -131,17 +131,9 @@ class GitManageTool(BaseTool):
         """
         This function runs a git command with a controlled environment: the global
         config is redirected to the writable data volume, the system config is
-        ignored, and interactive credential prompts are disabled so a missing
-        credential fails fast instead of hanging.
+        ignored, interactive credential prompts are disabled, and git-over-SSH uses
+        the agent's key and a persisted known_hosts file.
         """
-        env: dict[str, str] = {
-            **os.environ,
-            "HOME": self._data_dir,
-            "GIT_CONFIG_GLOBAL": self._gitconfig_path,
-            "GIT_CONFIG_SYSTEM": "/dev/null",
-            "GIT_TERMINAL_PROMPT": "0",
-            "GIT_ASKPASS": "/bin/echo",
-        }
         return subprocess.run(
             ["git", *args],
             capture_output=True,
@@ -149,7 +141,7 @@ class GitManageTool(BaseTool):
             timeout=_GIT_TIMEOUT,
             cwd=cwd,
             shell=False,
-            env=env,
+            env=build_git_env(),
         )
 
     def _is_git_repo(self, repo_dir: str) -> bool:

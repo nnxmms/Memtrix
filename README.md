@@ -233,7 +233,7 @@ Built-in tools are automatically discovered at startup:
 | `create_directory` | Creates a directory in the workspace |
 | `list_directory` | Lists the contents of a directory in the workspace |
 | `delete_directory` | Permanently deletes a directory and its contents |
-| `git_clone` | Clones a public git repository into the workspace |
+| `git_clone` | Clones a git repository into the workspace over HTTPS or SSH |
 | `git_manage` | Configures the git identity (name/email) and runs commits, pulls and pushes on workspace repos (push asks for confirmation) |
 | `download_file` | Downloads a file from a URL into the workspace |
 | `send_file` | Sends a file from the workspace to the user via Matrix |

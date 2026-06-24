@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.35.0
+
+- Git now works over **SSH as well as HTTPS**. `git_clone` accepts SSH remotes (`git@github.com:user/repo.git` and `ssh://…` URLs) alongside HTTPS, and `git_manage` pull/push authenticate over SSH too. Git reuses the agent's own SSH identity — the same public key you register with `ssh_get_pub_key` — so once that key is added to a host's deploy keys or your account, cloning, pulling and pushing over SSH just work. Host keys are recorded on first use in a persisted known_hosts file (no interactive prompt to hang on), and a clear error explains what to do when SSH authentication fails. The container image now ships the OpenSSH client to make this possible. HTTPS with a `GIT_TOKEN` secret continues to work exactly as before.
+
 ## 2.34.0
 
 - The `git_manage` tool gained a **pull** action, so Memtrix can now fetch and integrate changes from a remote, not just commit and push. Like push, it works on any repository in the workspace, defaults to the current branch and the `origin` remote, and authenticates private HTTPS remotes with the `GIT_TOKEN` secret without ever writing the credential into the repository. Merge conflicts and authentication failures come back as clear, actionable errors instead of hanging on a hidden prompt.
