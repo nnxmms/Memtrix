@@ -57,6 +57,7 @@ _SEQUENTIAL_TOOL_NAMES: frozenset[str] = frozenset({
     "git_clone", "create_agent", "delete_agent", "ask_agent", "memory_conclude",
     "send_file", "skill_manage", "git_manage", "ssh_connect", "ssh_disconnect", "ssh_add_host",
     "ssh_remove_host", "ssh_gen_key", "ssh_run",
+    "email_mark_unread", "email_send",
 })
 
 # Argument-name substrings whose values are redacted in tool-call notifications.
@@ -68,7 +69,7 @@ _SENSITIVE_KEY_HINTS: tuple[str, ...] = (
 # Tools whose output is screened for prompt injection before it reaches the
 # conversation. Limited to the web-fetching tools, whose results come straight from
 # arbitrary external sites and are the primary indirect-injection vector.
-_SCREENED_TOOL_NAMES: frozenset[str] = frozenset({"web_search", "fetch_url"})
+_SCREENED_TOOL_NAMES: frozenset[str] = frozenset({"web_search", "fetch_url", "email_check"})
 
 
 class Orchestrator:

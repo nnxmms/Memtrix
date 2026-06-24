@@ -21,6 +21,7 @@ from src.core.session import Session
 from src.indexing.docs import DocsIndex
 from src.indexing.skills import SKILL_TOOL_FILES, SkillsCatalog
 from src.integrations.ssh import SSH_TOOL_FILES
+from src.integrations.mail import MAIL_TOOL_FILES
 from src.integrations.prompt_guard import PromptGuard
 from src.memory.index import ConversationIndex
 from src.providers.base import BaseProvider
@@ -721,7 +722,7 @@ class AgentManager:
                 "memory_search_tool.py",
                 "memory_context_tool.py",
                 "memory_conclude_tool.py",
-            } | SSH_TOOL_FILES | skill_exclude
+            } | SSH_TOOL_FILES | MAIL_TOOL_FILES | skill_exclude
         )
 
         # Documentation index so sub-agents can research the Memtrix docs too

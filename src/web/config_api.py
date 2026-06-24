@@ -32,6 +32,7 @@ EDITABLE_SECTIONS: set[str] = {
     "channels",
     "memory",
     "voice",
+    "email",
     "web",
     "workspace-directory",
     "registration_token",
@@ -122,6 +123,25 @@ def discover_models_endpoint(target: TestTarget) -> ModelDiscoveryResult:
     """
     ok, models, detail = discover_models(provider_type=target.type, params=_resolve_params(params=target.params))
     return ModelDiscoveryResult(ok=ok, models=models, detail=detail)
+
+
+@router.post("/test/email", response_model=TestResult)
+def test_email_endpoint(target: TestTarget) -> TestResult:
+    """
+    This endpoint runs a live IMAP login check against the email configuration so the
+    user can verify their mailbox credentials from the panel. Secret placeholders in
+    the parameters (e.g. the password) are resolved with the active secrets backend.
+    """
+    from src.integrations.mail import EmailError, EmailManager
+
+    params: dict[str, Any] = _resolve_params(params=target.params)
+    try:
+        detail: str = EmailManager(config=params).verify()
+        return TestResult(ok=True, detail=detail)
+    except EmailError as exc:
+        return TestResult(ok=False, detail=str(exc))
+    except Exception as exc:  # noqa: BLE001 — surface any unexpected failure to the panel
+        return TestResult(ok=False, detail=f"Unexpected error: {exc}")
 
 
 def _resolve_params(params: dict[str, Any]) -> dict[str, Any]:

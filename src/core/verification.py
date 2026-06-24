@@ -95,6 +95,26 @@ def validate_config(config: dict[str, Any]) -> list[str]:
         errors.extend(_validate_agent(label=f"agent '{name}'", agent=agent,
                                       models=models, channels=channels, required=True))
 
+    # Validate optional email settings
+    email_cfg: Any = config.get("email")
+    if email_cfg is not None:
+        if not isinstance(email_cfg, dict):
+            errors.append("email section must be an object when present.")
+        elif email_cfg.get("enabled"):
+            if not str(email_cfg.get("imap_host") or "").strip():
+                errors.append("email.imap_host is required when email is enabled.")
+            if not str(email_cfg.get("smtp_host") or "").strip():
+                errors.append("email.smtp_host is required when email is enabled.")
+            if not str(email_cfg.get("username") or "").strip():
+                errors.append("email.username is required when email is enabled.")
+            security: Any = email_cfg.get("smtp_security", "starttls")
+            if security not in ("starttls", "ssl", "none"):
+                errors.append("email.smtp_security must be 'starttls', 'ssl' or 'none'.")
+            for port_key in ("imap_port", "smtp_port"):
+                port: Any = email_cfg.get(port_key)
+                if port is not None and (not isinstance(port, int) or isinstance(port, bool) or not (1 <= port <= 65535)):
+                    errors.append(f"email.{port_key} must be a port number between 1 and 65535.")
+
     # Validate optional voice-transcription settings
     voice: dict[str, Any] = config.get("voice") or {}
     if not isinstance(voice, dict):

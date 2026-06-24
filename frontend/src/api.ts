@@ -134,6 +134,8 @@ export const api = {
     request<TestResult>("POST", "/api/config/test/provider", { type, params }),
   testChannel: (type: string, params: Record<string, any>) =>
     request<TestResult>("POST", "/api/config/test/channel", { type, params }),
+  testEmail: (params: Record<string, any>) =>
+    request<TestResult>("POST", "/api/config/test/email", { type: "email", params }),
   discoverModels: (type: string, params: Record<string, any>) =>
     request<ModelDiscoveryResult>("POST", "/api/config/discover/models", {
       type,

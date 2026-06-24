@@ -10,6 +10,7 @@ import {
 } from "./pages/configPages";
 import { MemoryPage } from "./pages/MemoryPage";
 import { VoicePage } from "./pages/VoicePage";
+import { EmailPage } from "./pages/EmailPage";
 import { SecretsPage } from "./pages/SecretsPage";
 import { MemoryAdminPage } from "./pages/MemoryAdminPage";
 import { PanelSettingsPage } from "./pages/PanelSettingsPage";
@@ -30,6 +31,7 @@ export function App() {
             <Route path="/agents" element={<AgentsPage />} />
             <Route path="/memory" element={<MemoryPage />} />
             <Route path="/voice" element={<VoicePage />} />
+            <Route path="/email" element={<EmailPage />} />
             <Route path="/secrets" element={<SecretsPage />} />
             <Route path="/memory-admin" element={<MemoryAdminPage />} />
             <Route path="/settings" element={<PanelSettingsPage />} />

@@ -127,6 +127,33 @@ def resolve_prompt_guard_config(config: dict[str, Any]) -> dict[str, Any]:
     return {**defaults, **user_cfg}
 
 
+def resolve_email_config(config: dict[str, Any]) -> dict[str, Any]:
+    """
+    This function returns the email configuration merged with safe defaults so that
+    installs without an "email" section keep working unchanged. When disabled, the
+    email tools (check / mark unread / send) are not loaded at all. The password is
+    expected to arrive already resolved from the EMAIL_PASSWORD secret.
+    """
+    defaults: dict[str, Any] = {
+        "enabled": False,            # opt-in to mailbox access
+        "imap_host": "",            # e.g. imap.gmail.com
+        "imap_port": 993,
+        "imap_ssl": True,            # implicit TLS (993); when false STARTTLS is used
+        "smtp_host": "",            # e.g. smtp.gmail.com
+        "smtp_port": 587,
+        "smtp_security": "starttls", # "starttls" (587), "ssl" (465) or "none"
+        "username": "",             # mailbox login (usually the full address)
+        "from_address": "",         # defaults to the username when unset
+        "password": "$EMAIL_PASSWORD",  # resolved from the EMAIL_PASSWORD secret
+        "mailbox": "INBOX",
+        "auto_mark_read": True,      # mark fetched messages read after retrieval
+        "max_fetch": 10,             # default number of messages email_check returns
+        "max_body_chars": 4000,      # cap body length returned to the model
+    }
+    user_cfg: dict[str, Any] = config.get("email", {}) or {}
+    return {**defaults, **user_cfg}
+
+
 def resolve_voice_config(config: dict[str, Any]) -> dict[str, Any]:
     """
     This function returns the voice-transcription configuration merged with safe

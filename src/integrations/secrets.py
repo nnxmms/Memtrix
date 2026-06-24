@@ -131,7 +131,7 @@ def clear_secrets_from_env() -> None:
 
 
 # Optional secret keys that resolve to empty string if not set
-OPTIONAL_SECRETS: set[str] = {"REGISTRATION_TOKEN"}
+OPTIONAL_SECRETS: set[str] = {"REGISTRATION_TOKEN", "EMAIL_PASSWORD"}
 
 
 def _resolve_recursive(obj: Any, bitwarden: dict[str, str] | None = None) -> Any:

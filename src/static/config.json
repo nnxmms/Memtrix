@@ -30,6 +30,22 @@
         "max_chars": 20000,
         "fail_closed": false
     },
+    "email": {
+        "enabled": false,
+        "imap_host": "",
+        "imap_port": 993,
+        "imap_ssl": true,
+        "smtp_host": "",
+        "smtp_port": 587,
+        "smtp_security": "starttls",
+        "username": "",
+        "from_address": "",
+        "password": "$EMAIL_PASSWORD",
+        "mailbox": "INBOX",
+        "auto_mark_read": true,
+        "max_fetch": 10,
+        "max_body_chars": 4000
+    },
     "providers": {},
     "models": {},
     "channels": {}

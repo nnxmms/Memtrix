@@ -251,6 +251,9 @@ Built-in tools are automatically discovered at startup:
 | `ssh_run` | Runs a command in the open session — state persists between calls; optional `sudo` |
 | `ssh_scp` | Copies a single file to or from a connected host over SFTP (`upload` from / `download` into the workspace; max 100 MB) |
 | `ssh_disconnect` | Closes an open SSH session |
+| `email_check` | Fetches mailbox messages (unread first), returns sender/subject/body + UID, and marks them read after retrieval (configurable) |
+| `email_mark_unread` | Restores messages to unread by UID |
+| `email_send` | Sends a plain-text email (confirmation required) |
 | `skill_manage` | Creates, views, lists, edits, patches, or deletes the agent's own reusable skills |
 
 > Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt. `USER.md` and `MEMORY.md` are profile cards owned by the reasoning memory and cannot be written by the agent at all.
