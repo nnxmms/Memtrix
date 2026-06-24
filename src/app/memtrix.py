@@ -245,6 +245,12 @@ class Memtrix:
             threading.Thread(target=prompt_guard.warm_up, name="prompt-guard-warmup", daemon=True).start()
             logger.info("Prompt-injection screening enabled (Llama Prompt Guard 2, model=%s)", pg_cfg["model"])
 
+            # Tools that screen their own untrusted content (e.g. email_check screens
+            # each message body individually) get the shared screener injected here.
+            for tool in tools:
+                if hasattr(tool, "set_prompt_guard"):
+                    tool.set_prompt_guard(guard=prompt_guard, fail_closed=pg_cfg["fail_closed"])
+
         self._orchestrator = Orchestrator(
             provider=self._provider,
             model=self._model,

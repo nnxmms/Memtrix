@@ -1,3 +1,3 @@
 #!/usr/bin/python3
 
-__version__: str = "2.32.0"
+__version__: str = "2.32.1"

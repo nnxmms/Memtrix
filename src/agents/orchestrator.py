@@ -68,8 +68,10 @@ _SENSITIVE_KEY_HINTS: tuple[str, ...] = (
 
 # Tools whose output is screened for prompt injection before it reaches the
 # conversation. Limited to the web-fetching tools, whose results come straight from
-# arbitrary external sites and are the primary indirect-injection vector.
-_SCREENED_TOOL_NAMES: frozenset[str] = frozenset({"web_search", "fetch_url", "email_check"})
+# arbitrary external sites and are the primary indirect-injection vector. Email is
+# screened inside the email_check tool itself (per message, excluding its own safety
+# framing) so its structured output is not mistaken for an injection attempt.
+_SCREENED_TOOL_NAMES: frozenset[str] = frozenset({"web_search", "fetch_url"})
 
 
 class Orchestrator:
