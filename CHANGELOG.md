@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.34.0
+
+- The `git_manage` tool gained a **pull** action, so Memtrix can now fetch and integrate changes from a remote, not just commit and push. Like push, it works on any repository in the workspace, defaults to the current branch and the `origin` remote, and authenticates private HTTPS remotes with the `GIT_TOKEN` secret without ever writing the credential into the repository. Merge conflicts and authentication failures come back as clear, actionable errors instead of hanging on a hidden prompt.
+
 ## 2.33.0
 
 - When the prompt-injection screener withholds an email, Memtrix can now offer a **user-approved bypass** instead of leaving you stuck. It tells you the message was blocked and that it can reveal it if you allow, and when you agree it re-runs the check with a new `allow_flagged` option that pops a confirmation showing the flagged sender, subject and score. Only after you say yes is the body revealed — the confirmation is the real gate, so the agent can never unlock the content on its own. Even after a bypass the message is clearly marked as still untrusted, and the agent is instructed never to act on instructions hidden inside it. Flagged messages are handled one by one, so approving a bypass only reveals exactly what you agreed to.

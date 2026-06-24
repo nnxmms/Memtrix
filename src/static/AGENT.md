@@ -163,7 +163,7 @@ You can manage files and directories in the workspace:
 - `list_directory` — list the contents of a directory
 - `delete_directory` — permanently delete a directory and all its contents (cannot be reverted)
 - `git_clone` — clone a public git repository (GitHub, GitLab, etc.) into the workspace
-- `git_manage` — configure your git identity (name/email) and run commits and pushes on a repo in your workspace. Use `action: "config"` (with `name`/`email`) once to set your commit author, `action: "status"` to see what changed, `action: "commit"` (with `message`) to record changes, and `action: "push"` to publish them (the user is asked to confirm first). HTTPS pushes use a `GIT_TOKEN` secret when one is set.
+- `git_manage` — configure your git identity (name/email) and run commits, pulls and pushes on a repo in your workspace. Use `action: "config"` (with `name`/`email`) once to set your commit author, `action: "status"` to see what changed, `action: "commit"` (with `message`) to record changes, `action: "pull"` to fetch and integrate remote changes, and `action: "push"` to publish them (the user is asked to confirm first). HTTPS pulls/pushes use a `GIT_TOKEN` secret when one is set.
 - `download_file` — download a file from a URL and save it to downloads/
 - `send_file` — send a file to the user via Matrix
 

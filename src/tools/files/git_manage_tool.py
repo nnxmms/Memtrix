@@ -41,16 +41,16 @@ class GitManageTool(BaseTool):
                 "Configure the git identity and run git commits and pushes on repositories "
                 "in your workspace. Actions: 'config' sets the commit author name and email "
                 "(persisted globally for all repos); 'status' shows the working-tree changes; "
-                "'commit' stages and commits changes; 'push' uploads commits to the remote "
-                "(asks the user to confirm first). Operates on the workspace root by default, "
-                "or a subdirectory via 'directory'."
+                "'commit' stages and commits changes; 'pull' fetches and integrates changes from "
+                "the remote; 'push' uploads commits to the remote (asks the user to confirm first). "
+                "Operates on the workspace root by default, or a subdirectory via 'directory'."
             ),
             parameters={
                 "type": "object",
                 "properties": {
                     "action": {
                         "type": "string",
-                        "enum": ["config", "status", "commit", "push"],
+                        "enum": ["config", "status", "commit", "pull", "push"],
                         "description": "The git operation to perform.",
                     },
                     "directory": {
@@ -75,11 +75,11 @@ class GitManageTool(BaseTool):
                     },
                     "remote": {
                         "type": "string",
-                        "description": "For action 'push': the remote name. Defaults to 'origin'.",
+                        "description": "For actions 'pull'/'push': the remote name. Defaults to 'origin'.",
                     },
                     "branch": {
                         "type": "string",
-                        "description": "For action 'push': the branch to push. Defaults to the current branch.",
+                        "description": "For actions 'pull'/'push': the branch. Defaults to the current branch.",
                     },
                 },
                 "required": ["action"],
@@ -102,9 +102,11 @@ class GitManageTool(BaseTool):
             return self._status(repo_dir=repo_dir)
         if action == "commit":
             return self._commit(repo_dir=repo_dir, kwargs=kwargs)
+        if action == "pull":
+            return self._pull(repo_dir=repo_dir, kwargs=kwargs)
         if action == "push":
             return self._push(repo_dir=repo_dir, kwargs=kwargs)
-        return f"Error: unknown action '{action}'. Use config, status, commit, or push."
+        return f"Error: unknown action '{action}'. Use config, status, commit, pull, or push."
 
     # --------------------------------------------------------------- path handling
 
@@ -261,6 +263,53 @@ class GitManageTool(BaseTool):
         except subprocess.TimeoutExpired:
             summary = message
         return f"Committed: {summary}"
+
+    def _pull(self, repo_dir: str, kwargs: dict[str, Any]) -> str:
+        """
+        This function fetches and integrates changes from a remote. HTTPS pulls from
+        private remotes are authenticated with a token from the secrets store when one
+        is available, without writing the credential into the repository.
+        """
+        if not self._is_git_repo(repo_dir):
+            return "Error: not a git repository. Clone one with git_clone first."
+
+        remote: str = (kwargs.get("remote") or "origin").strip() or "origin"
+        branch: str = (kwargs.get("branch") or "").strip()
+        if not branch:
+            branch, branch_error = self._current_branch(repo_dir=repo_dir)
+            if branch_error:
+                return branch_error
+
+        pull_args: list[str] = ["pull", remote, branch]
+        token: str = os.environ.get(GIT_TOKEN_ENV, "").strip()
+        if token:
+            authed_url: str | None = self._authenticated_remote_url(
+                repo_dir=repo_dir, remote=remote, token=token
+            )
+            if authed_url:
+                # Pull from the explicit authenticated URL instead of the named remote
+                # so the credential is never written to the repo's config.
+                pull_args = ["pull", authed_url, branch]
+
+        try:
+            result: subprocess.CompletedProcess[str] = self._run_git(pull_args, cwd=repo_dir)
+        except subprocess.TimeoutExpired:
+            return "Error: git pull timed out."
+
+        output: str = (result.stdout + "\n" + result.stderr).strip()
+        if token:
+            output = output.replace(token, "***")
+
+        if result.returncode != 0:
+            if "could not read username" in output.lower() or "authentication failed" in output.lower():
+                return ("Error: pull authentication failed. Set a GIT_TOKEN secret (and "
+                        "optionally GIT_USERNAME) in the control panel for HTTPS access, or "
+                        f"check the remote permissions.\n\n{output}")
+            if "conflict" in output.lower():
+                return ("Error: pull resulted in conflicts that must be resolved manually.\n\n"
+                        f"{output}")
+            return f"Error pulling: {output}"
+        return f"Pulled '{branch}' from '{remote}'.\n\n{output}" if output else f"Pulled '{branch}' from '{remote}'."
 
     def _push(self, repo_dir: str, kwargs: dict[str, Any]) -> str:
         """

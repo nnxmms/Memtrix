@@ -234,7 +234,7 @@ Built-in tools are automatically discovered at startup:
 | `list_directory` | Lists the contents of a directory in the workspace |
 | `delete_directory` | Permanently deletes a directory and its contents |
 | `git_clone` | Clones a public git repository into the workspace |
-| `git_manage` | Configures the git identity (name/email) and runs commits and pushes on workspace repos (push asks for confirmation) |
+| `git_manage` | Configures the git identity (name/email) and runs commits, pulls and pushes on workspace repos (push asks for confirmation) |
 | `download_file` | Downloads a file from a URL into the workspace |
 | `send_file` | Sends a file from the workspace to the user via Matrix |
 | `react_to_message` | Reacts to the user's message with an emoji in Matrix |
