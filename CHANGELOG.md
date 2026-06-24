@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.30.0
+
+- Memtrix can now **commit and push code on its own** via a new `git_manage` tool. It works on any git repository in the workspace — including ones it cloned with `git_clone` — and exposes four actions: `config` to set the commit author name and email, `status` to inspect what has changed, `commit` to stage and record changes with a message, and `push` to publish them to a remote. Because the container runs on a read-only root filesystem, the global git config is transparently redirected to the writable data volume, so the identity you set once persists across restarts and applies to every repo. Pushing always asks for your confirmation first, and never hangs waiting on a hidden credential prompt. For private HTTPS remotes you can set a `GIT_TOKEN` secret (optionally a `GIT_USERNAME`) in the web panel; it is injected into the push only for that one call and is redacted from any output, never written into the repository.
+
 ## 2.29.1
 
 - Fixed vision not receiving images sent **with a caption**. Matrix puts the caption text in the message body, so an image sent with a question (e.g. "What do you see here?") was being saved with the caption as its filename and no file extension — the vision layer never recognised it as an image, and the agent fell back to trying to read it as a text file. Incoming media now gets a proper filename and extension derived from the dedicated filename field or the declared MIME type, so vision-capable models actually receive the picture. The caption itself is now also passed through as the user's message, so the question that accompanies an image is no longer lost (previously it only survived by accident as part of the bogus filename).
