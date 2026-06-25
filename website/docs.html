@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.35.0</span>
+    memtrix<span class="ver">v2.36.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -866,7 +866,7 @@ docker compose up -d</code></pre>
       <p>A local web app at <code>localhost:8800</code> for running Memtrix without editing JSON: a validated config editor, one-click connection tests, secret management, full memory administration, and safe restarts with live progress. See <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a>.</p>
 
       <h2 id="ft-tools">Agentic Tool System</h2>
-      <p>40 built-in tools auto-discovered at startup. The orchestrator runs an iterative reasoning loop (up to 25 rounds, configurable) where the LLM can call tools, observe results, and continue reasoning. Independent read-only tool calls run in parallel (up to 8 at once), every call is validated against the tool's JSON schema before it runs, and provider calls retry transient failures with exponential backoff. New tools are just Python files dropped into <code>src/tools/</code>. See <a onclick="navigate('agentic-loop')" style="cursor:pointer;color:var(--accent)">The Agentic Loop</a>.</p>
+      <p>39 built-in tools auto-discovered at startup. The orchestrator runs an iterative reasoning loop (up to 25 rounds, configurable) where the LLM can call tools, observe results, and continue reasoning. Independent read-only tool calls run in parallel (up to 8 at once), every call is validated against the tool's JSON schema before it runs, and provider calls retry transient failures with exponential backoff. New tools are just Python files dropped into <code>src/tools/</code>. See <a onclick="navigate('agentic-loop')" style="cursor:pointer;color:var(--accent)">The Agentic Loop</a>.</p>
 
       <h2 id="ft-selfdocs">Self-Documenting</h2>
       <p>Memtrix can research its own documentation. The <code>search_docs</code> and <code>ask_docs</code> tools let the agent - and every sub-agent - answer "how does Memtrix work?" questions from the bundled docs, with citations. The docs are parsed into a vector-indexed <code>documentation</code> collection at startup and refreshed automatically. See <a onclick="navigate('tools-ref')" style="cursor:pointer;color:var(--accent)">Tools Reference</a>.</p>
@@ -1198,7 +1198,7 @@ docker compose up -d</code></pre>
       <ol>
         <li><strong>Builds the system prompt</strong> - injects <code>SOUL.md</code>, <code>BEHAVIOR.md</code>, <code>USER.md</code>, and <code>MEMORY.md</code> into the <code>AGENT.md</code> template</li>
         <li><strong>Recalls memory</strong> - silently pulls relevant context from past conversations and the reasoning-memory store (peer cards &amp; conclusions)</li>
-        <li><strong>Calls the LLM</strong> with conversation history and all available tool schemas (40 built-in, minus any gated off)</li>
+        <li><strong>Calls the LLM</strong> with conversation history and all available tool schemas (39 built-in, minus any gated off)</li>
         <li><strong>Executes tools</strong> if the LLM requests them (web search, memory lookup, etc.)</li>
         <li><strong>Responds</strong> with the final answer</li>
         <li><strong>Learns in the background</strong> - after replying, the reasoning-memory deriver updates the auto-curated peer cards (<code>USER.md</code>, <code>MEMORY.md</code>) and records conclusions, while the raw conversation transcript is saved and embedded for future recall</li>
@@ -1359,7 +1359,7 @@ docker compose up -d</code></pre>
       <p>When the model fans out independent work - several reads, multiple searches - those calls run <strong>concurrently</strong>, up to 8 at a time, cutting latency. Tools that mutate state or depend on order are detected and always run <strong>sequentially</strong> to keep behaviour deterministic. Sequential tools include:</p>
       <ul>
         <li>Core/persona writes (<code>read_core_file</code>, <code>write_core_file</code>)</li>
-        <li>File operations (<code>create_file</code>, <code>delete_file</code>, <code>git_clone</code>, <code>send_file</code>, directory ops)</li>
+        <li>File operations (<code>create_file</code>, <code>delete_file</code>, <code>git</code>, <code>send_file</code>, directory ops)</li>
         <li>Agent management (<code>create_agent</code>, <code>delete_agent</code>, <code>ask_agent</code>)</li>
         <li>Memory writes (<code>memory_conclude</code>), skill edits (<code>skill_manage</code>), and all SSH operations</li>
       </ul>
@@ -2430,7 +2430,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
     <div class="doc-page" id="page-tools-ref">
       <div class="doc-breadcrumb">Reference</div>
       <h1>Tools Reference</h1>
-      <p class="lead">All 40 built-in tools, auto-discovered at startup. Some are <strong>gated</strong> by config (reasoning memory, SSH, skills) or by channel (Matrix-only). Drop a new file in <code>src/tools/</code> to add your own - see <a onclick="navigate('custom-tools')" style="cursor:pointer;color:var(--accent)">Custom Tools</a>.</p>
+      <p class="lead">All 39 built-in tools, auto-discovered at startup. Some are <strong>gated</strong> by config (reasoning memory, SSH, skills) or by channel (Matrix-only). Drop a new file in <code>src/tools/</code> to add your own - see <a onclick="navigate('custom-tools')" style="cursor:pointer;color:var(--accent)">Custom Tools</a>.</p>
 
       <h2 id="tr-time">Time</h2>
       <table>
@@ -2498,8 +2498,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
           <tr><td><code>create_directory</code></td><td>Creates a directory in the workspace</td></tr>
           <tr><td><code>list_directory</code></td><td>Lists contents of a directory</td></tr>
           <tr><td><code>delete_directory</code></td><td>Permanently deletes a directory and its contents</td></tr>
-          <tr><td><code>git_clone</code></td><td>Clones a git repository into the workspace over HTTPS or SSH</td></tr>
-          <tr><td><code>git_manage</code></td><td>Configures the git identity and runs commits, pulls and pushes on workspace repos (push requires confirmation)</td></tr>
+          <tr><td><code>git</code></td><td>Runs any git command in the workspace (status, branch, commit, rebase, clone, pull, push, …) over HTTPS or SSH; push requires confirmation</td></tr>
           <tr><td><code>download_file</code></td><td>Downloads a file from a URL (requires confirmation)</td></tr>
           <tr><td><code>send_file</code></td><td>Sends a file to the user via Matrix</td></tr>
         </tbody>
@@ -2600,7 +2599,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
       <p>The optional SSH tools do let the agent run commands on <em>remote</em> hosts you have explicitly registered, but never on the Memtrix container itself. That capability is gated: it only loads when <code>ssh.enabled</code> is true, authenticates with a key you install, pins host keys trust-on-first-use, requires confirmation for destructive commands, and keeps any <code>sudo</code> password in memory only. See <a onclick="navigate('tools-ref')" style="cursor:pointer;color:var(--accent)">Tools Reference → Remote Administration</a>.</p>
 
       <h2 id="sc-ssrf">SSRF Protection</h2>
-      <p>All outbound tools (<code>fetch_url</code>, <code>download_file</code>, <code>git_clone</code>) validate URLs against:</p>
+      <p>All outbound tools (<code>fetch_url</code>, <code>download_file</code>, <code>git</code>) validate URLs against:</p>
       <ul>
         <li>A hostname blocklist of internal Docker service names (<code>conduit</code>, <code>searxng</code>, <code>chroma</code>, <code>localhost</code>, etc.)</li>
         <li>DNS resolution - hostnames are resolved and IPs checked against private, loopback, link-local, and reserved ranges</li>

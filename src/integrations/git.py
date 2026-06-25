@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import base64
 import os
 import re
 import shlex
@@ -48,6 +49,20 @@ def is_https_git_url(url: str) -> bool:
     This function returns True when the URL is an HTTP(S) git remote.
     """
     return bool(_HTTPS_PATTERN.match(url))
+
+
+def https_host(url: str) -> str | None:
+    """
+    This function returns the hostname of an HTTP(S) URL, or None when the value is
+    not an HTTP(S) URL.
+    """
+    if "://" not in url:
+        return None
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    if parsed.scheme in ("http", "https") and parsed.hostname:
+        return parsed.hostname
+    return None
 
 
 def git_ssh_host(url: str) -> str | None:
@@ -102,4 +117,39 @@ def build_git_env() -> dict[str, str]:
         "GIT_TERMINAL_PROMPT": "0",
         "GIT_ASKPASS": "/bin/echo",
         "GIT_SSH_COMMAND": build_git_ssh_command(),
+        # Never open an interactive editor or pager — captured output has no TTY, but
+        # be explicit so commands like `rebase -i`, `merge`, or `commit` can't hang.
+        "GIT_EDITOR": "true",
+        "GIT_SEQUENCE_EDITOR": "true",
+        "GIT_PAGER": "cat",
     }
+
+
+def build_git_auth_env(token: str, username: str, hosts: list[str]) -> dict[str, str]:
+    """
+    This function returns the git environment with HTTPS credentials injected as a
+    per-host Authorization header for each host in `hosts`. Scoping the credential to
+    the specific remote hosts (rather than a global header) prevents the token from
+    being sent to any other site. SSH remotes ignore this and use the agent's key.
+    Returns the plain environment unchanged when no token or no hosts are supplied.
+    """
+    env: dict[str, str] = build_git_env()
+    token = (token or "").strip()
+    if not token or not hosts:
+        return env
+
+    # GitHub/GitLab accept Basic auth with any username when a token is the password;
+    # default to a conventional placeholder when none is configured.
+    credential: str = f"{username.strip() or 'x-access-token'}:{token}"
+    header: str = "Authorization: Basic " + base64.b64encode(credential.encode()).decode()
+
+    # Inject one scoped http.<url>.extraheader entry per host via the GIT_CONFIG_*
+    # environment protocol, so the secret never touches the repo or global config.
+    count: int = 0
+    for host in hosts:
+        env[f"GIT_CONFIG_KEY_{count}"] = f"http.https://{host}/.extraheader"
+        env[f"GIT_CONFIG_VALUE_{count}"] = header
+        count += 1
+    env["GIT_CONFIG_COUNT"] = str(count)
+    return env
+

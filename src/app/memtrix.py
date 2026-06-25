@@ -11,7 +11,7 @@ from src.agents.manager import AgentManager
 from src.channels.cli import CLIChannel
 from src.channels.matrix import MatrixChannel
 from src.core.commands import Commands
-from src.core.config import CONFIG_PATH, resolve_agent_config, resolve_email_config, resolve_prompt_guard_config, resolve_skills_config, resolve_ssh_config, resolve_voice_config, update_config
+from src.core.config import CONFIG_PATH, resolve_agent_config, resolve_email_config, resolve_git_config, resolve_prompt_guard_config, resolve_skills_config, resolve_ssh_config, resolve_voice_config, update_config
 from src.integrations.prompt_guard import PromptGuard
 from src.memory.deriver import Deriver
 from src.indexing.docs import DocsIndex
@@ -194,6 +194,9 @@ class Memtrix:
             email_manager = EmailManager(config=email_cfg)
             logger.info("Email access enabled (imap=%s, smtp=%s)", email_cfg["imap_host"], email_cfg["smtp_host"])
 
+        # Resolve git HTTPS credentials (token comes from the GIT_TOKEN secret).
+        git_cfg: dict[str, Any] = resolve_git_config(config=self._config)
+
         # Exclude the skill management tool unless the skills feature is enabled
         skills_cfg: dict[str, Any] = resolve_skills_config(config=self._config)
         if not skills_cfg["enabled"]:
@@ -230,6 +233,8 @@ class Memtrix:
                 tool.set_skills_catalog(catalog=skills_catalog)
             if email_manager is not None and hasattr(tool, "set_email_manager"):
                 tool.set_email_manager(manager=email_manager)
+            if hasattr(tool, "set_git_credentials"):
+                tool.set_git_credentials(token=git_cfg["token"], username=git_cfg["username"])
 
         logger.info("Discovered %d tools", len(tools))
 

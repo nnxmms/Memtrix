@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.36.0
+
+- The separate `git_clone` and `git_manage` tools have been replaced by a **single `git` tool** that runs any git command in the workspace. Memtrix now simply hands git a command line — `status`, `checkout -b feature`, `add -A`, `commit -m "…"`, `rebase main`, `clone git@github.com:user/repo.git`, `pull`, `push`, and anything else git offers — so full branching, staging, history rewriting and remote workflows are available without a dedicated tool for each. Both HTTPS and SSH remotes work: SSH reuses the agent's own key, and private HTTPS uses the `GIT_TOKEN` secret, now injected per-host (scoped to the exact remote, never written into the repo). Pushes still ask the user to confirm first, and interactive git steps can't hang because editors, pagers and credential prompts are disabled. This also fixes a latent bug where HTTPS token auth never actually worked at runtime, because secrets are cleared from the environment after startup — the token now comes from the resolved config via dependency injection.
+
 ## 2.35.0
 
 - Git now works over **SSH as well as HTTPS**. `git_clone` accepts SSH remotes (`git@github.com:user/repo.git` and `ssh://…` URLs) alongside HTTPS, and `git_manage` pull/push authenticate over SSH too. Git reuses the agent's own SSH identity — the same public key you register with `ssh_get_pub_key` — so once that key is added to a host's deploy keys or your account, cloning, pulling and pushing over SSH just work. Host keys are recorded on first use in a persisted known_hosts file (no interactive prompt to hang on), and a clear error explains what to do when SSH authentication fails. The container image now ships the OpenSSH client to make this possible. HTTPS with a `GIT_TOKEN` secret continues to work exactly as before.

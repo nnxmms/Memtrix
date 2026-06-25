@@ -233,8 +233,7 @@ Built-in tools are automatically discovered at startup:
 | `create_directory` | Creates a directory in the workspace |
 | `list_directory` | Lists the contents of a directory in the workspace |
 | `delete_directory` | Permanently deletes a directory and its contents |
-| `git_clone` | Clones a git repository into the workspace over HTTPS or SSH |
-| `git_manage` | Configures the git identity (name/email) and runs commits, pulls and pushes on workspace repos (push asks for confirmation) |
+| `git` | Runs any git command in the workspace (status, branch, commit, rebase, clone, pull, push, …) over HTTPS or SSH; push asks for confirmation |
 | `download_file` | Downloads a file from a URL into the workspace |
 | `send_file` | Sends a file from the workspace to the user via Matrix |
 | `react_to_message` | Reacts to the user's message with an emoji in Matrix |
@@ -682,7 +681,7 @@ The LLM has **no shell access**. There is no `run_command` tool — every action
 
 ### SSRF Protection
 
-All outbound tools (`fetch_url`, `download_file`, `git_clone`) validate URLs against:
+All outbound tools (`fetch_url`, `download_file`, `git`) validate URLs against:
 
 - A **hostname blocklist** of internal Docker service names (`conduit`, `searxng`, `localhost`, etc.)
 - **DNS resolution** — hostnames are resolved and the resulting IPs are checked against private, loopback, link-local, and reserved ranges

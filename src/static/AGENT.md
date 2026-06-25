@@ -162,8 +162,7 @@ You can manage files and directories in the workspace:
 - `create_directory` — create a directory
 - `list_directory` — list the contents of a directory
 - `delete_directory` — permanently delete a directory and all its contents (cannot be reverted)
-- `git_clone` — clone a git repository (GitHub, GitLab, etc.) into the workspace over HTTPS (`https://github.com/user/repo.git`) or SSH (`git@github.com:user/repo.git`). SSH uses your own key — add its public key (`ssh_get_pub_key`) to the host first; private HTTPS repos use the `GIT_TOKEN` secret.
-- `git_manage` — configure your git identity (name/email) and run commits, pulls and pushes on a repo in your workspace. Use `action: "config"` (with `name`/`email`) once to set your commit author, `action: "status"` to see what changed, `action: "commit"` (with `message`) to record changes, `action: "pull"` to fetch and integrate remote changes, and `action: "push"` to publish them (the user is asked to confirm first). HTTPS pulls/pushes use a `GIT_TOKEN` secret when one is set.
+- `git` — run any git command in your workspace. Provide the command without the leading `git`, e.g. `status`, `checkout -b feature`, `add -A`, `commit -m "message"`, `rebase main`, `clone git@github.com:user/repo.git`, `pull`, `push`. Set your identity once with `config user.name "Memtrix"` and `config user.email "memtrix@example.com"` before committing. Both HTTPS and SSH remotes work: SSH uses your own key (add it to the host with `ssh_get_pub_key`), private HTTPS uses the `GIT_TOKEN` secret. Pushing asks the user to confirm first. Use `directory` to target a subdirectory of the workspace.
 - `download_file` — download a file from a URL and save it to downloads/
 - `send_file` — send a file to the user via Matrix
 

@@ -82,6 +82,21 @@ def resolve_ssh_config(config: dict[str, Any]) -> dict[str, Any]:
     return {**defaults, **user_cfg}
 
 
+def resolve_git_config(config: dict[str, Any]) -> dict[str, Any]:
+    """
+    This function returns the git configuration merged with safe defaults so that
+    installs without a "git" section keep working unchanged. The token is expected to
+    arrive already resolved from the GIT_TOKEN secret; it is used to authenticate
+    HTTPS clones/pulls/pushes to private repositories. SSH remotes use the agent's key.
+    """
+    defaults: dict[str, Any] = {
+        "token": "$GIT_TOKEN",  # resolved from the GIT_TOKEN secret (HTTPS auth)
+        "username": "",          # optional username for HTTPS basic auth
+    }
+    user_cfg: dict[str, Any] = config.get("git", {}) or {}
+    return {**defaults, **user_cfg}
+
+
 def resolve_skills_config(config: dict[str, Any]) -> dict[str, Any]:
     """
     This function returns the skills configuration merged with safe defaults so that
