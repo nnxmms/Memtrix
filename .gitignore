@@ -1,7 +1,7 @@
 # Memtrix
 data/
 workspace/
-agents/
+/agents/
 .env
 
 # Node / frontend (Web Control Panel)
