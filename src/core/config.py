@@ -110,6 +110,20 @@ def resolve_skills_config(config: dict[str, Any]) -> dict[str, Any]:
     return {**defaults, **user_cfg}
 
 
+def resolve_workers_config(config: dict[str, Any]) -> dict[str, Any]:
+    """
+    This function returns the background worker-agent configuration merged with safe
+    defaults so that installs without a "workers" section keep working unchanged.
+    When disabled, the spawn_worker tool is not loaded and no worker watcher runs.
+    """
+    defaults: dict[str, Any] = {
+        "enabled": True,        # load the spawn_worker tool and run the worker watcher
+        "max_concurrent": 4,   # maximum background workers running at once
+    }
+    user_cfg: dict[str, Any] = config.get("workers", {}) or {}
+    return {**defaults, **user_cfg}
+
+
 def resolve_agent_config(config: dict[str, Any]) -> dict[str, Any]:
     """
     This function returns the core agent-loop configuration merged with safe

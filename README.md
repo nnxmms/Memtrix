@@ -241,6 +241,7 @@ Built-in tools are automatically discovered at startup:
 | `list_agents` | Lists all registered sub-agents and their status |
 | `delete_agent` | Permanently deletes a sub-agent and all its data |
 | `ask_agent` | Asks another agent a question and returns their response |
+| `spawn_worker` | Spawns an ephemeral background worker agent to complete a task autonomously without blocking the conversation; the result is delivered automatically when it finishes |
 | `ssh_gen_key` | Generates Memtrix's own ed25519 SSH key (returns the public key) |
 | `ssh_get_pub_key` | Returns the SSH public key to install in a host's `authorized_keys` |
 | `ssh_add_host` | Registers a remote host under a short alias |
@@ -570,6 +571,21 @@ In your room with Dennis:
 > **You:** What did I have planned for this weekend again?
 >
 > **Dennis:** *(uses `ask_agent` to check with Memtrix, who has the shared memory)* You mentioned a dinner party on Saturday. Want me to help plan the cooking timeline?
+
+<br>
+
+## ⚙️ Background Workers
+
+Beyond persistent sub-agents, Memtrix can spawn **ephemeral background workers** for one-off, self-contained tasks — without blocking the conversation. The main agent calls `spawn_worker` with a complete task instruction, gets a worker id back immediately, and keeps talking to you while the worker runs.
+
+| Property | Details |
+|:--|:--|
+| **Ephemeral** | No Matrix identity, no persistent workspace, no memory — an in-memory session that is discarded when the task ends |
+| **Non-blocking** | Runs on a background daemon thread; the main agent returns instantly with a worker id |
+| **Restricted tools** | Web, file, git and docs tools only — no agent management, memory, SSH, email, skills, file sending, reactions, or nested workers |
+| **Auto-delivery** | When a worker finishes, a watcher thread triggers the main agent in-process (no polling, no event bus) and the result is delivered to the originating room |
+
+When a worker completes, the main agent is woken with a synthetic notification carrying the result, produces a response, and pushes it to you in the right room. Concurrency is bounded by `workers.max_concurrent` (default 4), and the whole feature can be turned off with `workers.enabled: false`.
 
 <br>
 

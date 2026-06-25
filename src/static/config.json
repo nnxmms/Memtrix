@@ -34,6 +34,10 @@
         "token": "$GIT_TOKEN",
         "username": ""
     },
+    "workers": {
+        "enabled": true,
+        "max_concurrent": 4
+    },
     "email": {
         "enabled": false,
         "imap_host": "",

@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.36.0</span>
+    memtrix<span class="ver">v2.37.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -866,7 +866,7 @@ docker compose up -d</code></pre>
       <p>A local web app at <code>localhost:8800</code> for running Memtrix without editing JSON: a validated config editor, one-click connection tests, secret management, full memory administration, and safe restarts with live progress. See <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a>.</p>
 
       <h2 id="ft-tools">Agentic Tool System</h2>
-      <p>39 built-in tools auto-discovered at startup. The orchestrator runs an iterative reasoning loop (up to 25 rounds, configurable) where the LLM can call tools, observe results, and continue reasoning. Independent read-only tool calls run in parallel (up to 8 at once), every call is validated against the tool's JSON schema before it runs, and provider calls retry transient failures with exponential backoff. New tools are just Python files dropped into <code>src/tools/</code>. See <a onclick="navigate('agentic-loop')" style="cursor:pointer;color:var(--accent)">The Agentic Loop</a>.</p>
+      <p>40 built-in tools auto-discovered at startup. The orchestrator runs an iterative reasoning loop (up to 25 rounds, configurable) where the LLM can call tools, observe results, and continue reasoning. Independent read-only tool calls run in parallel (up to 8 at once), every call is validated against the tool's JSON schema before it runs, and provider calls retry transient failures with exponential backoff. New tools are just Python files dropped into <code>src/tools/</code>. See <a onclick="navigate('agentic-loop')" style="cursor:pointer;color:var(--accent)">The Agentic Loop</a>.</p>
 
       <h2 id="ft-selfdocs">Self-Documenting</h2>
       <p>Memtrix can research its own documentation. The <code>search_docs</code> and <code>ask_docs</code> tools let the agent - and every sub-agent - answer "how does Memtrix work?" questions from the bundled docs, with citations. The docs are parsed into a vector-indexed <code>documentation</code> collection at startup and refreshed automatically. See <a onclick="navigate('tools-ref')" style="cursor:pointer;color:var(--accent)">Tools Reference</a>.</p>
@@ -1198,7 +1198,7 @@ docker compose up -d</code></pre>
       <ol>
         <li><strong>Builds the system prompt</strong> - injects <code>SOUL.md</code>, <code>BEHAVIOR.md</code>, <code>USER.md</code>, and <code>MEMORY.md</code> into the <code>AGENT.md</code> template</li>
         <li><strong>Recalls memory</strong> - silently pulls relevant context from past conversations and the reasoning-memory store (peer cards &amp; conclusions)</li>
-        <li><strong>Calls the LLM</strong> with conversation history and all available tool schemas (39 built-in, minus any gated off)</li>
+        <li><strong>Calls the LLM</strong> with conversation history and all available tool schemas (40 built-in, minus any gated off)</li>
         <li><strong>Executes tools</strong> if the LLM requests them (web search, memory lookup, etc.)</li>
         <li><strong>Responds</strong> with the final answer</li>
         <li><strong>Learns in the background</strong> - after replying, the reasoning-memory deriver updates the auto-curated peer cards (<code>USER.md</code>, <code>MEMORY.md</code>) and records conclusions, while the raw conversation transcript is saved and embedded for future recall</li>
@@ -1303,10 +1303,21 @@ docker compose up -d</code></pre>
         <li><code>list_agents</code> - see all registered sub-agents and their status</li>
         <li><code>delete_agent</code> - permanently remove a sub-agent (workspace, memory, sessions all cleaned up)</li>
         <li><code>ask_agent</code> - query another agent by name</li>
+        <li><code>spawn_worker</code> - hand a self-contained task to an ephemeral background worker that runs without blocking the conversation; the result is delivered back automatically when it finishes</li>
       </ul>
 
       <h2 id="ag-memory-exchange">Memory exchange</h2>
       <p>As of v2.7, after an inter-agent call, a summary of the exchange is appended to the target agent's active user session. If Agent B asks Agent A something, A can later tell the user what B asked and what it answered.</p>
+
+      <h2 id="ag-workers">Background workers</h2>
+      <p>Separate from persistent sub-agents, the main agent can spawn <strong>ephemeral background workers</strong> with <code>spawn_worker</code> for one-off, self-contained tasks - without blocking the conversation. A worker is a lightweight orchestrator on a background daemon thread with an in-memory session, no Matrix identity and no memory. The agent gets a worker id back immediately and keeps talking to you while the worker runs.</p>
+      <ul>
+        <li><strong>Non-blocking</strong> - spawning returns instantly; the worker runs on its own thread.</li>
+        <li><strong>Ephemeral &amp; isolated</strong> - fresh context, no persistent workspace, no memory; the session is discarded when the task ends.</li>
+        <li><strong>Restricted toolset</strong> - web, file, git and docs tools only. Workers cannot manage agents, use memory, SSH, email or skills, send files, react, or spawn further workers (no recursion).</li>
+        <li><strong>Automatic delivery</strong> - when a worker finishes, a single watcher thread blocks on a shared result queue and fires an in-process trigger that wakes the main agent with a synthetic notification carrying the result. No polling, no HTTP, no external event bus. The agent then delivers the outcome to the originating room.</li>
+      </ul>
+      <p>Concurrency is bounded by <code>workers.max_concurrent</code> (default 4), and the feature can be disabled with <code>workers.enabled: false</code> in config.</p>
     </div>
 
     <!-- ═══════════════════════════════════════ AGENTIC LOOP ═══════════════════════════════════════ -->
@@ -1360,7 +1371,7 @@ docker compose up -d</code></pre>
       <ul>
         <li>Core/persona writes (<code>read_core_file</code>, <code>write_core_file</code>)</li>
         <li>File operations (<code>create_file</code>, <code>delete_file</code>, <code>git</code>, <code>send_file</code>, directory ops)</li>
-        <li>Agent management (<code>create_agent</code>, <code>delete_agent</code>, <code>ask_agent</code>)</li>
+        <li>Agent management (<code>create_agent</code>, <code>delete_agent</code>, <code>ask_agent</code>, <code>spawn_worker</code>)</li>
         <li>Memory writes (<code>memory_conclude</code>), skill edits (<code>skill_manage</code>), and all SSH operations</li>
       </ul>
 
@@ -2430,7 +2441,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
     <div class="doc-page" id="page-tools-ref">
       <div class="doc-breadcrumb">Reference</div>
       <h1>Tools Reference</h1>
-      <p class="lead">All 39 built-in tools, auto-discovered at startup. Some are <strong>gated</strong> by config (reasoning memory, SSH, skills) or by channel (Matrix-only). Drop a new file in <code>src/tools/</code> to add your own - see <a onclick="navigate('custom-tools')" style="cursor:pointer;color:var(--accent)">Custom Tools</a>.</p>
+      <p class="lead">All 40 built-in tools, auto-discovered at startup. Some are <strong>gated</strong> by config (reasoning memory, SSH, skills) or by channel (Matrix-only). Drop a new file in <code>src/tools/</code> to add your own - see <a onclick="navigate('custom-tools')" style="cursor:pointer;color:var(--accent)">Custom Tools</a>.</p>
 
       <h2 id="tr-time">Time</h2>
       <table>
@@ -2520,6 +2531,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
           <tr><td><code>list_agents</code></td><td>List all registered sub-agents</td><td>Main agent only</td></tr>
           <tr><td><code>delete_agent</code></td><td>Permanently delete a sub-agent</td><td>Main agent only</td></tr>
           <tr><td><code>ask_agent</code></td><td>Ask another agent a question</td><td>All agents</td></tr>
+          <tr><td><code>spawn_worker</code></td><td>Spawn an ephemeral background worker to complete a task without blocking; result delivered automatically when done</td><td>Main agent only</td></tr>
         </tbody>
       </table>
 

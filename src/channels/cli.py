@@ -19,6 +19,15 @@ class CLIChannel(BaseChannel):
         """
         print(f"Memtrix: {message}")
 
+    def send_to_room(self, room_id: str, body: str, notice: bool = False) -> None:
+        """
+        This function delivers an unsolicited message (e.g. a background worker
+        result) to the CLI. The room id is ignored since the CLI is single-room.
+        """
+        _ = room_id
+        prefix: str = "  " if notice else "Memtrix: "
+        print(f"{prefix}{body}")
+
     def receive_message(self) -> str:
         """
         This function receives a message from stdin.

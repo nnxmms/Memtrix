@@ -55,7 +55,7 @@ _SEQUENTIAL_TOOL_NAMES: frozenset[str] = frozenset({
     "read_core_file", "write_core_file",
     "create_file", "delete_file", "download_file", "create_directory", "delete_directory",
     "git", "create_agent", "delete_agent", "ask_agent", "memory_conclude",
-    "send_file", "skill_manage", "ssh_connect", "ssh_disconnect", "ssh_add_host",
+    "send_file", "skill_manage", "spawn_worker", "ssh_connect", "ssh_disconnect", "ssh_add_host",
     "ssh_remove_host", "ssh_gen_key", "ssh_run",
     "email_mark_unread", "email_send", "email_check",
 })

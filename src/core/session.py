@@ -19,11 +19,24 @@ _UUID_PATTERN: re.Pattern[str] = re.compile(
 
 class Session:
 
-    def __init__(self, sessions_dir: str, session_id: str | None = None) -> None:
+    def __init__(self, sessions_dir: str, session_id: str | None = None, ephemeral: bool = False) -> None:
         """
         This is the Session class which manages short-term conversation history.
-        Each session is stored as a JSON file in sessions_dir/yyyy-mm-dd/.
+        Each session is stored as a JSON file in sessions_dir/yyyy-mm-dd/. When
+        ephemeral is True the session lives entirely in memory and never touches
+        disk — used by background worker agents, which keep nothing persistent.
         """
+        # When True, history is held in memory only and no files are created or written.
+        self._ephemeral: bool = ephemeral
+
+        # Ephemeral sessions skip all disk setup and start with empty history.
+        if ephemeral:
+            self._sessions_dir = sessions_dir
+            self._session_id = str(uuid.uuid4())
+            self._path = ""
+            self._history = []
+            return
+
         # Sessions root directory
         self._sessions_dir: str = sessions_dir
         os.makedirs(self._sessions_dir, exist_ok=True)
@@ -85,8 +98,11 @@ class Session:
 
     def _save_history(self) -> None:
         """
-        This function persists the message history to the session file.
+        This function persists the message history to the session file. Ephemeral
+        (in-memory) sessions skip persistence entirely.
         """
+        if self._ephemeral:
+            return
         with open(file=self._path, mode="w") as f:
             json.dump(obj=self._history, fp=f, indent=2)
 

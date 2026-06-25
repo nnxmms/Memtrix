@@ -45,6 +45,10 @@ class MatrixChannel:
         # Async Matrix client
         self._client: AsyncClient | None = None
 
+        # The running asyncio loop (captured in _run_async) so other threads can
+        # schedule sends (e.g. background worker-result delivery) thread-safely.
+        self._loop: asyncio.AbstractEventLoop | None = None
+
         # Timestamp after which we process messages
         self._start_time: float = 0.0
 
@@ -655,6 +659,10 @@ class MatrixChannel:
         self._client = AsyncClient(homeserver=self._homeserver, user=self._user_id)
         self._client.access_token = self._access_token
 
+        # Capture the running loop so other threads (e.g. worker-result delivery)
+        # can schedule sends onto it thread-safely.
+        self._loop = asyncio.get_running_loop()
+
         # Register event and sync callbacks
         self._client.add_event_callback(self._on_message, RoomMessageText)
         self._client.add_event_callback(self._on_file, RoomMessageFile)
@@ -698,3 +706,25 @@ class MatrixChannel:
         """
         self._handler = handler
         asyncio.run(main=self._run_async())
+
+    def send_to_room(self, room_id: str, body: str, notice: bool = False) -> None:
+        """
+        This function delivers an unsolicited message to a room from any thread. It is
+        used to push background worker results back into the originating conversation.
+        The send is scheduled onto the channel's asyncio loop thread-safely and blocks
+        briefly for confirmation. Safe to call before the loop is ready (no-op).
+        """
+        loop: asyncio.AbstractEventLoop | None = self._loop
+        if loop is None or self._client is None:
+            logger.warning("send_to_room called before Matrix channel was ready")
+            return
+        msgtype: str = "m.notice" if notice else "m.text"
+        future = asyncio.run_coroutine_threadsafe(
+            self._client.room_send(
+                room_id=room_id,
+                message_type="m.room.message",
+                content={"msgtype": msgtype, "body": body},
+            ),
+            loop,
+        )
+        future.result(timeout=30)
