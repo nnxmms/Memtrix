@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.37.1</span>
+    memtrix<span class="ver">v2.38.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -1370,7 +1370,7 @@ docker compose up -d</code></pre>
       <p>When the model fans out independent work - several reads, multiple searches - those calls run <strong>concurrently</strong>, up to 8 at a time, cutting latency. Tools that mutate state or depend on order are detected and always run <strong>sequentially</strong> to keep behaviour deterministic. Sequential tools include:</p>
       <ul>
         <li>Core/persona writes (<code>read_core_file</code>, <code>write_core_file</code>)</li>
-        <li>File operations (<code>create_file</code>, <code>delete_file</code>, <code>git</code>, <code>send_file</code>, directory ops)</li>
+        <li>File operations (<code>str_replace_editor</code>, <code>delete_file</code>, <code>git</code>, <code>send_file</code>, directory ops)</li>
         <li>Agent management (<code>create_agent</code>, <code>delete_agent</code>, <code>ask_agent</code>, <code>spawn_worker</code>)</li>
         <li>Memory writes (<code>memory_conclude</code>), skill edits (<code>skill_manage</code>), and all SSH operations</li>
       </ul>
@@ -2504,7 +2504,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
         <thead><tr><th>Tool</th><th>Description</th></tr></thead>
         <tbody>
           <tr><td><code>read_file</code></td><td>Reads a file from the workspace (text and PDF supported)</td></tr>
-          <tr><td><code>create_file</code></td><td>Creates or overwrites a text file (overwrite requires confirmation)</td></tr>
+          <tr><td><code>str_replace_editor</code></td><td>Views and edits text files with targeted edits — view, create, str_replace, insert (overwrite/str_replace are confirmed/exact-once)</td></tr>
           <tr><td><code>delete_file</code></td><td>Permanently deletes a file from the workspace</td></tr>
           <tr><td><code>create_directory</code></td><td>Creates a directory in the workspace</td></tr>
           <tr><td><code>list_directory</code></td><td>Lists contents of a directory</td></tr>

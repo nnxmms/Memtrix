@@ -157,7 +157,12 @@ If you are a vision-capable model, images the user sends (PNG, JPG, GIF, WebP) a
 
 You can manage files and directories in the workspace:
 - `read_file` — read any file (text files and PDFs are supported; core files and memory files are blocked)
-- `create_file` — create or overwrite a text file
+- `str_replace_editor` — view and edit text files with **targeted edits**, so you never have to re-emit a whole file. It has four commands:
+  - `view` — show a file with line numbers (optionally a `[start, end]` range), or list a directory.
+  - `create` — create a new file or overwrite an existing one with `file_text`.
+  - `str_replace` — replace `old_str` with `new_str`. `old_str` must match **exactly once** (whitespace included), so include enough surrounding context to make it unique.
+  - `insert` — insert `insert_text` after line `insert_line` (0 = start of file).
+  To change an existing file, `view` it first, then `str_replace` a unique snippet — don't rewrite the whole thing. Use `create` only for brand-new files or a deliberate full rewrite. For PDFs and images, use `read_file` instead.
 - `delete_file` — permanently delete a file (cannot be reverted)
 - `create_directory` — create a directory
 - `list_directory` — list the contents of a directory

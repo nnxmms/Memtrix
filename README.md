@@ -228,7 +228,7 @@ Built-in tools are automatically discovered at startup:
 | `web_search` | Searches the web via local SearXNG instance |
 | `fetch_url` | Fetches and extracts readable text from a URL |
 | `read_file` | Reads a file from the workspace (text and PDF supported) |
-| `create_file` | Creates or overwrites a text file in the workspace |
+| `str_replace_editor` | Views and edits text files with targeted edits (view, create, str_replace, insert) |
 | `delete_file` | Permanently deletes a file from the workspace |
 | `create_directory` | Creates a directory in the workspace |
 | `list_directory` | Lists the contents of a directory in the workspace |

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.38.0
+
+- File editing now works the way modern coding agents do. The old `create_file` tool, which could only write a file by emitting its **entire** contents, has been replaced by `str_replace_editor` — a single tool modelled on the Claude Code text editor with four commands: `view` shows a file with line numbers (and an optional `[start, end]` range) or lists a directory; `create` writes a brand-new file or overwrites one (still confirmed before clobbering); `str_replace` swaps a snippet of text for another, requiring the old text to match **exactly once** (whitespace included) so edits are precise and unambiguous; and `insert` adds text after a given line number. This means Memtrix can change one function in a large file without re-transmitting the whole thing — cheaper, faster, and far less prone to truncation or accidentally clobbering unrelated code. `read_file` is unchanged and still handles PDFs, images and untrusted attachments; core persona files remain protected behind `read_core_file` / `write_core_file`.
+
 ## 2.37.1
 
 - Fixed the background worker agents shipped in 2.37.0 failing to start in the container with `ModuleNotFoundError: No module named 'src.agents.worker'`. The repository's `.gitignore` had an unanchored `agents/` rule (meant only for the runtime sub-agent workspace directory) which silently excluded the new `src/agents/worker.py` and `src/tools/agents/spawn_worker_tool.py` from version control, so they never made it into the image. The rule is now anchored to `/agents/` and the worker files are tracked.
