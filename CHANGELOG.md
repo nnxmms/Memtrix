@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.37.1
+
+- Fixed the background worker agents shipped in 2.37.0 failing to start in the container with `ModuleNotFoundError: No module named 'src.agents.worker'`. The repository's `.gitignore` had an unanchored `agents/` rule (meant only for the runtime sub-agent workspace directory) which silently excluded the new `src/agents/worker.py` and `src/tools/agents/spawn_worker_tool.py` from version control, so they never made it into the image. The rule is now anchored to `/agents/` and the worker files are tracked.
+
 ## 2.37.0
 
 - Memtrix can now spawn **background worker agents**. With the new `spawn_worker` tool the main agent hands a self-contained task to an ephemeral worker that runs autonomously **without blocking the conversation** — it gets a worker id back instantly and keeps talking to you while the worker works. A worker is a lightweight orchestrator on a background daemon thread with an in-memory session (nothing persisted to disk), no Matrix identity and no memory, and a deliberately restricted toolset: web, file, git and docs tools only — no agent management, memory, SSH, email, skills, file sending, reactions, or nested workers. When a worker finishes (success or failure) it places its result on a shared queue; a single WorkerWatcher thread blocks on that queue and, the moment a result arrives, fires an in-process trigger that wakes the main agent with a synthetic notification carrying the result — no polling, no HTTP, no external event bus. The agent then produces a reply and pushes it straight to the right Matrix room. Concurrency is bounded by `workers.max_concurrent` (default 4) and the whole feature can be turned off with `workers.enabled: false`. Main-agent runs are now serialized per room with a lock so a worker-result delivery can never race a live user turn on the same session.
