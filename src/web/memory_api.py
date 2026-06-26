@@ -8,11 +8,13 @@ from fastapi import APIRouter, HTTPException, Query, status
 from src.core.config import load_config, update_config
 from src.core.lifecycle import is_deriver_paused, pause_deriver, resume_deriver
 from src.memory.store import KINDS, PEER_CARD_FILES, PEERS
-from src.web.deps import get_store
+from src.web.deps import get_store, get_event_store
 from src.web.schemas import (
     Conclusion,
     ConclusionUpdate,
     DeriverState,
+    Event,
+    EventCreate,
     FreezeUpdate,
     ImportPayload,
     ManualConclusion,
@@ -20,6 +22,8 @@ from src.web.schemas import (
     PeerCard,
     PeerCardUpdate,
     PeerSummary,
+    PersonCard,
+    PersonSummary,
 )
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -55,7 +59,7 @@ def list_peers() -> list[PeerSummary]:
     store = get_store()
     summaries: list[PeerSummary] = []
     for peer in sorted(PEERS):
-        conclusions: list[dict[str, Any]] = store.list_conclusions(peer=peer, limit=100000)
+        conclusions: list[dict[str, Any]] = store.list_conclusions(peer=peer, limit=100000, entity="")
         card: str = store.read_peer_card(peer=peer)
         summaries.append(PeerSummary(
             peer=peer,
@@ -91,7 +95,7 @@ def list_conclusions(
             )
             for match in matches
         ]
-    records: list[dict[str, Any]] = store.list_conclusions(peer=peer, kinds=kinds, limit=limit, offset=offset)
+    records: list[dict[str, Any]] = store.list_conclusions(peer=peer, kinds=kinds, limit=limit, offset=offset, entity="")
     return [Conclusion(**record) for record in records]
 
 
@@ -238,3 +242,123 @@ def set_deriver_state(body: DeriverState) -> DeriverState:
     else:
         resume_deriver()
     return DeriverState(paused=is_deriver_paused())
+
+
+# ----------------------------------------------------------------- people (entities)
+
+
+def _entity_max_chars() -> int:
+    """
+    This function returns the configured per-entity card character budget.
+    """
+    config: dict[str, Any] = load_config()
+    return int((config.get("memory") or {}).get("entity_card_max_chars", 800))
+
+
+@router.get("/people", response_model=list[PersonSummary])
+def list_people() -> list[PersonSummary]:
+    """
+    This endpoint lists every person/project/place the agent has learned about, with
+    a fact count and whether it has a curated profile card.
+    """
+    store = get_store()
+    people: list[PersonSummary] = []
+    for entity in store.list_entities(min_facts=1):
+        card: str = store.read_entity_card(slug=entity["slug"])
+        people.append(PersonSummary(
+            slug=entity["slug"],
+            name=entity.get("name", "") or entity["slug"],
+            type=entity.get("type", "") or "",
+            relation=entity.get("relation", "") or "",
+            facts=int(entity.get("facts", 0)),
+            card_chars=len(card),
+        ))
+    return people
+
+
+@router.get("/people/{slug}", response_model=PersonCard)
+def get_person(slug: str) -> PersonCard:
+    """
+    This endpoint returns a person's profile card and the individual facts behind it.
+    """
+    store = get_store()
+    facts: list[dict[str, Any]] = store.list_conclusions(peer="user", limit=1000, entity=slug)
+    if not facts and not store.read_entity_card(slug=slug):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown person.")
+    meta: dict[str, Any] = facts[0] if facts else {}
+    return PersonCard(
+        slug=slug,
+        name=meta.get("entity_name", "") or slug,
+        type=meta.get("entity_type", "") or "",
+        relation=meta.get("relation", "") or "",
+        card=store.read_entity_card(slug=slug),
+        facts=[Conclusion(**record) for record in facts],
+    )
+
+
+@router.delete("/people/{slug}", response_model=MessageResponse)
+def delete_person(slug: str) -> MessageResponse:
+    """
+    This endpoint forgets a person entirely: every stored fact and the profile card.
+    """
+    store = get_store()
+    removed: int = store.delete_entity(slug=slug)
+    return MessageResponse(message=f"Forgot '{slug}' ({removed} fact(s) removed).")
+
+
+# ----------------------------------------------------------------------- events
+
+
+@router.get("/events", response_model=list[Event])
+def list_events() -> list[Event]:
+    """
+    This endpoint lists every event the agent has learned about, soonest first.
+    """
+    event_store = get_event_store()
+    return [Event(**event) for event in event_store.list_all()]
+
+
+@router.post("/events", response_model=Event, status_code=status.HTTP_201_CREATED)
+def add_event(body: EventCreate) -> Event:
+    """
+    This endpoint adds an operator-authored event.
+    """
+    event_store = get_event_store()
+    created: bool = event_store.add_event(
+        title=body.title,
+        date_iso=body.date,
+        entities=body.entities,
+        location=body.location,
+        time_of_day=body.time_of_day,
+        recurring=body.recurring,
+        source="manual",
+    )
+    if not created:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not add event (invalid date or duplicate).",
+        )
+    for event in event_store.list_all():
+        if event["title"] == body.title.strip() and event["date"] == body.date.strip()[:10]:
+            return Event(**event)
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Event not found after add.")
+
+
+@router.delete("/events/{event_id}", response_model=MessageResponse)
+def delete_event(event_id: str) -> MessageResponse:
+    """
+    This endpoint deletes a single event by id.
+    """
+    event_store = get_event_store()
+    event_store.delete(event_id=event_id)
+    return MessageResponse(message="Event deleted.")
+
+
+@router.delete("/events", response_model=MessageResponse)
+def wipe_events() -> MessageResponse:
+    """
+    This endpoint deletes every stored event.
+    """
+    event_store = get_event_store()
+    removed: int = event_store.wipe()
+    return MessageResponse(message=f"Wiped {removed} event(s).")

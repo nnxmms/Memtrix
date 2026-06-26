@@ -219,10 +219,11 @@ Built-in tools are automatically discovered at startup:
 | `read_core_file` | Reads a core persona file (BEHAVIOR, SOUL, USER) |
 | `write_core_file` | Updates a writable persona file (BEHAVIOR, SOUL only; enforces read-before-write) |
 | `search_memory` | Recall past conversations by meaning (`query`) and/or by date (`date`, or `start_date`+`end_date`) |
-| `memory_profile` | Returns the compact profile cards for the user and the agent (no LLM) |
+| `memory_profile` | Returns the compact user profile card, or what's known about a named person/project/place (no LLM) |
 | `memory_search` | Semantic search over reasoned conclusions about the user and agent |
 | `memory_context` | Synthesizes a natural-language answer from reasoned memory |
 | `memory_conclude` | Stores a single high-signal durable fact immediately |
+| `memory_event` | Logs, lists, or cancels a dated event for proactive recall |
 | `search_docs` | Searches the Memtrix documentation and returns matching sections with citations (no LLM) |
 | `ask_docs` | Synthesizes a grounded answer about how Memtrix works from its own documentation |
 | `web_search` | Searches the web via local SearXNG instance |
@@ -302,6 +303,8 @@ Memtrix combines a searchable conversation history with a reasoning layer:
 
 **Profile Card** (`USER.md` about you) — A compact, always-current card that the deriver curates automatically and keeps within a character budget. It is injected into every system prompt and is no longer hand-edited by the agent.
 
+**People & Events** — The same background reasoning also learns about the **people, projects, and places you talk about** — not just you. When you mention someone (your sister Jenna, a coworker, a client, a side project), the deriver quietly records durable facts about them and, once an entity crosses a promotion threshold, curates a compact per-entity profile card under `people/<slug>.md`. When a turn concerns someone Memtrix knows, that profile is injected into context automatically, so it recalls who they are without a tool call. Memtrix also captures **time-anchored events** you mention (a birthday, a trip, a deadline) in a dedicated `events` store, resolving relative dates ("Saturday", "next week") to real calendar dates. Events coming up within a lookahead window are proactively surfaced each turn (`📅 Upcoming`), and a one-time follow-up (`🔔 Just passed`) fires after an event elapses. Recurring events (birthdays, anniversaries) roll forward to the next year automatically; stale one-off mentions decay on their own. You can browse and manage both people and events from the web panel, and the agent can log or check an event explicitly with the `memory_event` tool. Set `entity_memory` to `false` to disable people/event learning entirely.
+
 **Conversation Memory** — Every conversation is automatically saved as a raw session transcript and embedded into the vector store in the background. The agent writes no journals itself; instead it recalls its history with the `search_memory` tool, which works two ways and can combine them: **by meaning** (a `query` like a tool, project, decision, or name discussed weeks ago) and **by date** (`date` for one day, or `start_date`+`end_date` for a period). Because a date can't be matched semantically, date/range questions ("what did we talk about on the 15th?", "anything from last week?") filter on each chunk's day metadata instead of embedding distance — and the agent is told today's date so it can resolve "yesterday" or "last Wednesday" to an ISO date on its own. Inter-agent and internal sessions are skipped, and each sub-agent indexes only its own conversations.
 
 > [!NOTE]
@@ -316,10 +319,11 @@ Memtrix combines a searchable conversation history with a reasoning layer:
 
 When `recall_mode` is `tools` or `hybrid`, Memtrix can query its reasoning memory directly:
 
-- `memory_profile` — read the compact profile cards (fast, no LLM).
+- `memory_profile` — read the compact profile cards (fast, no LLM). Pass a `name` to read what Memtrix knows about a specific person, project, or place.
 - `memory_search` — semantically search reasoned conclusions for ranked excerpts.
 - `memory_context` — ask a natural-language question and get a synthesized answer grounded in memory.
 - `memory_conclude` — permanently lock a single high-signal durable fact (high confidence, never pruned or rewritten by consolidation).
+- `memory_event` — explicitly log, list, or cancel a dated event for proactive recall (most events are captured automatically).
 
 The reasoning memory is configured via the optional `memory` section in `config.json`:
 
@@ -333,6 +337,12 @@ The reasoning memory is configured via the optional `memory` section in `config.
 | `batch_tokens` | `1000` | Approx. tokens accumulated before a background reasoning pass |
 | `peer_card_max_chars` | `1500` | Hard character budget for the profile card, enforced with boundary-safe trimming (no mid-bullet cutoffs) |
 | `inject_top_k` | `5` | How many conclusions to inject into the prompt per turn |
+| `entity_memory` | `true` | Learn about the people/projects/places you mention and track their events |
+| `entity_card_max_chars` | `800` | Hard character budget for each per-entity profile card |
+| `entity_promote_threshold` | `2` | Facts an entity needs before it earns a curated profile card |
+| `event_lookahead_days` | `7` | How far ahead upcoming events are proactively surfaced |
+| `event_followup_days` | `2` | Window for the one-time post-event follow-up nudge |
+| `event_retention_days` | `30` | Prune non-recurring past events older than this |
 
 The section is optional — omit it and Memtrix runs on these defaults.
 
@@ -476,7 +486,7 @@ open http://127.0.0.1:8800      # the control panel (localhost only by default)
 | **Connection tests** | Live-test provider and channel credentials before saving. `$PLACEHOLDER` secrets are resolved automatically for the test. |
 | **Apply & Restart** | Validate and restart the agent with one click. The restart is requested via a sentinel file watched by a supervisor entrypoint (no Docker socket), and progress streams to the UI over Server-Sent Events. |
 | **Secrets** | View (decrypted, masked with reveal) and change secrets for both the local `.env` backend and Bitwarden Secrets Manager. |
-| **Memory admin** | Browse per-peer conclusions with semantic search, edit/delete records, add manual ones, wipe a peer, edit & freeze peer cards, pause/resume background reasoning, and export/import the whole store as JSON. |
+| **Memory admin** | Browse per-peer conclusions with semantic search, edit/delete records, add manual ones, wipe a peer, edit & freeze peer cards, browse learned **people** (profile cards + facts) and **events** (add/delete/wipe), pause/resume background reasoning, and export/import the whole store as JSON. |
 
 ### Architecture
 

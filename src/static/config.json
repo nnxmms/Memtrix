@@ -20,7 +20,13 @@
         "reasoning_model": null,
         "batch_tokens": 1000,
         "peer_card_max_chars": 1500,
-        "inject_top_k": 5
+        "inject_top_k": 5,
+        "entity_memory": true,
+        "entity_card_max_chars": 800,
+        "entity_promote_threshold": 2,
+        "event_lookahead_days": 7,
+        "event_followup_days": 2,
+        "event_retention_days": 30
     },
     "prompt_guard": {
         "enabled": true,

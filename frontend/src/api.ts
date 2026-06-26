@@ -56,6 +56,38 @@ export interface DeriverState {
   paused: boolean;
 }
 
+export interface PersonSummary {
+  slug: string;
+  name: string;
+  type: string;
+  relation: string;
+  facts: number;
+  card_chars: number;
+}
+
+export interface PersonCard {
+  slug: string;
+  name: string;
+  type: string;
+  relation: string;
+  card: string;
+  facts: Conclusion[];
+}
+
+export interface MemoryEvent {
+  id: string;
+  title: string;
+  date: string;
+  time_of_day: string;
+  entities: string[];
+  entity_names: string[];
+  location: string;
+  status: string;
+  recurring: boolean;
+  reviewed: boolean;
+  source: string;
+}
+
 export interface StatusResponse {
   version: string;
   agent_alive: boolean;
@@ -196,6 +228,25 @@ export const api = {
   getDeriver: () => request<DeriverState>("GET", "/api/memory/deriver"),
   setDeriver: (paused: boolean) =>
     request<DeriverState>("PUT", "/api/memory/deriver", { paused }),
+
+  // people (entities) & events
+  listPeople: () => request<PersonSummary[]>("GET", "/api/memory/people"),
+  getPerson: (slug: string) =>
+    request<PersonCard>("GET", `/api/memory/people/${encodeURIComponent(slug)}`),
+  deletePerson: (slug: string) =>
+    request<{ message: string }>("DELETE", `/api/memory/people/${encodeURIComponent(slug)}`),
+  listEvents: () => request<MemoryEvent[]>("GET", "/api/memory/events"),
+  addEvent: (body: {
+    title: string;
+    date: string;
+    time_of_day?: string;
+    location?: string;
+    entities?: string[];
+    recurring?: boolean;
+  }) => request<MemoryEvent>("POST", "/api/memory/events", body),
+  deleteEvent: (id: string) =>
+    request<{ message: string }>("DELETE", `/api/memory/events/${id}`),
+  wipeEvents: () => request<{ message: string }>("DELETE", "/api/memory/events"),
 };
 
 // Subscribe to restart progress via Server-Sent Events.

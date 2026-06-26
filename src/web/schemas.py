@@ -153,6 +153,55 @@ class DeriverState(BaseModel):
     paused: bool
 
 
+class PersonSummary(BaseModel):
+    """An entity (person/project/place) the agent has learned about."""
+
+    slug: str
+    name: str
+    type: str = ""
+    relation: str = ""
+    facts: int = 0
+    card_chars: int = 0
+
+
+class PersonCard(BaseModel):
+    """An entity's profile card and its stored facts."""
+
+    slug: str
+    name: str
+    type: str = ""
+    relation: str = ""
+    card: str = ""
+    facts: list[Conclusion] = Field(default_factory=list)
+
+
+class Event(BaseModel):
+    """A time-anchored event the agent has learned about."""
+
+    id: str
+    title: str
+    date: str
+    time_of_day: str = ""
+    entities: list[str] = Field(default_factory=list)
+    entity_names: list[str] = Field(default_factory=list)
+    location: str = ""
+    status: str = "upcoming"
+    recurring: bool = False
+    reviewed: bool = False
+    source: str = "derived"
+
+
+class EventCreate(BaseModel):
+    """An operator-authored event."""
+
+    title: str
+    date: str
+    time_of_day: str = ""
+    location: str = ""
+    entities: list[str] = Field(default_factory=list)
+    recurring: bool = False
+
+
 # ------------------------------------------------------------------ lifecycle
 
 

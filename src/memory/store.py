@@ -35,6 +35,21 @@ CONFIDENCE_WEIGHT: dict[str, float] = {"low": 0.5, "medium": 1.0, "high": 1.5}
 # Peer card files (finite, always-injected summaries)
 PEER_CARD_FILES: dict[str, str] = {"user": "USER.md"}
 
+# Workspace subdirectory holding per-entity profile cards (people, projects, places
+# the user talks about). Each card is a compact, deriver-curated Markdown file like
+# USER.md but scoped to one entity and injected only when that entity is relevant.
+ENTITY_CARD_DIR: str = "people"
+
+
+def slugify(name: str) -> str:
+    """
+    This function converts an entity name into a stable, filesystem-safe slug used as
+    the entity's identity key and card filename (e.g. "Jenna Smith" -> "jenna-smith").
+    """
+    text: str = (name or "").strip().lower()
+    text = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+    return text[:64]
+
 # Two normalized embeddings are considered duplicates below this L2 distance
 # (l2^2 = 2(1 - cosine); 0.35 ≈ cosine similarity > 0.93)
 DEDUP_L2_THRESHOLD: float = 0.35
@@ -72,6 +87,12 @@ def resolve_memory_config(config: dict[str, Any]) -> dict[str, Any]:
         "consolidation": True,                # daily memory-distillation pass
         "consolidation_interval_hours": 24,   # how often distillation runs
         "consolidation_min_items": 12,        # skip distillation below this many derived items
+        "entity_memory": True,                # learn about people/projects/places the user mentions
+        "entity_card_max_chars": 800,         # budget for each per-entity profile card
+        "entity_promote_threshold": 2,        # facts needed before an entity gets a curated card
+        "event_lookahead_days": 7,            # how far ahead upcoming events are surfaced
+        "event_followup_days": 2,             # window for a one-time post-event follow-up
+        "event_retention_days": 30,           # prune non-recurring past events older than this
     }
     user_cfg: dict[str, Any] = config.get("memory", {}) or {}
     merged: dict[str, Any] = {**defaults, **user_cfg}
@@ -194,6 +215,10 @@ class RepresentationStore:
                         "times_seen": 1,
                         "source": "derived",
                         "confidence": _normalize_confidence(record.get("confidence")),
+                        "entity": "",
+                        "entity_name": "",
+                        "entity_type": "",
+                        "relation": "",
                     }],
                 )
                 added += 1
@@ -202,17 +227,70 @@ class RepresentationStore:
             logger.info("Stored %d new conclusion(s) for peer '%s'", added, peer)
         return added
 
-    def _bump_if_duplicate(self, peer: str, content: str) -> bool:
+    def add_entity_facts(self, name: str, entity_type: str, relation: str,
+                         records: list[dict[str, Any]]) -> int:
+        """
+        This function stores durable facts about a third-party entity the user talks
+        about (a person, project, place, or organization), tagged with the entity's
+        slug so they can be grouped into a per-entity profile card and surfaced when
+        that entity is relevant. Facts live in the same collection as user
+        conclusions (peer="user") but carry an "entity" slug; an empty entity slug
+        denotes a fact about the user themselves. Near-duplicates within the same
+        entity bump their seen counter instead of being re-added. Returns the number
+        of new facts stored.
+        """
+        slug: str = slugify(name)
+        if not slug:
+            return 0
+
+        added: int = 0
+        with self._write_lock:
+            for record in records:
+                content: str = (record.get("content") or "").strip()
+                kind: str = record.get("kind", "observation")
+                if not content or kind not in KINDS:
+                    continue
+
+                if self._bump_if_duplicate(peer="user", content=content, entity=slug):
+                    continue
+
+                self._collection.add(
+                    ids=[str(uuid.uuid4())],
+                    documents=[content],
+                    metadatas=[{
+                        "peer": "user",
+                        "kind": kind,
+                        "premises": json.dumps(record.get("premises", [])),
+                        "ts": time.time(),
+                        "times_seen": 1,
+                        "source": "derived",
+                        "confidence": _normalize_confidence(record.get("confidence")),
+                        "entity": slug,
+                        "entity_name": (name or "").strip(),
+                        "entity_type": (entity_type or "").strip().lower(),
+                        "relation": (relation or "").strip().lower(),
+                    }],
+                )
+                added += 1
+
+        if added:
+            logger.info("Stored %d new fact(s) for entity '%s'", added, slug)
+        return added
+
+    def _bump_if_duplicate(self, peer: str, content: str, entity: str = "") -> bool:
         """
         This function checks whether a near-identical conclusion already exists for the
-        peer and, if so, increments its seen counter. Returns True when a duplicate was found.
+        peer and the same entity scope and, if so, increments its seen counter. Returns
+        True when a duplicate was found. The entity scope ("" for facts about the user
+        themselves, otherwise an entity slug) keeps facts about different people from
+        colliding when their wording is similar.
         """
         if self._collection.count() == 0:
             return False
 
         results: dict[str, Any] = self._collection.query(
             query_texts=[content],
-            n_results=1,
+            n_results=3,
             where={"peer": peer},
         )
         ids: list[list[str]] = results.get("ids", [[]])
@@ -220,9 +298,12 @@ class RepresentationStore:
         if not ids or not ids[0]:
             return False
 
-        if distances[0][0] <= DEDUP_L2_THRESHOLD:
-            existing_id: str = ids[0][0]
-            metadata: dict[str, Any] = results["metadatas"][0][0]
+        for idx, existing_id in enumerate(ids[0]):
+            if distances[0][idx] > DEDUP_L2_THRESHOLD:
+                break
+            metadata: dict[str, Any] = results["metadatas"][0][idx]
+            if (metadata.get("entity", "") or "") != entity:
+                continue
             metadata["times_seen"] = int(metadata.get("times_seen", 1)) + 1
             metadata["ts"] = time.time()
             # Independent re-derivation of the same conclusion is corroborating
@@ -278,14 +359,19 @@ class RepresentationStore:
                 "distance": results["distances"][0][i],
                 "source": meta.get("source", "derived"),
                 "confidence": _normalize_confidence(meta.get("confidence")),
+                "entity": meta.get("entity", "") or "",
+                "entity_name": meta.get("entity_name", "") or "",
             })
         return matches
 
-    def all_for_peer(self, peer: str, limit: int = 100) -> list[dict[str, Any]]:
+    def all_for_peer(self, peer: str, limit: int = 100, entity: str = "") -> list[dict[str, Any]]:
         """
         This function returns stored conclusions for a peer, strongest first. Records
         are ranked by a blend of confidence and reinforcement so the highest-signal
-        conclusions lead the card-curation input, with recency breaking ties.
+        conclusions lead the card-curation input, with recency breaking ties. The
+        entity scope ("" returns facts about the user themselves; an entity slug
+        returns facts about that entity) keeps the user's own card and per-entity
+        cards from cross-contaminating.
         """
         if peer not in PEERS or self._collection.count() == 0:
             return []
@@ -303,6 +389,7 @@ class RepresentationStore:
                 "confidence": _normalize_confidence(meta.get("confidence")),
             }
             for content, meta in zip(documents, metadatas)
+            if (meta.get("entity", "") or "") == entity
         ]
         records.sort(
             key=lambda r: (
@@ -312,6 +399,64 @@ class RepresentationStore:
             reverse=True,
         )
         return records[:limit]
+
+    def list_entities(self, min_facts: int = 1) -> list[dict[str, Any]]:
+        """
+        This function returns the known entities (people, projects, places the user
+        talks about) with a fact count, display name, type and relation, sorted by
+        fact count then recency. Used to decide which entities are salient enough to
+        get a curated profile card and to power the web admin.
+        """
+        if self._collection.count() == 0:
+            return []
+
+        results: dict[str, Any] = self._collection.get(where={"peer": "user"})
+        metadatas: list[dict[str, Any]] = results.get("metadatas", []) or []
+
+        by_slug: dict[str, dict[str, Any]] = {}
+        for meta in metadatas:
+            slug: str = meta.get("entity", "") or ""
+            if not slug:
+                continue
+            entry: dict[str, Any] = by_slug.setdefault(slug, {
+                "slug": slug,
+                "name": meta.get("entity_name", "") or slug,
+                "type": meta.get("entity_type", "") or "",
+                "relation": meta.get("relation", "") or "",
+                "facts": 0,
+                "ts": 0.0,
+            })
+            entry["facts"] += 1
+            ts: float = float(meta.get("ts", 0.0))
+            if ts > entry["ts"]:
+                entry["ts"] = ts
+            # Prefer a non-empty name/type/relation if a later record has one
+            if not entry["name"] and meta.get("entity_name"):
+                entry["name"] = meta.get("entity_name")
+            if not entry["type"] and meta.get("entity_type"):
+                entry["type"] = meta.get("entity_type")
+            if not entry["relation"] and meta.get("relation"):
+                entry["relation"] = meta.get("relation")
+
+        entities: list[dict[str, Any]] = [e for e in by_slug.values() if e["facts"] >= min_facts]
+        entities.sort(key=lambda e: (e["facts"], e["ts"]), reverse=True)
+        return entities
+
+    def has_medium_or_higher_fact(self, slug: str) -> bool:
+        """
+        This function reports whether an entity has at least one medium- or
+        high-confidence fact, used as an early-promotion signal for card curation.
+        """
+        if not slug or self._collection.count() == 0:
+            return False
+        results: dict[str, Any] = self._collection.get(where={"peer": "user"})
+        metadatas: list[dict[str, Any]] = results.get("metadatas", []) or []
+        for meta in metadatas:
+            if (meta.get("entity", "") or "") != slug:
+                continue
+            if _normalize_confidence(meta.get("confidence")) in ("medium", "high"):
+                return True
+        return False
 
     def read_peer_card(self, peer: str) -> str:
         """
@@ -397,14 +542,83 @@ class RepresentationStore:
         # Final fallback: hard cut at budget.
         return (candidate + marker, "hard-cut")
 
+    # ------------------------------------------------------------- entity cards
+
+    def _entity_card_path(self, slug: str) -> str:
+        """
+        This function returns the on-disk path of an entity's profile card.
+        """
+        return os.path.join(self._workspace_dir, ENTITY_CARD_DIR, f"{slug}.md")
+
+    def read_entity_card(self, slug: str) -> str:
+        """
+        This function reads the curated profile card for an entity, or "" when none
+        exists yet.
+        """
+        if not slug:
+            return ""
+        path: str = self._entity_card_path(slug=slug)
+        if not os.path.isfile(path):
+            return ""
+        with open(file=path, mode="r") as f:
+            return f.read().strip()
+
+    def write_entity_card(self, slug: str, text: str, max_chars: int = 800) -> None:
+        """
+        This function writes an entity's profile card under the people/ directory,
+        enforcing a hard character budget at clean boundaries. Guarded by a
+        cross-process file lock so the deriver and web panel never clobber each other.
+        """
+        if not slug:
+            return
+        trimmed, strategy = self._truncate_peer_card(text=text.strip(), max_chars=max_chars)
+        if strategy != "none":
+            logger.info("Entity card '%s' truncated via %s (limit=%d)", slug, strategy, max_chars)
+        path: str = self._entity_card_path(slug=slug)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with self._write_lock, FileLock(path + ".lock", timeout=15):
+            with open(file=path, mode="w") as f:
+                f.write(trimmed + "\n")
+
+    def delete_entity(self, slug: str) -> int:
+        """
+        This function removes every stored fact about an entity and deletes its
+        profile card. Returns the number of facts removed.
+        """
+        if not slug or self._collection.count() == 0:
+            return 0
+        with self._write_lock:
+            results: dict[str, Any] = self._collection.get(where={"peer": "user"})
+            ids: list[str] = results.get("ids", []) or []
+            metadatas: list[dict[str, Any]] = results.get("metadatas", []) or []
+            target_ids: list[str] = [
+                record_id
+                for record_id, meta in zip(ids, metadatas)
+                if (meta.get("entity", "") or "") == slug
+            ]
+            if target_ids:
+                self._collection.delete(ids=target_ids)
+            path: str = self._entity_card_path(slug=slug)
+            try:
+                if os.path.isfile(path):
+                    os.remove(path)
+            except OSError as e:
+                logger.warning("Could not delete entity card '%s': %s", slug, e)
+        logger.info("Deleted entity '%s' (%d fact(s))", slug, len(target_ids))
+        return len(target_ids)
+
     # ----------------------------------------------------------------- admin API
 
     def list_conclusions(self, peer: str | None = None, kinds: list[str] | None = None,
-                         limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+                         limit: int = 100, offset: int = 0,
+                         entity: str | None = None) -> list[dict[str, Any]]:
         """
         This function returns stored conclusions (including their ids and full
         metadata) for administration, optionally filtered by peer and kinds, sorted
-        most-recent first. Used by the web control panel.
+        most-recent first. The entity filter ("" returns facts about the user
+        themselves, a slug returns facts about that entity, None applies no entity
+        filter) is applied in Python so legacy records lacking the key are handled.
+        Used by the web control panel.
         """
         where: dict[str, Any] | None = self._build_where(peer=peer, kinds=kinds)
         results: dict[str, Any] = self._collection.get(where=where)
@@ -414,6 +628,8 @@ class RepresentationStore:
 
         records: list[dict[str, Any]] = []
         for record_id, content, meta in zip(ids, documents, metadatas):
+            if entity is not None and (meta.get("entity", "") or "") != entity:
+                continue
             records.append(self._to_record(record_id=record_id, content=content, meta=meta))
         records.sort(key=lambda r: r["ts"], reverse=True)
         return records[offset:offset + limit]
@@ -582,12 +798,14 @@ class RepresentationStore:
             existing: dict[str, Any] = self._collection.get(where={"peer": peer})
             ids: list[str] = existing.get("ids", []) or []
             metadatas: list[dict[str, Any]] = existing.get("metadatas", []) or []
-            # Only derived conclusions are replaced; manual ones are kept as-is. Older
-            # records migrated from before the source field default to "derived".
+            # Only the user's own derived conclusions are replaced; manual ones and
+            # entity facts (which have their own per-entity curation) are kept as-is.
+            # Older records migrated from before the source field default to "derived".
             derived_ids: list[str] = [
                 record_id
                 for record_id, meta in zip(ids, metadatas)
                 if (meta or {}).get("source", "derived") != "manual"
+                and not ((meta or {}).get("entity", "") or "")
             ]
 
             added: int = 0
@@ -613,6 +831,10 @@ class RepresentationStore:
                     "times_seen": 1,
                     "source": "derived",
                     "confidence": _normalize_confidence(record.get("confidence")),
+                    "entity": "",
+                    "entity_name": "",
+                    "entity_type": "",
+                    "relation": "",
                 })
                 added += 1
 
@@ -699,4 +921,8 @@ class RepresentationStore:
             "ts": float(meta.get("ts", 0.0)),
             "source": meta.get("source", "derived"),
             "confidence": _normalize_confidence(meta.get("confidence")),
+            "entity": meta.get("entity", "") or "",
+            "entity_name": meta.get("entity_name", "") or "",
+            "entity_type": meta.get("entity_type", "") or "",
+            "relation": meta.get("relation", "") or "",
         }

@@ -295,7 +295,7 @@
       <a href="#top" class="brand">
         <img src="static/logo.png" alt="memtrix" width="26" height="26">
         memtrix<span class="cursor">_</span>
-        <span class="tag">v2.39.0</span>
+        <span class="tag">v2.40.0</span>
       </a>
       <button class="nav-toggle" aria-label="menu" onclick="document.getElementById('navLinks').classList.toggle('open')">
         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h14M3 11h14M3 16h14"/></svg>
@@ -380,12 +380,12 @@
         <div class="feat">
           <div class="idx">03</div>
           <h3>reasoning memory</h3>
-          <p>A background deriver distills conversations into confidence-scored conclusions and auto-curated peer cards. Only genuinely relevant memories are recalled, contradictions resolve to the stronger fact, and weak ones decay over time.</p>
+          <p>A background deriver distills conversations into confidence-scored conclusions and auto-curated profile cards. It also learns about the people, projects, and places you mention and tracks dated events, surfacing upcoming ones proactively. Only relevant memories are recalled, contradictions resolve to the stronger fact, and weak ones decay over time.</p>
         </div>
         <div class="feat">
           <div class="idx">04</div>
           <h3>agentic tools</h3>
-          <p>40 built-in tools on an iterative reasoning loop. Web search, files, git, downloads, email, SSH remote admin with file transfer, self-authored skills, background workers. Drop a Python file in to add your own.</p>
+          <p>41 built-in tools on an iterative reasoning loop. Web search, files, git, downloads, email, SSH remote admin with file transfer, self-authored skills, background workers. Drop a Python file in to add your own.</p>
         </div>
         <div class="feat">
           <div class="idx">05</div>
@@ -509,7 +509,7 @@
     <div class="wrap">
       <div class="sec-head reveal">
         <span class="kicker">built-in tools</span>
-        <h2>40 tools. Auto-discovered. Extensible.</h2>
+        <h2>41 tools. Auto-discovered. Extensible.</h2>
         <p>Every tool is a drop-in Python file. Add one and the agent picks it up on the next restart.</p>
         <div class="tools-meta">
           <span><b>40</b> built-in</span>
@@ -520,8 +520,8 @@
     </div>
     <div class="marquee reveal" aria-hidden="true">
       <div class="track">
-        <span class="chip">web_search</span><span class="chip">fetch_url</span><span class="chip">read_file</span><span class="chip">str_replace_editor</span><span class="chip">delete_file</span><span class="chip">create_directory</span><span class="chip">list_directory</span><span class="chip">delete_directory</span><span class="chip">git</span><span class="chip">download_file</span><span class="chip">send_file</span><span class="chip">read_core_file</span><span class="chip">write_core_file</span><span class="chip">search_memory</span><span class="chip">memory_profile</span><span class="chip">memory_search</span><span class="chip">memory_context</span><span class="chip">memory_conclude</span><span class="chip">search_docs</span><span class="chip">ask_docs</span><span class="chip">create_agent</span><span class="chip">delete_agent</span><span class="chip">list_agents</span><span class="chip">ask_agent</span><span class="chip">spawn_worker</span><span class="chip">ssh_gen_key</span><span class="chip">ssh_get_pub_key</span><span class="chip">ssh_add_host</span><span class="chip">ssh_remove_host</span><span class="chip">ssh_get_remote_hosts</span><span class="chip">ssh_connect</span><span class="chip">ssh_run</span><span class="chip">ssh_scp</span><span class="chip">ssh_disconnect</span><span class="chip">email_check</span><span class="chip">email_mark_unread</span><span class="chip">email_send</span><span class="chip">skill_manage</span><span class="chip">react_to_message</span><span class="chip">get_current_time</span>
-        <span class="chip">web_search</span><span class="chip">fetch_url</span><span class="chip">read_file</span><span class="chip">str_replace_editor</span><span class="chip">delete_file</span><span class="chip">create_directory</span><span class="chip">list_directory</span><span class="chip">delete_directory</span><span class="chip">git</span><span class="chip">download_file</span><span class="chip">send_file</span><span class="chip">read_core_file</span><span class="chip">write_core_file</span><span class="chip">search_memory</span><span class="chip">memory_profile</span><span class="chip">memory_search</span><span class="chip">memory_context</span><span class="chip">memory_conclude</span><span class="chip">search_docs</span><span class="chip">ask_docs</span><span class="chip">create_agent</span><span class="chip">delete_agent</span><span class="chip">list_agents</span><span class="chip">ask_agent</span><span class="chip">spawn_worker</span><span class="chip">ssh_gen_key</span><span class="chip">ssh_get_pub_key</span><span class="chip">ssh_add_host</span><span class="chip">ssh_remove_host</span><span class="chip">ssh_get_remote_hosts</span><span class="chip">ssh_connect</span><span class="chip">ssh_run</span><span class="chip">ssh_scp</span><span class="chip">ssh_disconnect</span><span class="chip">email_check</span><span class="chip">email_mark_unread</span><span class="chip">email_send</span><span class="chip">skill_manage</span><span class="chip">react_to_message</span><span class="chip">get_current_time</span>
+        <span class="chip">web_search</span><span class="chip">fetch_url</span><span class="chip">read_file</span><span class="chip">str_replace_editor</span><span class="chip">delete_file</span><span class="chip">create_directory</span><span class="chip">list_directory</span><span class="chip">delete_directory</span><span class="chip">git</span><span class="chip">download_file</span><span class="chip">send_file</span><span class="chip">read_core_file</span><span class="chip">write_core_file</span><span class="chip">search_memory</span><span class="chip">memory_profile</span><span class="chip">memory_search</span><span class="chip">memory_context</span><span class="chip">memory_conclude</span><span class="chip">memory_event</span><span class="chip">search_docs</span><span class="chip">ask_docs</span><span class="chip">create_agent</span><span class="chip">delete_agent</span><span class="chip">list_agents</span><span class="chip">ask_agent</span><span class="chip">spawn_worker</span><span class="chip">ssh_gen_key</span><span class="chip">ssh_get_pub_key</span><span class="chip">ssh_add_host</span><span class="chip">ssh_remove_host</span><span class="chip">ssh_get_remote_hosts</span><span class="chip">ssh_connect</span><span class="chip">ssh_run</span><span class="chip">ssh_scp</span><span class="chip">ssh_disconnect</span><span class="chip">email_check</span><span class="chip">email_mark_unread</span><span class="chip">email_send</span><span class="chip">skill_manage</span><span class="chip">react_to_message</span><span class="chip">get_current_time</span>
+        <span class="chip">web_search</span><span class="chip">fetch_url</span><span class="chip">read_file</span><span class="chip">str_replace_editor</span><span class="chip">delete_file</span><span class="chip">create_directory</span><span class="chip">list_directory</span><span class="chip">delete_directory</span><span class="chip">git</span><span class="chip">download_file</span><span class="chip">send_file</span><span class="chip">read_core_file</span><span class="chip">write_core_file</span><span class="chip">search_memory</span><span class="chip">memory_profile</span><span class="chip">memory_search</span><span class="chip">memory_context</span><span class="chip">memory_conclude</span><span class="chip">memory_event</span><span class="chip">search_docs</span><span class="chip">ask_docs</span><span class="chip">create_agent</span><span class="chip">delete_agent</span><span class="chip">list_agents</span><span class="chip">ask_agent</span><span class="chip">spawn_worker</span><span class="chip">ssh_gen_key</span><span class="chip">ssh_get_pub_key</span><span class="chip">ssh_add_host</span><span class="chip">ssh_remove_host</span><span class="chip">ssh_get_remote_hosts</span><span class="chip">ssh_connect</span><span class="chip">ssh_run</span><span class="chip">ssh_scp</span><span class="chip">ssh_disconnect</span><span class="chip">email_check</span><span class="chip">email_mark_unread</span><span class="chip">email_send</span><span class="chip">skill_manage</span><span class="chip">react_to_message</span><span class="chip">get_current_time</span>
       </div>
     </div>
   </section>

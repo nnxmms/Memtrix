@@ -11,6 +11,7 @@ from typing import Any, Callable
 from src.memory.deriver import Deriver
 from src.providers.base import BaseProvider
 from src.memory.store import RepresentationStore
+from src.memory.events import EventStore
 from src.core.session import Session
 from src.integrations.images import expand_image_messages, extract_attachment_images
 from src.integrations.prompt_guard import PromptGuard
@@ -41,6 +42,20 @@ RECALL_MAX_DISTANCE: float = 1.0
 
 # Prefix marking a transient skill-catalog block injected into the working history
 SKILL_PREFIX: str = "🧠 Your skills (reusable workflows you can load on demand)"
+
+# Prefix marking the transient entity-profile block injected when the current turn
+# concerns a person, project, or place the agent has learned about.
+ENTITY_PREFIX: str = "👤 What I know about people/things in this conversation"
+
+# Most entity profile cards injected in a single turn, so a message touching many
+# known names cannot flood the context with cards.
+ENTITY_INJECT_MAX: int = 2
+
+# Prefix marking the transient upcoming-events block injected proactively each turn.
+EVENTS_PREFIX: str = "📅 Upcoming"
+
+# Prefix marking the one-time post-event follow-up nudge.
+EVENTS_FOLLOWUP_PREFIX: str = "🔔 Just passed"
 
 # Prefix marking a transient tool-round budget warning injected into the history
 BUDGET_PREFIX: str = "⏳ Tool-round budget"
@@ -79,6 +94,7 @@ class Orchestrator:
     def __init__(self, provider: BaseProvider, model: str, tools: list[BaseTool], workspace_dir: str,
                  think: bool = False, vision: bool = False, deriver: Deriver | None = None,
                  representation: RepresentationStore | None = None,
+                 event_store: "EventStore | None" = None,
                  memory_config: dict[str, Any] | None = None,
                  skills_catalog: Any | None = None,
                  prompt_guard: PromptGuard | None = None,
@@ -114,10 +130,16 @@ class Orchestrator:
         # Reasoning-memory layer (optional)
         self._deriver: Deriver | None = deriver
         self._representation: RepresentationStore | None = representation
+        self._event_store: "EventStore | None" = event_store
         self._memory_config: dict[str, Any] = memory_config or {}
         self._recall_mode: str = self._memory_config.get("recall_mode", "hybrid")
         self._inject_top_k: int = int(self._memory_config.get("inject_top_k", 5))
         self._write_frequency: str = self._memory_config.get("write_frequency", "async")
+
+        # Entity (people/projects/places) and event proactive-recall settings
+        self._entity_memory: bool = bool(self._memory_config.get("entity_memory", True))
+        self._event_lookahead_days: int = int(self._memory_config.get("event_lookahead_days", 7))
+        self._event_followup_days: int = int(self._memory_config.get("event_followup_days", 2))
 
         # Skills layer (optional) — exposes the agent's reusable workflows
         self._skills_catalog: Any | None = skills_catalog
@@ -234,6 +256,112 @@ class Orchestrator:
             "list to the user.)"
         )
         return "\n".join(lines)
+
+    def _build_entity_block(self, user_message: str) -> str:
+        """
+        This function injects the profile card of any person, project, or place the
+        agent has learned about whose name appears in the current message, so the
+        agent recalls who is being discussed without a tool call. At most
+        ENTITY_INJECT_MAX cards are injected per turn, strongest (most-known) first.
+        """
+        if self._representation is None or not self._entity_memory:
+            return ""
+        if self._recall_mode not in ("hybrid", "context") or not user_message.strip():
+            return ""
+
+        try:
+            entities: list[dict[str, Any]] = self._representation.list_entities(min_facts=1)
+        except Exception as e:
+            logger.error("Entity listing failed: %s", e)
+            return ""
+        if not entities:
+            return ""
+
+        message_lc: str = user_message.lower()
+        cards: list[str] = []
+        for entity in entities:
+            name: str = entity.get("name", "") or ""
+            if not name:
+                continue
+            if not re.search(pattern=rf"\b{re.escape(name.lower())}\b", string=message_lc):
+                continue
+            card: str = self._representation.read_entity_card(slug=entity["slug"])
+            if not card:
+                continue
+            relation: str = entity.get("relation", "") or ""
+            header: str = name if not relation else f"{name} ({relation})"
+            cards.append(f"### {header}\n{card}")
+            if len(cards) >= ENTITY_INJECT_MAX:
+                break
+
+        if not cards:
+            return ""
+
+        body: str = "\n\n".join(cards)
+        return (
+            f"{ENTITY_PREFIX}:\n{body}\n"
+            "(Background knowledge about people/things mentioned — use it naturally; never "
+            "recite it or mention that you keep notes on them.)"
+        )
+
+    def _build_events_block(self) -> str:
+        """
+        This function proactively surfaces events the agent has learned about: those
+        coming up within the lookahead window, plus a one-time follow-up for any event
+        that just passed. The follow-up is marked reviewed so it is delivered once.
+        """
+        if self._event_store is None:
+            return ""
+
+        try:
+            upcoming: list[dict[str, Any]] = self._event_store.upcoming(within_days=self._event_lookahead_days)
+            passed: list[dict[str, Any]] = self._event_store.recently_passed(
+                within_days=self._event_followup_days, unreviewed_only=True
+            )
+        except Exception as e:
+            logger.error("Event recall failed: %s", e)
+            return ""
+
+        if not upcoming and not passed:
+            return ""
+
+        sections: list[str] = []
+        if upcoming:
+            lines: list[str] = [f"{EVENTS_PREFIX} (next {self._event_lookahead_days} days):"]
+            for event in upcoming:
+                lines.append(f"- {self._format_event(event=event)}")
+            sections.append("\n".join(lines))
+        if passed:
+            lines = [f"{EVENTS_FOLLOWUP_PREFIX}:"]
+            for event in passed:
+                lines.append(f"- {self._format_event(event=event)}")
+                self._event_store.mark_reviewed(event_id=event["id"])
+            sections.append("\n".join(lines))
+
+        sections.append(
+            "(Awareness of the user's calendar — bring these up naturally when relevant "
+            "(e.g. a friendly reminder or a follow-up question); never recite this list "
+            "verbatim or explain that you track events.)"
+        )
+        return "\n\n".join(sections)
+
+    @staticmethod
+    def _format_event(event: dict[str, Any]) -> str:
+        """
+        This function renders a single event as a compact one-liner for injection.
+        """
+        parts: list[str] = [str(event.get("title", "")).strip()]
+        date_str: str = str(event.get("date", "")).strip()
+        when: str = date_str
+        time_of_day: str = str(event.get("time_of_day", "")).strip()
+        if time_of_day:
+            when = f"{when} {time_of_day}".strip()
+        if when:
+            parts.append(f"— {when}")
+        location: str = str(event.get("location", "")).strip()
+        if location:
+            parts.append(f"@ {location}")
+        return " ".join(p for p in parts if p)
 
     def _build_skill_catalog(self, user_message: str) -> str:
         """
@@ -445,11 +573,17 @@ class Orchestrator:
         # Build a transient recall block of relevant conclusions for this turn
         recall_block: str = self._build_recall_block(user_message=user_message)
 
+        # Build transient blocks for relevant entity profiles and the user's calendar
+        entity_block: str = self._build_entity_block(user_message=user_message)
+        events_block: str = self._build_events_block()
+
         # Build a transient block listing the agent's skills for this turn
         skill_block: str = self._build_skill_catalog(user_message=user_message)
 
         # Combine the transient blocks into a single system message for this request
-        transient_block: str = "\n\n".join(b for b in (recall_block, skill_block) if b)
+        transient_block: str = "\n\n".join(
+            b for b in (recall_block, entity_block, events_block, skill_block) if b
+        )
 
         # Agentic loop — call LLM, execute tools, repeat
         for iteration in range(self._max_iterations):

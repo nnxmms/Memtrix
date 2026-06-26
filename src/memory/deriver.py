@@ -6,12 +6,14 @@ import os
 import re
 import threading
 import time
+from datetime import date
 from typing import Any
 
 from src.core.config import CONFIG_PATH
 from src.core.lifecycle import PAUSE_SENTINEL
 from src.providers.base import BaseProvider
-from src.memory.store import KINDS, REASONING_LEVEL_ITEMS, RepresentationStore
+from src.memory.events import EventStore
+from src.memory.store import KINDS, REASONING_LEVEL_ITEMS, RepresentationStore, slugify
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -51,19 +53,28 @@ def _estimate_tokens(text: str) -> int:
 class Deriver:
 
     def __init__(self, provider: BaseProvider, model: str, store: RepresentationStore,
-                 config: dict[str, Any]) -> None:
+                 config: dict[str, Any], event_store: EventStore | None = None) -> None:
         """
         This is the Deriver which reasons over batched conversation messages in the
-        background to build per-peer representations and curate the finite peer cards.
+        background to build the user representation, learn about the people, projects
+        and places the user mentions, capture time-anchored events, and curate the
+        finite profile cards.
         """
         self._provider: BaseProvider = provider
         self._model: str = model
         self._store: RepresentationStore = store
+        self._event_store: EventStore | None = event_store
         self._config: dict[str, Any] = config
 
         self._batch_tokens: int = int(config.get("batch_tokens", 1000))
         self._reasoning_level: str = config.get("reasoning_level", "low")
         self._max_chars: int = int(config.get("peer_card_max_chars", 1500))
+
+        # Entity (people/projects/places) and event learning settings
+        self._entity_memory: bool = bool(config.get("entity_memory", True))
+        self._entity_card_max_chars: int = int(config.get("entity_card_max_chars", 800))
+        self._entity_promote_threshold: int = int(config.get("entity_promote_threshold", 2))
+        self._event_retention_days: int = int(config.get("event_retention_days", 30))
 
         # Daily memory-consolidation (distillation) settings
         self._consolidation: bool = bool(config.get("consolidation", True))
@@ -182,16 +193,109 @@ class Deriver:
 
         self._store.add_conclusions(peer=peer, records=records)
 
+        if self._entity_memory:
+            self._store_entities(entities=conclusions.get("entities", []))
+            self._store_events(events=conclusions.get("events", []))
+
         with self._lock:
             self._flush_counts[peer] = self._flush_counts.get(peer, 0) + 1
             should_refresh: bool = self._flush_counts[peer] % CARD_REFRESH_EVERY == 0
         if should_refresh:
             self._recurate_card(peer=peer)
 
+    def _store_entities(self, entities: list[Any]) -> None:
+        """
+        This function stores extracted facts about third-party entities (people,
+        projects, places) the user mentions and curates a per-entity profile card once
+        the entity has accumulated enough signal to be worth remembering.
+        """
+        for item in entities:
+            if not isinstance(item, dict):
+                continue
+            name: str = (item.get("name") or "").strip()
+            if not name:
+                continue
+            entity_type: str = (item.get("type") or "person").strip().lower()
+            relation: str = (item.get("relation") or "").strip()
+            facts_raw: Any = item.get("facts", [])
+            fact_records: list[dict[str, Any]] = []
+            for fact in facts_raw if isinstance(facts_raw, list) else []:
+                if isinstance(fact, dict):
+                    content: str = (fact.get("content") or "").strip()
+                    confidence: str = fact.get("confidence", "medium")
+                else:
+                    content = str(fact).strip()
+                    confidence = "medium"
+                if content:
+                    fact_records.append({"content": content, "confidence": confidence})
+            if not fact_records:
+                continue
+            self._store.add_entity_facts(
+                name=name, entity_type=entity_type, relation=relation, records=fact_records,
+            )
+            self._maybe_curate_entity_card(name=name)
+
+    def _store_events(self, events: list[Any]) -> None:
+        """
+        This function stores extracted time-anchored events for proactive recall.
+        """
+        if self._event_store is None:
+            return
+        for item in events:
+            if not isinstance(item, dict):
+                continue
+            title: str = (item.get("title") or "").strip()
+            date_iso: str = (item.get("date") or "").strip()
+            if not title or not date_iso:
+                continue
+            entities: Any = item.get("entities", [])
+            self._event_store.add_event(
+                title=title,
+                date_iso=date_iso,
+                entities=entities if isinstance(entities, list) else [],
+                location=(item.get("location") or "").strip(),
+                time_of_day=(item.get("time_of_day") or "").strip(),
+                recurring=bool(item.get("recurring", False)),
+            )
+
+    def _maybe_curate_entity_card(self, name: str) -> None:
+        """
+        This function (re)curates an entity's profile card once the entity has crossed
+        the promotion threshold — enough facts, or at least one medium/high-confidence
+        fact — so fleeting one-off mentions never spawn a card.
+        """
+        slug: str = slugify(name)
+        if not slug:
+            return
+        facts: list[dict[str, Any]] = self._store.all_for_peer(peer="user", limit=CARD_SOURCE_LIMIT, entity=slug)
+        if not facts:
+            return
+        promoted: bool = (
+            len(facts) >= self._entity_promote_threshold
+            or self._store.has_medium_or_higher_fact(slug=slug)
+        )
+        if not promoted:
+            return
+        subject_desc: str = (
+            f"a compact profile of {name} (a person, project, place, or organization the "
+            "user talks about): who or what they are, their relationship to the user, and "
+            "the durable facts the user has shared about them"
+        )
+        self._curate_card(
+            records=facts,
+            existing=self._store.read_entity_card(slug=slug),
+            subject_desc=subject_desc,
+            max_chars=self._entity_card_max_chars,
+            write=lambda text: self._store.write_entity_card(slug=slug, text=text, max_chars=self._entity_card_max_chars),
+            label=f"entity '{slug}'",
+        )
+
     def _reason(self, peer: str, transcript: str) -> dict[str, list[Any]]:
         """
         This function asks the configured model to extract explicit observations and
-        deductive/inductive conclusions as strict JSON.
+        deductive/inductive conclusions as strict JSON. When entity memory is enabled
+        it also extracts facts about the people, projects and places the user mentions
+        and any time-anchored events, resolving relative dates against today.
         """
         max_items: int = REASONING_LEVEL_ITEMS.get(self._reasoning_level, 4)
         subject: str = "the user (the human in the conversation)"
@@ -201,6 +305,31 @@ class Deriver:
             "people/projects/tools in their life, and standing instructions for how "
             "they want to be treated."
         )
+        today: str = date.today().isoformat()
+
+        entity_schema: str = ""
+        entity_rules: str = ""
+        if self._entity_memory:
+            entity_schema = (
+                '  "entities": [{"name": "proper name of a person/project/place/org the user '
+                'mentions", "type": "person|project|place|organization", "relation": "their '
+                'relationship to the user if stated (e.g. sister, coworker, employer)", '
+                '"facts": [{"content": "a durable fact about this entity", "confidence": "high|medium|low"}]}],\n'
+                '  "events": [{"title": "short event name", "date": "YYYY-MM-DD", "time_of_day": '
+                '"optional clock or part of day", "entities": ["names of people/places involved"], '
+                '"location": "optional", "recurring": false}],\n'
+            )
+            entity_rules = (
+                f"- Today is {today}. Resolve every relative date (e.g. 'Saturday', 'next week', "
+                "'tomorrow') to a concrete YYYY-MM-DD calendar date. Only emit an event when you "
+                "can determine a real date; otherwise omit it.\n"
+                "- Under 'entities', record third parties the user talks about, not the user "
+                "themselves. Give each its proper name; skip vague references with no name. Set "
+                "'relation' only when the transcript states it. Mark a birthday or anniversary "
+                "event as recurring.\n"
+                "- A fact about an entity is durable info about that entity (a trait, role, "
+                "preference, or stable circumstance) — not transient chatter.\n"
+            )
 
         system_prompt: str = (
             "You are a reasoning engine that extracts durable, long-term knowledge from a "
@@ -212,7 +341,8 @@ class Deriver:
             "{\n"
             '  "explicit": [{"content": "a fact explicitly stated", "confidence": "high"}],\n'
             '  "deductive": [{"premises": ["..."], "conclusion": "a certain conclusion", "confidence": "high|medium"}],\n'
-            '  "inductive": [{"premises": ["..."], "conclusion": "a likely pattern across messages", "confidence": "medium|low"}]\n'
+            '  "inductive": [{"premises": ["..."], "conclusion": "a likely pattern across messages", "confidence": "medium|low"}],\n'
+            f"{entity_schema}"
             "}\n\n"
             "Rules:\n"
             f"- Only record durable, generalizable knowledge about {subject}. Aggressively "
@@ -223,6 +353,7 @@ class Deriver:
             "- Set confidence honestly: 'high' for clearly stated or logically certain facts, "
             "'medium' for well-supported inferences, 'low' for tentative patterns. Prefer "
             "omitting an item over recording a low-confidence guess.\n"
+            f"{entity_rules}"
             "- Do not invent, assume, or pad. Each list may be empty.\n"
             f"- Include at most {max_items} items per list. Be concise and high-signal."
         )
@@ -238,6 +369,8 @@ class Deriver:
             "explicit": parsed.get("explicit", []) or [],
             "deductive": parsed.get("deductive", []) or [],
             "inductive": parsed.get("inductive", []) or [],
+            "entities": parsed.get("entities", []) or [],
+            "events": parsed.get("events", []) or [],
         }
 
     def _complete_json(self, history: list[dict[str, str]], label: str) -> dict[str, Any] | None:
@@ -290,20 +423,35 @@ class Deriver:
         if not records:
             return
 
-        existing: str = self._store.read_peer_card(peer=peer)
-        shaped_bullets: list[str] = [self._shape_record_bullet(r) for r in records]
-        bullet_points: str = "\n".join(b for b in shaped_bullets if b)
-        if not bullet_points:
-            return
         subject_desc: str = (
             "a compact profile of the USER: who they are (name, role, context), what "
             "they care about, their stable preferences and goals, and the people, "
             "projects, and tools that matter to them"
         )
+        self._curate_card(
+            records=records,
+            existing=self._store.read_peer_card(peer=peer),
+            subject_desc=subject_desc,
+            max_chars=self._max_chars,
+            write=lambda text: self._store.write_peer_card(peer=peer, text=text, max_chars=self._max_chars),
+            label=f"peer '{peer}'",
+        )
+
+    def _curate_card(self, records: list[dict[str, Any]], existing: str, subject_desc: str,
+                     max_chars: int, write: Any, label: str) -> None:
+        """
+        This function condenses a set of stored facts into a finite Markdown card
+        within a character budget and persists it via the supplied writer. It is
+        shared by the user profile card and the per-entity profile cards.
+        """
+        shaped_bullets: list[str] = [self._shape_record_bullet(r) for r in records]
+        bullet_points: str = "\n".join(b for b in shaped_bullets if b)
+        if not bullet_points:
+            return
 
         system_prompt: str = (
             f"You maintain {subject_desc}. Rewrite the card as concise Markdown bullet points. "
-            f"Keep it under {self._max_chars} characters. "
+            f"Keep it under {max_chars} characters. "
             "The input bullets are tagged with a confidence; trust higher-confidence and "
             "more-reinforced facts, and when two bullets conflict, keep the stronger or more "
             "recent one and drop the other. Merge duplicates, remove anything outdated, "
@@ -330,17 +478,17 @@ class Deriver:
             message: Any = self._provider.completions(model=self._model, history=history, think=False)
             card: str = (message.content or "").strip()
         except Exception as e:
-            logger.error("Deriver card curation failed for peer '%s': %s", peer, e)
+            logger.error("Deriver card curation failed for %s: %s", label, e)
             return
 
         if card:
             card = re.sub(pattern=r"^```[a-zA-Z]*\n?|\n?```$", repl="", string=card).strip()
-            if len(card) > self._max_chars + CARD_RETRY_OVERAGE_CHARS:
-                compacted: str | None = self._retry_compact_card(peer=peer, subject_desc=subject_desc, card=card)
+            if len(card) > max_chars + CARD_RETRY_OVERAGE_CHARS:
+                compacted: str | None = self._retry_compact_card(peer=label, subject_desc=subject_desc, card=card)
                 if compacted:
                     card = compacted
-            self._store.write_peer_card(peer=peer, text=card, max_chars=self._max_chars)
-            logger.info("Re-curated peer card for '%s' (draft=%d chars)", peer, len(card))
+            write(card)
+            logger.info("Re-curated card for %s (draft=%d chars)", label, len(card))
 
     @staticmethod
     def _shape_record_bullet(record: dict[str, Any]) -> str:
@@ -444,6 +592,12 @@ class Deriver:
             except Exception as e:
                 logger.error("Consolidation failed for peer '%s': %s", peer, e, exc_info=True)
                 results[peer] = (0, 0)
+
+        if self._event_store is not None:
+            try:
+                self._event_store.maintain(retention_days=self._event_retention_days)
+            except Exception as e:
+                logger.error("Event maintenance failed: %s", e, exc_info=True)
         return results
 
     def _consolidate(self, peer: str) -> tuple[int, int]:

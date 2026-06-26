@@ -21,6 +21,7 @@ from src.agents.orchestrator import Orchestrator
 from src.agents.worker import WorkerManager
 from src.providers.base import BaseProvider
 from src.memory.store import RepresentationStore, resolve_memory_config
+from src.memory.events import EventStore
 from src.core.session import Session
 from src.indexing.skills import SKILL_TOOL_FILES, SkillsCatalog
 from src.integrations.ssh import SSH_TOOL_FILES, SSHManager
@@ -37,6 +38,7 @@ MEMORY_TOOL_FILES: set[str] = {
     "memory_search_tool.py",
     "memory_context_tool.py",
     "memory_conclude_tool.py",
+    "memory_event_tool.py",
 }
 
 # Tool files never given to background worker agents: agent management and worker
@@ -192,10 +194,16 @@ class Memtrix:
 
         # Build the representation store and background deriver when enabled
         representation: RepresentationStore | None = None
+        event_store: EventStore | None = None
         deriver: Deriver | None = None
         if mem_cfg["enabled"]:
             representation = RepresentationStore.get_instance(workspace_dir=workspace_dir)
-            deriver = Deriver(provider=self._provider, model=reasoning_model, store=representation, config=mem_cfg)
+            if mem_cfg.get("entity_memory", True):
+                event_store = EventStore.get_instance(workspace_dir=workspace_dir)
+            deriver = Deriver(
+                provider=self._provider, model=reasoning_model, store=representation,
+                config=mem_cfg, event_store=event_store,
+            )
             deriver.start()
             deriver.start_consolidation_scheduler()
             self._deriver = deriver
@@ -259,6 +267,8 @@ class Memtrix:
         for tool in tools:
             if representation is not None and hasattr(tool, "set_representation"):
                 tool.set_representation(store=representation)
+            if event_store is not None and hasattr(tool, "set_event_store"):
+                tool.set_event_store(store=event_store)
             if hasattr(tool, "set_dialectic"):
                 tool.set_dialectic(provider=self._provider, model=reasoning_model)
             if hasattr(tool, "set_docs_index"):
@@ -299,6 +309,7 @@ class Memtrix:
             vision=vision,
             deriver=deriver,
             representation=representation,
+            event_store=event_store,
             memory_config=mem_cfg,
             skills_catalog=skills_catalog,
             prompt_guard=prompt_guard,

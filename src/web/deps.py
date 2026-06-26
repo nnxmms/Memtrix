@@ -8,6 +8,7 @@ from fastapi import Header, HTTPException, status
 
 from src.core.config import load_config
 from src.memory.store import RepresentationStore
+from src.memory.events import EventStore
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -32,6 +33,14 @@ def get_store() -> RepresentationStore:
     writes coordinate with the running agent.
     """
     return RepresentationStore.get_instance(workspace_dir=get_workspace_dir())
+
+
+def get_event_store() -> EventStore:
+    """
+    This function returns the shared EventStore for the main workspace, used by the
+    web panel to browse and manage the agent's learned events.
+    """
+    return EventStore.get_instance(workspace_dir=get_workspace_dir())
 
 
 def require_token(x_memtrix_token: str | None = Header(default=None)) -> None:

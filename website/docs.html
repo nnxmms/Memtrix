@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.39.0</span>
+    memtrix<span class="ver">v2.40.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -1514,7 +1514,7 @@ docker compose up -d</code></pre>
     <div class="doc-page" id="page-reasoning-memory">
       <div class="doc-breadcrumb">Guides</div>
       <h1>Reasoning Memory</h1>
-      <p class="lead">A background reasoning layer that turns raw conversation into durable, structured knowledge - an auto-curated profile card plus a searchable store of typed conclusions about you.</p>
+      <p class="lead">A background reasoning layer that turns raw conversation into durable, structured knowledge - an auto-curated profile card, a searchable store of typed conclusions about you, plus profile cards for the people, projects, and places you mention and the dated events tied to them.</p>
 
       <div class="callout note">
         <span class="callout-tag note">note</span>
@@ -1613,16 +1613,27 @@ docker compose up -d</code></pre>
       <p>Peer cards are always injected regardless of mode. With auto-injection, the top <code>inject_top_k</code> (default 5) conclusions are considered, but only those within a <strong>relevance threshold</strong> of your message are actually injected - weakly-related memories are suppressed so off-topic recall never crowds out the live conversation. Each injected memory is labelled with its confidence, and the agent is reminded that recall may be stale and should be verified before acting on anything critical.</p>
 
       <h2 id="rm-tools">Memory tools</h2>
-      <p>When enabled, the agent can actively work with reasoning memory through four tools:</p>
+      <p>When enabled, the agent can actively work with reasoning memory through five tools:</p>
       <table>
         <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td><code>memory_profile</code></td><td>Returns the compact profile card (durable facts about the user). Fast, no search.</td></tr>
+          <tr><td><code>memory_profile</code></td><td>Returns the compact profile card (durable facts about the user). Fast, no search. Pass a <code>name</code> to fetch a specific person/thing's card instead.</td></tr>
           <tr><td><code>memory_search</code></td><td>Searches reasoned conclusions and returns the most relevant excerpts - for "what do you know about…" recall.</td></tr>
           <tr><td><code>memory_context</code></td><td>Answers a natural-language question grounded in reasoned memory - for nuanced questions like "what tone does the user prefer?".</td></tr>
           <tr><td><code>memory_conclude</code></td><td>Permanently locks a single high-signal durable fact (a stated preference, correction, or key context) at high confidence. Stored as <code>manual</code> so consolidation never prunes or rewrites it. Used sparingly.</td></tr>
+          <tr><td><code>memory_event</code></td><td>Logs, lists, or cancels a dated event (e.g. a birthday or appointment), optionally linked to a person. Upcoming events are surfaced proactively.</td></tr>
         </tbody>
       </table>
+
+      <h2 id="rm-people">People &amp; events</h2>
+      <p>Beyond modelling <em>you</em>, the deriver also learns about the <strong>people, projects, and places</strong> you mention and tracks <strong>dated events</strong> tied to them - automatically, in the background.</p>
+      <ul>
+        <li><strong>Entity cards</strong> - when you talk about someone (e.g. your sister Jenna), the deriver records facts about them and, once enough signal accumulates (<code>entity_promote_threshold</code>, or a single medium-plus-confidence fact), promotes them to a compact profile card stored under <code>people/&lt;slug&gt;.md</code>. These cards are deriver-owned just like <code>USER.md</code>.</li>
+        <li><strong>Contextual injection</strong> - when a known person, project, or place is named in your message, their card is injected as transient context so the agent already knows who you mean.</li>
+        <li><strong>Events</strong> - statements like "Jenna's birthday party is this Saturday" are resolved to a concrete date and stored. Upcoming events within <code>event_lookahead_days</code> are surfaced every turn under a <strong>📅 Upcoming</strong> block, and once an event passes you get a one-time <strong>🔔 Just passed</strong> nudge (within <code>event_followup_days</code>). Recurring annual events (birthdays) roll forward automatically.</li>
+        <li><strong>Privacy</strong> - set <code>entity_memory</code> to <code>false</code> to disable people/event learning entirely, or forget a single person (and their facts, card, and events) from the Web Control Panel's <em>People</em> tab.</li>
+      </ul>
+      <p>Browse, add, and remove people and events from the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a>'s memory admin (<em>People</em> and <em>Events</em> tabs).</p>
 
       <h2 id="rm-config">Configuration</h2>
       <p>All options live under the <code>memory</code> key in <code>config.json</code>. Defaults are safe - installs without a <code>memory</code> section keep working.</p>
@@ -1640,7 +1651,13 @@ docker compose up -d</code></pre>
     <span style="color:var(--blue)">"inject_top_k"</span>: <span style="color:var(--accent)">5</span>,         <span style="color:var(--text-muted)">// conclusions auto-injected per message</span>
     <span style="color:var(--blue)">"consolidation"</span>: <span style="color:var(--purple)">true</span>,     <span style="color:var(--text-muted)">// daily memory distillation pass</span>
     <span style="color:var(--blue)">"consolidation_interval_hours"</span>: <span style="color:var(--accent)">24</span>,
-    <span style="color:var(--blue)">"consolidation_min_items"</span>: <span style="color:var(--accent)">12</span> <span style="color:var(--text-muted)">// skip below this many derived items</span>
+    <span style="color:var(--blue)">"consolidation_min_items"</span>: <span style="color:var(--accent)">12</span>, <span style="color:var(--text-muted)">// skip below this many derived items</span>
+    <span style="color:var(--blue)">"entity_memory"</span>: <span style="color:var(--purple)">true</span>,      <span style="color:var(--text-muted)">// learn about people / projects / places + events</span>
+    <span style="color:var(--blue)">"entity_card_max_chars"</span>: <span style="color:var(--accent)">800</span>,
+    <span style="color:var(--blue)">"entity_promote_threshold"</span>: <span style="color:var(--accent)">2</span>, <span style="color:var(--text-muted)">// facts before an entity gets a card</span>
+    <span style="color:var(--blue)">"event_lookahead_days"</span>: <span style="color:var(--accent)">7</span>,    <span style="color:var(--text-muted)">// surface events within this window</span>
+    <span style="color:var(--blue)">"event_followup_days"</span>: <span style="color:var(--accent)">2</span>,    <span style="color:var(--text-muted)">// post-event nudge window</span>
+    <span style="color:var(--blue)">"event_retention_days"</span>: <span style="color:var(--accent)">30</span> <span style="color:var(--text-muted)">// prune old non-recurring events</span>
   }
 }</code></pre>
 
@@ -1658,6 +1675,12 @@ docker compose up -d</code></pre>
           <tr><td><code>consolidation</code></td><td><code>true</code></td><td>Run the daily distillation pass that merges and prunes conclusions</td></tr>
           <tr><td><code>consolidation_interval_hours</code></td><td><code>24</code></td><td>How often consolidation runs (persisted across restarts)</td></tr>
           <tr><td><code>consolidation_min_items</code></td><td><code>12</code></td><td>Skip distillation for a peer below this many derived conclusions</td></tr>
+          <tr><td><code>entity_memory</code></td><td><code>true</code></td><td>Learn about people, projects, and places you mention and track dated events</td></tr>
+          <tr><td><code>entity_card_max_chars</code></td><td><code>800</code></td><td>Maximum size of a per-person/entity profile card</td></tr>
+          <tr><td><code>entity_promote_threshold</code></td><td><code>2</code></td><td>Facts about an entity before it earns its own card (a medium-plus fact promotes early)</td></tr>
+          <tr><td><code>event_lookahead_days</code></td><td><code>7</code></td><td>Window for surfacing upcoming events in the 📅 Upcoming block</td></tr>
+          <tr><td><code>event_followup_days</code></td><td><code>2</code></td><td>Window for the one-time 🔔 Just passed follow-up nudge</td></tr>
+          <tr><td><code>event_retention_days</code></td><td><code>30</code></td><td>Prune past non-recurring events older than this</td></tr>
         </tbody>
       </table>
 
