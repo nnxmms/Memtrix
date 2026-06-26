@@ -60,8 +60,6 @@ _BEHAVIOR_TEMPLATE: str = """- Keep it focused. Stay within your area of experti
 - Ask clarifying questions when the user's request is ambiguous in your domain.
 """
 
-_MEMORY_TEMPLATE: str = "// Long term memories go here"
-
 
 class AgentManager:
 
@@ -284,9 +282,6 @@ class AgentManager:
         # Symlink USER.md to the main agent's copy (shared across all agents)
         main_user: str = os.path.join(self._config["workspace-directory"], "USER.md")
         os.symlink(src=main_user, dst=os.path.join(workspace_dir, "USER.md"))
-
-        with open(file=os.path.join(workspace_dir, "MEMORY.md"), mode="w") as f:
-            f.write(_MEMORY_TEMPLATE)
 
         return workspace_dir
 

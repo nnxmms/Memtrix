@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.38.0</span>
+    memtrix<span class="ver">v2.39.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -858,7 +858,7 @@ docker compose up -d</code></pre>
       <p>Memtrix layers two complementary memory systems:</p>
       <ul>
         <li><strong>Conversation Memory</strong> (<code>sessions/</code>) - raw conversation transcripts, chunked and searchable via on-device RAG embeddings</li>
-        <li><strong>Reasoning Memory</strong> - a background deriver distills conversations into typed conclusions and auto-curated peer cards (<code>USER.md</code>, <code>MEMORY.md</code>)</li>
+        <li><strong>Reasoning Memory</strong> - a background deriver distills conversations into typed conclusions and an auto-curated profile card (<code>USER.md</code>)</li>
       </ul>
       <p>Semantic search is powered by <code>nomic-embed-text-v1.5</code> running entirely on-device. No external API calls. See <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>.</p>
 
@@ -875,7 +875,7 @@ docker compose up -d</code></pre>
       <p>Run local models via <strong>Ollama</strong> (Llama, Mistral, Gemma, etc.), tap 200+ cloud models through <strong>OpenRouter</strong> (OpenAI, Anthropic, Google), or point at any <strong>OpenAI-compatible</strong> endpoint - llama.cpp, vLLM, LM Studio, an OpenAI-shim, a self-hosted gateway, or OpenAI itself. Configure multiple providers and switch models per-agent. The control panel can <strong>discover</strong> the models a provider exposes so you pick from a list instead of typing names.</p>
 
       <h2 id="ft-persona">Evolving Persona</h2>
-      <p>Memtrix's identity is defined by markdown files. It freely edits <code>SOUL.md</code> and <code>BEHAVIOR.md</code> as it learns your preferences, while <code>USER.md</code> and <code>MEMORY.md</code> are auto-curated by the reasoning-memory deriver. Its personality genuinely grows with every conversation.</p>
+      <p>Memtrix's identity is defined by markdown files. It freely edits <code>SOUL.md</code> and <code>BEHAVIOR.md</code> as it learns your preferences, while <code>USER.md</code> is auto-curated by the reasoning-memory deriver. Its personality genuinely grows with every conversation.</p>
 
       <h2 id="ft-agents">Multi-Agent System</h2>
       <p>Create specialist sub-agents with their own identity, memory, Matrix presence, and workspace. Agents communicate via <code>ask_agent</code> - the main agent can consult sub-agents, and sub-agents can consult each other or the main agent.</p>
@@ -1196,17 +1196,17 @@ docker compose up -d</code></pre>
       <h2 id="fc-happens">What happens behind the scenes</h2>
       <p>When you send a message, Memtrix:</p>
       <ol>
-        <li><strong>Builds the system prompt</strong> - injects <code>SOUL.md</code>, <code>BEHAVIOR.md</code>, <code>USER.md</code>, and <code>MEMORY.md</code> into the <code>AGENT.md</code> template</li>
+        <li><strong>Builds the system prompt</strong> - injects <code>SOUL.md</code>, <code>BEHAVIOR.md</code>, and <code>USER.md</code> into the <code>AGENT.md</code> template</li>
         <li><strong>Recalls memory</strong> - silently pulls relevant context from past conversations and the reasoning-memory store (peer cards &amp; conclusions)</li>
         <li><strong>Calls the LLM</strong> with conversation history and all available tool schemas (40 built-in, minus any gated off)</li>
         <li><strong>Executes tools</strong> if the LLM requests them (web search, memory lookup, etc.)</li>
         <li><strong>Responds</strong> with the final answer</li>
-        <li><strong>Learns in the background</strong> - after replying, the reasoning-memory deriver updates the auto-curated peer cards (<code>USER.md</code>, <code>MEMORY.md</code>) and records conclusions, while the raw conversation transcript is saved and embedded for future recall</li>
+        <li><strong>Learns in the background</strong> - after replying, the reasoning-memory deriver updates the auto-curated profile card (<code>USER.md</code>) and records conclusions, while the raw conversation transcript is saved and embedded for future recall</li>
       </ol>
 
       <div class="callout note">
         <span class="callout-tag note">note</span>
-        <div class="callout-body">Recall happens through tools like <code>memory_context</code>, <code>memory_search</code>, and <code>search_memory</code> during reasoning. The peer cards <code>USER.md</code> and <code>MEMORY.md</code> are <em>curated automatically by the deriver</em> - the agent reads them but does not overwrite them directly. See <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>.</div>
+        <div class="callout-body">Recall happens through tools like <code>memory_context</code>, <code>memory_search</code>, and <code>search_memory</code> during reasoning. The profile card <code>USER.md</code> is <em>curated automatically by the deriver</em> - the agent reads it but does not overwrite it directly. See <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>.</div>
       </div>
 
       <h2 id="fc-verbose">Verbose &amp; reasoning modes</h2>
@@ -1417,8 +1417,7 @@ docker compose up -d</code></pre>
           <tr><td><code>AGENT.md</code></td><td>System prompt template - wires everything together via <code>{{PLACEHOLDER}}</code> markers</td></tr>
           <tr><td><code>BEHAVIOR.md</code></td><td>Communication style, tone, and habits - agent-writable</td></tr>
           <tr><td><code>SOUL.md</code></td><td>Core values and personality - agent-writable</td></tr>
-          <tr><td><code>USER.md</code></td><td>Everything Memtrix knows about you - auto-curated peer card (deriver-managed)</td></tr>
-          <tr><td><code>MEMORY.md</code></td><td>Distilled long-term memory, the "brain" - auto-curated peer card (deriver-managed)</td></tr>
+          <tr><td><code>USER.md</code></td><td>Everything Memtrix knows about you - auto-curated profile card (deriver-managed)</td></tr>
         </tbody>
       </table>
 
@@ -1430,7 +1429,7 @@ docker compose up -d</code></pre>
 
       <div class="callout warn">
         <span class="callout-tag warn">warn</span>
-        <div class="callout-body"><strong>USER.md and MEMORY.md are protected.</strong> Since the reasoning-memory system was introduced, these two files are <em>peer cards curated automatically by the deriver</em>. The agent reads them but <code>write_core_file</code> rejects direct writes to them - this keeps the user model and long-term brain consistent and tamper-resistant. See <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>.</div>
+        <div class="callout-body"><strong>USER.md is protected.</strong> Since the reasoning-memory system was introduced, this file is a <em>profile card curated automatically by the deriver</em>. The agent reads it but <code>write_core_file</code> rejects direct writes to it - this keeps the user model consistent and tamper-resistant. See <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>.</div>
       </div>
 
       <div class="callout warn">
@@ -1455,7 +1454,7 @@ docker compose up -d</code></pre>
         <li>Have opinions, be measured</li>
         <li>Ask questions only when necessary</li>
       </ul>
-      <p>All of this evolves as you interact. You can edit <code>SOUL.md</code> and <code>BEHAVIOR.md</code> directly; <code>USER.md</code> and <code>MEMORY.md</code> are best managed through the deriver or the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a>'s memory admin.</p>
+      <p>All of this evolves as you interact. You can edit <code>SOUL.md</code> and <code>BEHAVIOR.md</code> directly; <code>USER.md</code> is best managed through the deriver or the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a>'s memory admin.</p>
     </div>
 
     <!-- ═══════════════════════════════════════ MEMORY & RAG ═══════════════════════════════════════ -->
@@ -1468,9 +1467,6 @@ docker compose up -d</code></pre>
         <span class="callout-tag note">note</span>
         <div class="callout-body">This page covers the <strong>conversation-history RAG</strong> layer. The <strong>reasoning-memory</strong> layer (the deriver, peer cards, and conclusions) is documented on the <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a> page.</div>
       </div>
-
-      <h2 id="mm-core">Core Memory</h2>
-      <p><code>MEMORY.md</code> is a curated, compact summary of the most important long-term knowledge - key facts, recurring themes, lasting context. It is the agent's <strong>brain</strong>, maintained automatically by the reasoning-memory deriver (not edited directly by the agent's write tools).</p>
 
       <h2 id="mm-daily">Conversation Memory</h2>
       <p>Every conversation is saved as a raw session transcript under <code>sessions/</code>. The agent writes no journals by hand - transcripts are split into windowed chunks (~800 tokens each), embedded, and stored in the vector store so the agent can recall any past exchange. Recall works two ways and can combine them: <strong>by meaning</strong> (a natural-language <code>query</code>) and <strong>by date</strong> (a single <code>date</code> or a <code>start_date</code>+<code>end_date</code> range). A date can't be matched semantically, so date questions filter on each chunk's day metadata instead; the agent is given today's date and resolves "yesterday" or "last Wednesday" to an ISO date itself. Inter-agent and internal sessions are skipped, and each sub-agent only indexes its own conversations.</p>
@@ -1499,7 +1495,7 @@ docker compose up -d</code></pre>
       <p>Memtrix manages memory without you asking. After each exchange:</p>
       <ul>
         <li><strong>Conversation memory</strong> - the session transcript is saved automatically and its new chunks are embedded for future recall</li>
-        <li><strong>Peer cards</strong> - the reasoning-memory deriver updates <code>USER.md</code> and <code>MEMORY.md</code> in the background (see <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>)</li>
+        <li><strong>Profile card</strong> - the reasoning-memory deriver updates <code>USER.md</code> in the background (see <a onclick="navigate('reasoning-memory')" style="cursor:pointer;color:var(--accent)">Reasoning Memory</a>)</li>
         <li><strong>Behavior</strong> - <code>BEHAVIOR.md</code> is updated if you correct the agent's communication style</li>
       </ul>
       <p>These operations are silent - you only see them if <code>/verbose</code> is enabled.</p>
@@ -1518,34 +1514,32 @@ docker compose up -d</code></pre>
     <div class="doc-page" id="page-reasoning-memory">
       <div class="doc-breadcrumb">Guides</div>
       <h1>Reasoning Memory</h1>
-      <p class="lead">A background reasoning layer that turns raw conversation into durable, structured knowledge - auto-curated peer cards plus a searchable store of typed conclusions about you and the agent itself.</p>
+      <p class="lead">A background reasoning layer that turns raw conversation into durable, structured knowledge - an auto-curated profile card plus a searchable store of typed conclusions about you.</p>
 
       <div class="callout note">
         <span class="callout-tag note">note</span>
         <div class="callout-body">Reasoning memory complements the <a onclick="navigate('memory')" style="cursor:pointer;color:var(--accent)">daily-journal RAG</a>. Journals are a verbatim log; reasoning memory is the distilled understanding derived <em>from</em> conversations.</div>
       </div>
 
-      <h2 id="rm-peers">Peers: the user and the agent</h2>
-      <p>Reasoning memory models two <strong>peers</strong>:</p>
+      <h2 id="rm-peers">The user model</h2>
+      <p>Reasoning memory models a single <strong>peer</strong>:</p>
       <ul>
         <li><strong>user</strong> - everything the agent learns about you</li>
-        <li><strong>agent</strong> - the agent's evolving understanding of itself (only when <code>dual_peer</code> is enabled)</li>
       </ul>
-      <p>Each peer has a finite, always-injected <strong>peer card</strong> and a growing store of <strong>conclusions</strong>.</p>
+      <p>The user has a finite, always-injected <strong>profile card</strong> and a growing store of <strong>conclusions</strong>.</p>
 
-      <h2 id="rm-cards">Peer cards</h2>
+      <h2 id="rm-cards">Profile card</h2>
       <table>
         <thead><tr><th>Peer</th><th>File</th><th>Contents</th></tr></thead>
         <tbody>
           <tr><td>user</td><td><code>USER.md</code></td><td>Compact, durable facts about you</td></tr>
-          <tr><td>agent</td><td><code>MEMORY.md</code></td><td>The agent's distilled long-term "brain"</td></tr>
         </tbody>
       </table>
-      <p>Peer cards are <strong>always injected</strong> into the system prompt, capped at <code>peer_card_max_chars</code> (default 1,500). They are re-curated from accumulated conclusions every few reasoning passes - so they stay compact and current instead of growing forever. Cap enforcement is boundary-safe, so cards are trimmed at clean boundaries instead of being cut mid-bullet.</p>
+      <p>The profile card is <strong>always injected</strong> into the system prompt, capped at <code>peer_card_max_chars</code> (default 1,500). It is re-curated from accumulated conclusions every few reasoning passes - so it stays compact and current instead of growing forever. Cap enforcement is boundary-safe, so the card is trimmed at clean boundaries instead of being cut mid-bullet.</p>
 
       <div class="callout warn">
         <span class="callout-tag warn">warn</span>
-        <div class="callout-body">Peer cards are <strong>deriver-owned</strong>. The agent reads them but <code>write_core_file</code> rejects direct writes to <code>USER.md</code> and <code>MEMORY.md</code>. To edit them by hand, use the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a> or freeze the card (below).</div>
+        <div class="callout-body">The profile card is <strong>deriver-owned</strong>. The agent reads it but <code>write_core_file</code> rejects direct writes to <code>USER.md</code>. To edit it by hand, use the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a> or freeze the card (below).</div>
       </div>
 
       <h2 id="rm-conclusions">Conclusions</h2>
@@ -1623,7 +1617,7 @@ docker compose up -d</code></pre>
       <table>
         <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td><code>memory_profile</code></td><td>Returns the compact profile cards (durable facts about the user and the agent). Fast, no search.</td></tr>
+          <tr><td><code>memory_profile</code></td><td>Returns the compact profile card (durable facts about the user). Fast, no search.</td></tr>
           <tr><td><code>memory_search</code></td><td>Searches reasoned conclusions and returns the most relevant excerpts - for "what do you know about…" recall.</td></tr>
           <tr><td><code>memory_context</code></td><td>Answers a natural-language question grounded in reasoned memory - for nuanced questions like "what tone does the user prefer?".</td></tr>
           <tr><td><code>memory_conclude</code></td><td>Permanently locks a single high-signal durable fact (a stated preference, correction, or key context) at high confidence. Stored as <code>manual</code> so consolidation never prunes or rewrites it. Used sparingly.</td></tr>
@@ -1643,7 +1637,6 @@ docker compose up -d</code></pre>
     <span style="color:var(--blue)">"reasoning_model"</span>: <span style="color:var(--purple)">null</span>,    <span style="color:var(--text-muted)">// model instance name, or null = main model</span>
     <span style="color:var(--blue)">"batch_tokens"</span>: <span style="color:var(--accent)">1000</span>,       <span style="color:var(--text-muted)">// flush threshold per peer</span>
     <span style="color:var(--blue)">"peer_card_max_chars"</span>: <span style="color:var(--accent)">1500</span>,
-    <span style="color:var(--blue)">"dual_peer"</span>: <span style="color:var(--purple)">true</span>,         <span style="color:var(--text-muted)">// also model the agent, not just the user</span>
     <span style="color:var(--blue)">"inject_top_k"</span>: <span style="color:var(--accent)">5</span>,         <span style="color:var(--text-muted)">// conclusions auto-injected per message</span>
     <span style="color:var(--blue)">"consolidation"</span>: <span style="color:var(--purple)">true</span>,     <span style="color:var(--text-muted)">// daily memory distillation pass</span>
     <span style="color:var(--blue)">"consolidation_interval_hours"</span>: <span style="color:var(--accent)">24</span>,
@@ -1660,8 +1653,7 @@ docker compose up -d</code></pre>
           <tr><td><code>reasoning_level</code></td><td><code>low</code></td><td>Depth of extraction (items per kind: 2 / 4 / 6 / 8 / 12)</td></tr>
           <tr><td><code>reasoning_model</code></td><td><code>null</code></td><td>Use a different model instance for derivation, or the main model</td></tr>
           <tr><td><code>batch_tokens</code></td><td><code>1000</code></td><td>Token threshold before a peer's queue is flushed and reasoned</td></tr>
-          <tr><td><code>peer_card_max_chars</code></td><td><code>1500</code></td><td>Maximum size of each peer card (trimmed at safe boundaries, not mid-bullet)</td></tr>
-          <tr><td><code>dual_peer</code></td><td><code>true</code></td><td>Model the agent (<code>MEMORY.md</code>) as well as the user</td></tr>
+          <tr><td><code>peer_card_max_chars</code></td><td><code>1500</code></td><td>Maximum size of the profile card (trimmed at safe boundaries, not mid-bullet)</td></tr>
           <tr><td><code>inject_top_k</code></td><td><code>5</code></td><td>Number of conclusions auto-injected per message</td></tr>
           <tr><td><code>consolidation</code></td><td><code>true</code></td><td>Run the daily distillation pass that merges and prunes conclusions</td></tr>
           <tr><td><code>consolidation_interval_hours</code></td><td><code>24</code></td><td>How often consolidation runs (persisted across restarts)</td></tr>
@@ -1676,7 +1668,7 @@ docker compose up -d</code></pre>
 
       <h2 id="rm-controls">Freezing &amp; pausing</h2>
       <ul>
-        <li><strong>Freeze a card</strong> - set <code>freeze_user_card</code> or <code>freeze_agent_card</code> to <code>true</code> to stop the deriver re-curating that peer card (handy after a manual edit you want to keep). Conclusions still accumulate.</li>
+        <li><strong>Freeze a card</strong> - set <code>freeze_user_card</code> to <code>true</code> to stop the deriver re-curating the profile card (handy after a manual edit you want to keep). Conclusions still accumulate.</li>
         <li><strong>Pause the deriver</strong> - pause all background reasoning entirely (pending messages are retained, nothing is reasoned). Exposed as a toggle in the Web Control Panel's memory admin.</li>
       </ul>
 
@@ -1847,7 +1839,7 @@ description: Steps to audit a remote host's security posture
         <li><strong>Browse &amp; search conclusions</strong> - filter by peer (user / agent), read what the agent has concluded</li>
         <li><strong>Add a conclusion</strong> - inject a durable fact manually (stored with <code>manual</code> provenance)</li>
         <li><strong>Edit or delete</strong> - fix a wrong conclusion, or clear all conclusions for a peer</li>
-        <li><strong>Peer cards</strong> - view and edit <code>USER.md</code> / <code>MEMORY.md</code> directly</li>
+        <li><strong>Profile card</strong> - view and edit <code>USER.md</code> directly</li>
         <li><strong>Freeze a card</strong> - stop the deriver re-curating a peer card after a manual edit</li>
         <li><strong>Pause the deriver</strong> - halt background reasoning while you make changes</li>
         <li><strong>Export / import</strong> - back up the entire memory store to a file and restore it later</li>
@@ -2190,7 +2182,6 @@ description: Steps to audit a remote host's security posture
         <span style="color:var(--accent)">"reasoning_model"</span>: <span style="color:var(--purple)">null</span>,
         <span style="color:var(--accent)">"batch_tokens"</span>: <span style="color:var(--purple)">1000</span>,
         <span style="color:var(--accent)">"peer_card_max_chars"</span>: <span style="color:var(--purple)">1500</span>,
-        <span style="color:var(--accent)">"dual_peer"</span>: <span style="color:var(--purple)">true</span>,
         <span style="color:var(--accent)">"inject_top_k"</span>: <span style="color:var(--purple)">5</span>
     },
       <span style="color:var(--accent)">"voice"</span>: {
@@ -2456,7 +2447,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
         <thead><tr><th>Tool</th><th>Description</th></tr></thead>
         <tbody>
           <tr><td><code>read_core_file</code></td><td>Reads a core persona file (BEHAVIOR, SOUL, USER, MEMORY)</td></tr>
-          <tr><td><code>write_core_file</code></td><td>Updates a writable persona file (BEHAVIOR, SOUL). Enforces read-before-write; rejects writes to the deriver-owned USER.md / MEMORY.md peer cards</td></tr>
+          <tr><td><code>write_core_file</code></td><td>Updates a writable persona file (BEHAVIOR, SOUL). Enforces read-before-write; rejects writes to the deriver-owned USER.md profile card</td></tr>
         </tbody>
       </table>
 
@@ -2473,7 +2464,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
       <table>
         <thead><tr><th>Tool</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>memory_profile</code></td><td>Returns the compact peer cards - durable facts about the user and the agent. Fast, no search</td></tr>
+          <tr><td><code>memory_profile</code></td><td>Returns the compact profile card - durable facts about the user. Fast, no search</td></tr>
           <tr><td><code>memory_search</code></td><td>Searches reasoned conclusions and returns the most relevant excerpts</td></tr>
           <tr><td><code>memory_context</code></td><td>Answers a natural-language question grounded in reasoned memory</td></tr>
           <tr><td><code>memory_conclude</code></td><td>Stores a high-signal durable fact in reasoned memory</td></tr>

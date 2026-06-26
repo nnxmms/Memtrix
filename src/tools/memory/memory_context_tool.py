@@ -20,7 +20,7 @@ class MemoryContextTool(BaseTool):
         self._model: str = ""
         super().__init__(
             name="memory_context",
-            description="Ask a natural-language question about the user or yourself and get a synthesized answer grounded in your reasoned memory. Use for nuanced questions like 'what tone does the user prefer?'.",
+            description="Ask a natural-language question about the user and get a synthesized answer grounded in your reasoned memory. Use for nuanced questions like 'what tone does the user prefer?'.",
             parameters={
                 "type": "object",
                 "properties": {
@@ -59,26 +59,23 @@ class MemoryContextTool(BaseTool):
 
         matches: list[dict[str, Any]] = self._store.search(query=question, n_results=10)
         user_card: str = self._store.read_peer_card(peer="user")
-        agent_card: str = self._store.read_peer_card(peer="agent")
 
-        if not matches and not user_card and not agent_card:
+        if not matches and not user_card:
             return "I don't have anything in memory that answers that yet."
 
         evidence: str = "\n".join(
-            f"- ({'user' if m.get('peer') == 'user' else 'me'}, {m['kind']}, "
-            f"{m.get('confidence', 'medium')} confidence) {m['content']}"
+            f"- ({m['kind']}, {m.get('confidence', 'medium')} confidence) {m['content']}"
             for m in matches
         )
         system_prompt: str = (
-            "You answer a question using ONLY the provided memory about the user and the "
-            "assistant. Be direct and concise. Weigh higher-confidence evidence more heavily, "
+            "You answer a question using ONLY the provided memory about the user. Be direct "
+            "and concise. Weigh higher-confidence evidence more heavily, "
             "and if items conflict, prefer the stronger one and note the uncertainty. If the "
             "memory does not support an answer, say so plainly. Never invent facts or infer "
             "beyond what the memory states."
         )
         user_prompt: str = (
             f"User profile:\n{user_card or '(none)'}\n\n"
-            f"My profile:\n{agent_card or '(none)'}\n\n"
             f"Relevant conclusions:\n{evidence or '(none)'}\n\n"
             f"Question: {question}"
         )

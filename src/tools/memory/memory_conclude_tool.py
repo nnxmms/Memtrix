@@ -17,18 +17,13 @@ class MemoryConcludeTool(BaseTool):
         self._store: RepresentationStore | None = None
         super().__init__(
             name="memory_conclude",
-            description="Immediately store a durable fact in reasoned memory when the user states a preference, correction, or important context you should remember long-term. Use sparingly for high-signal facts.",
+            description="Immediately store a durable fact about the user in reasoned memory when they state a preference, correction, or important context you should remember long-term. Use sparingly for high-signal facts.",
             parameters={
                 "type": "object",
                 "properties": {
                     "fact": {
                         "type": "string",
                         "description": "The durable fact to remember, phrased as a standalone statement, e.g. 'The user prefers concise answers.'"
-                    },
-                    "peer": {
-                        "type": "string",
-                        "enum": ["user", "agent"],
-                        "description": "Whether this fact is about the user or about yourself. Defaults to 'user'."
                     }
                 },
                 "required": ["fact"]
@@ -53,12 +48,8 @@ class MemoryConcludeTool(BaseTool):
         if not fact:
             return "Error: fact cannot be empty."
 
-        peer: str = kwargs.get("peer", "user")
-        if peer not in ("user", "agent"):
-            peer = "user"
-
         record_id: str | None = self._store.add_manual_conclusion(
-            peer=peer,
+            peer="user",
             kind="deductive",
             content=fact,
             premises=["explicitly committed to memory"],

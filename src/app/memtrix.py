@@ -113,7 +113,7 @@ class Memtrix:
         so that updated agent instructions take effect on restart. AGENT.md is a
         read-only system-prompt template (no tool can write it), so overwriting it is
         safe; the agent's chosen name is re-applied to preserve the persona. The
-        mutable persona/memory files (BEHAVIOR.md, SOUL.md, USER.md, MEMORY.md) are
+        mutable persona/memory files (BEHAVIOR.md, SOUL.md, USER.md) are
         never touched here.
         """
         static_agent_md: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "AGENT.md")

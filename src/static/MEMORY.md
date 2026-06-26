@@ -1,1 +1,0 @@
-// Compact profile card about yourself (where you run, how you behave, durable self-knowledge). Auto-maintained by reasoning memory. Do not hand-edit.

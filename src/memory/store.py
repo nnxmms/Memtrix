@@ -19,7 +19,7 @@ from src.memory.index import LocalEmbeddingFunction
 logger: logging.Logger = logging.getLogger(__name__)
 
 # Valid peers and conclusion kinds
-PEERS: set[str] = {"user", "agent"}
+PEERS: set[str] = {"user"}
 KINDS: set[str] = {"observation", "deductive", "inductive"}
 
 # Valid confidence levels for a conclusion, ordered weakest -> strongest. A
@@ -33,7 +33,7 @@ DEFAULT_CONFIDENCE: str = "medium"
 CONFIDENCE_WEIGHT: dict[str, float] = {"low": 0.5, "medium": 1.0, "high": 1.5}
 
 # Peer card files (finite, always-injected summaries)
-PEER_CARD_FILES: dict[str, str] = {"user": "USER.md", "agent": "MEMORY.md"}
+PEER_CARD_FILES: dict[str, str] = {"user": "USER.md"}
 
 # Two normalized embeddings are considered duplicates below this L2 distance
 # (l2^2 = 2(1 - cosine); 0.35 ≈ cosine similarity > 0.93)
@@ -68,7 +68,6 @@ def resolve_memory_config(config: dict[str, Any]) -> dict[str, Any]:
         "reasoning_model": None,      # model instance name, or None for the main model
         "batch_tokens": 1000,
         "peer_card_max_chars": 1500,
-        "dual_peer": True,
         "inject_top_k": 5,
         "consolidation": True,                # daily memory-distillation pass
         "consolidation_interval_hours": 24,   # how often distillation runs
@@ -134,7 +133,7 @@ class RepresentationStore:
     def __init__(self, workspace_dir: str, collection_name: str = "representations") -> None:
         """
         This is the RepresentationStore which holds vector-indexed conclusions about
-        each peer (the user and the agent itself) and manages the finite peer-card files.
+        the user and manages the finite user profile card (USER.md).
         """
         self._workspace_dir: str = workspace_dir
         self._write_lock: threading.Lock = threading.Lock()
@@ -316,7 +315,7 @@ class RepresentationStore:
 
     def read_peer_card(self, peer: str) -> str:
         """
-        This function reads the finite peer-card file for a peer (USER.md or MEMORY.md).
+        This function reads the finite peer-card file for a peer (USER.md).
         """
         filename: str | None = PEER_CARD_FILES.get(peer)
         if not filename:

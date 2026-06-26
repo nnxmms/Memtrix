@@ -27,7 +27,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 router: APIRouter = APIRouter(prefix="/api/memory", tags=["memory"])
 
 # config.memory keys that freeze each peer card
-FREEZE_FLAGS: dict[str, str] = {"user": "freeze_user_card", "agent": "freeze_agent_card"}
+FREEZE_FLAGS: dict[str, str] = {"user": "freeze_user_card"}
 
 
 def _peer_max_chars() -> int:

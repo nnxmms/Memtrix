@@ -12,7 +12,6 @@ const DEFAULTS: Record<string, any> = {
   reasoning_model: "",
   batch_tokens: 1000,
   peer_card_max_chars: 1500,
-  dual_peer: true,
   inject_top_k: 5,
 };
 
@@ -113,14 +112,6 @@ export function MemoryPage() {
             />
           </Field>
         </div>
-        <label className="switch" style={{ marginTop: 6 }}>
-          <input
-            type="checkbox"
-            checked={!!draft.dual_peer}
-            onChange={(e) => set("dual_peer", e.target.checked)}
-          />
-          Maintain a separate memory card for the agent (dual-peer)
-        </label>
       </Card>
 
       {errors.length > 0 && (

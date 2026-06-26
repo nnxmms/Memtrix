@@ -15,8 +15,8 @@ from src.memory.store import KINDS, REASONING_LEVEL_ITEMS, RepresentationStore
 
 logger: logging.Logger = logging.getLogger(__name__)
 
-# Map an assistant/user role to the peer whose representation it informs
-ROLE_TO_PEER: dict[str, str] = {"user": "user", "assistant": "agent"}
+# Map a conversation role to the peer whose representation it informs (user only)
+ROLE_TO_PEER: dict[str, str] = {"user": "user"}
 
 # Idle flush interval — stragglers below the token threshold are flushed after this
 IDLE_FLUSH_SECONDS: float = 90.0
@@ -32,7 +32,7 @@ CARD_SOURCE_ITEM_MAX_CHARS: int = 220
 CARD_RETRY_OVERAGE_CHARS: int = 80
 
 # Peer -> config key that, when true, freezes that peer card against re-curation
-FREEZE_FLAGS: dict[str, str] = {"user": "freeze_user_card", "agent": "freeze_agent_card"}
+FREEZE_FLAGS: dict[str, str] = {"user": "freeze_user_card"}
 
 # Persisted timestamp of the last consolidation pass (survives restarts)
 CONSOLIDATION_STATE_FILE: str = os.path.join(os.path.dirname(CONFIG_PATH), ".last-consolidation")
@@ -64,7 +64,6 @@ class Deriver:
         self._batch_tokens: int = int(config.get("batch_tokens", 1000))
         self._reasoning_level: str = config.get("reasoning_level", "low")
         self._max_chars: int = int(config.get("peer_card_max_chars", 1500))
-        self._dual_peer: bool = bool(config.get("dual_peer", True))
 
         # Daily memory-consolidation (distillation) settings
         self._consolidation: bool = bool(config.get("consolidation", True))
@@ -93,13 +92,11 @@ class Deriver:
 
     def enqueue(self, role: str, content: str) -> None:
         """
-        This function queues a message for background reasoning. User messages inform
-        the user representation; assistant messages inform the agent representation.
+        This function queues a message for background reasoning. Only user messages
+        inform the user representation; assistant messages are ignored.
         """
         peer: str | None = ROLE_TO_PEER.get(role)
         if not peer or not (content or "").strip():
-            return
-        if peer == "agent" and not self._dual_peer:
             return
 
         with self._lock:
@@ -197,23 +194,13 @@ class Deriver:
         deductive/inductive conclusions as strict JSON.
         """
         max_items: int = REASONING_LEVEL_ITEMS.get(self._reasoning_level, 4)
-        if peer == "user":
-            subject: str = "the user (the human in the conversation)"
-            focus: str = (
-                "Capture durable facts about who the user is and what they want: their "
-                "identity, stable preferences, recurring goals, working style, important "
-                "people/projects/tools in their life, and standing instructions for how "
-                "they want to be treated."
-            )
-        else:
-            subject = "the AI assistant itself (the 'assistant' role in the transcript)"
-            focus = (
-                "Capture durable SELF-knowledge the assistant should carry forward: its "
-                "persona and values, its operating environment and constraints, and "
-                "behavioral commitments it has made (how it should act in future). Do NOT "
-                "record the literal content of individual replies, one-off task outputs, "
-                "or restate what the user said — only stable truths about the assistant."
-            )
+        subject: str = "the user (the human in the conversation)"
+        focus: str = (
+            "Capture durable facts about who the user is and what they want: their "
+            "identity, stable preferences, recurring goals, working style, important "
+            "people/projects/tools in their life, and standing instructions for how "
+            "they want to be treated."
+        )
 
         system_prompt: str = (
             "You are a reasoning engine that extracts durable, long-term knowledge from a "
@@ -308,18 +295,11 @@ class Deriver:
         bullet_points: str = "\n".join(b for b in shaped_bullets if b)
         if not bullet_points:
             return
-        if peer == "user":
-            subject_desc: str = (
-                "a compact profile of the USER: who they are (name, role, context), what "
-                "they care about, their stable preferences and goals, and the people, "
-                "projects, and tools that matter to them"
-            )
-        else:
-            subject_desc = (
-                "a compact self-description of the AI assistant: its persona and values, "
-                "the environment it operates in, and the behavioral commitments it should "
-                "uphold — durable self-knowledge, not a log of past replies"
-            )
+        subject_desc: str = (
+            "a compact profile of the USER: who they are (name, role, context), what "
+            "they care about, their stable preferences and goals, and the people, "
+            "projects, and tools that matter to them"
+        )
 
         system_prompt: str = (
             f"You maintain {subject_desc}. Rewrite the card as concise Markdown bullet points. "
@@ -456,8 +436,6 @@ class Deriver:
             return {}
 
         peers: list[str] = ["user"]
-        if self._dual_peer:
-            peers.append("agent")
 
         results: dict[str, tuple[int, int]] = {}
         for peer in peers:
@@ -503,7 +481,7 @@ class Deriver:
         This function asks the model to merge, prune, and synthesize a peer's stored
         conclusions into a cleaner set, returned as validated records.
         """
-        subject: str = "the user" if peer == "user" else "the AI assistant itself"
+        subject: str = "the user"
         listing: str = "\n".join(
             f"{i}. ({r.get('kind', 'observation')}, {r.get('confidence', 'medium')} confidence, "
             f"seen {int(r.get('times_seen', 1))}x) {r['content']}"

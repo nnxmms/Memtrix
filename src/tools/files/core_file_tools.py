@@ -6,10 +6,10 @@ from typing import Any
 from src.tools.base import BaseTool
 
 # Files that can be read via the core file tools
-ALLOWED_FILES: set[str] = {"BEHAVIOR.md", "SOUL.md", "USER.md", "MEMORY.md"}
+ALLOWED_FILES: set[str] = {"BEHAVIOR.md", "SOUL.md", "USER.md"}
 
-# Files the agent may write. USER.md and MEMORY.md are profile cards owned and
-# auto-curated by the reasoning memory (deriver), so the agent must not edit them.
+# Files the agent may write. USER.md is a profile card owned and
+# auto-curated by the reasoning memory (deriver), so the agent must not edit it.
 WRITABLE_FILES: set[str] = {"BEHAVIOR.md", "SOUL.md"}
 
 
@@ -22,13 +22,13 @@ class ReadCoreFileTool(BaseTool):
         self._workspace_dir: str = workspace_dir
         super().__init__(
             name="read_core_file",
-            description="Read the current content of a core persona file. Must be called before writing. Allowed files: BEHAVIOR.md, SOUL.md, USER.md, MEMORY.md",
+            description="Read the current content of a core persona file. Must be called before writing. Allowed files: BEHAVIOR.md, SOUL.md, USER.md",
             parameters={
                 "type": "object",
                 "properties": {
                     "filename": {
                         "type": "string",
-                        "description": "The core file to read (BEHAVIOR.md, SOUL.md, USER.md, or MEMORY.md)."
+                        "description": "The core file to read (BEHAVIOR.md, SOUL.md, or USER.md)."
                     }
                 },
                 "required": ["filename"]
@@ -68,7 +68,7 @@ class WriteCoreFileTool(BaseTool):
         self._workspace_dir: str = workspace_dir
         super().__init__(
             name="write_core_file",
-            description="Write the complete updated content to a core persona file. You MUST call read_core_file first for the same file. Provide the FULL file content, not a diff. Writable files: BEHAVIOR.md, SOUL.md. USER.md and MEMORY.md are auto-maintained by reasoning memory and cannot be written.",
+            description="Write the complete updated content to a core persona file. You MUST call read_core_file first for the same file. Provide the FULL file content, not a diff. Writable files: BEHAVIOR.md, SOUL.md. USER.md is auto-maintained by reasoning memory and cannot be written.",
             parameters={
                 "type": "object",
                 "properties": {

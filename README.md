@@ -216,7 +216,7 @@ Built-in tools are automatically discovered at startup:
 | Tool | Description |
 |:--|:--|
 | `get_current_time` | Returns the current date and time |
-| `read_core_file` | Reads a core persona file (BEHAVIOR, SOUL, USER, MEMORY) |
+| `read_core_file` | Reads a core persona file (BEHAVIOR, SOUL, USER) |
 | `write_core_file` | Updates a writable persona file (BEHAVIOR, SOUL only; enforces read-before-write) |
 | `search_memory` | Recall past conversations by meaning (`query`) and/or by date (`date`, or `start_date`+`end_date`) |
 | `memory_profile` | Returns the compact profile cards for the user and the agent (no LLM) |
@@ -256,7 +256,7 @@ Built-in tools are automatically discovered at startup:
 | `email_send` | Sends a plain-text email (confirmation required) |
 | `skill_manage` | Creates, views, lists, edits, patches, or deletes the agent's own reusable skills |
 
-> Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt. `USER.md` and `MEMORY.md` are profile cards owned by the reasoning memory and cannot be written by the agent at all.
+> Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt. `USER.md` is a profile card owned by the reasoning memory and cannot be written by the agent at all.
 
 <details>
 <summary><b>Adding a Custom Tool</b></summary>
@@ -296,11 +296,11 @@ It's automatically discovered and available to the LLM on the next restart.
 
 Memtrix combines a searchable conversation history with a reasoning layer:
 
-**Reasoning Memory** — A background **deriver** thread continuously reasons over each conversation and distills durable conclusions about both the user and the agent itself: explicit observations, certain deductions, and observed patterns. Each conclusion carries a **confidence** (high/medium/low) that ranks how it surfaces and how the profile cards are curated; when the same conclusion is independently re-derived it is promoted rather than merely re-counted, so reinforced facts rise. Conclusions are vector-indexed locally (ChromaDB, `data/representations`) and the **most relevant** ones — filtered by a similarity threshold so off-topic memories are never injected — are added to the prompt before each reply, so Memtrix recalls durable facts across sessions. Inspired by [Honcho](https://honcho.dev), but implemented entirely on-device — no external service.
+**Reasoning Memory** — A background **deriver** thread continuously reasons over each conversation and distills durable conclusions about the user: explicit observations, certain deductions, and observed patterns. Each conclusion carries a **confidence** (high/medium/low) that ranks how it surfaces and how the profile card is curated; when the same conclusion is independently re-derived it is promoted rather than merely re-counted, so reinforced facts rise. Conclusions are vector-indexed locally (ChromaDB, `data/representations`) and the **most relevant** ones — filtered by a similarity threshold so off-topic memories are never injected — are added to the prompt before each reply, so Memtrix recalls durable facts across sessions. Inspired by [Honcho](https://honcho.dev), but implemented entirely on-device — no external service.
 
 **Memory Consolidation** — Once a day, a background pass distills each peer's accumulated conclusions into a smaller, higher-signal set — like memory consolidation during sleep. It merges duplicates, explicitly resolves contradictions (keeping the more-reinforced or more-recent fact), synthesizes patterns from related items, and gently **decays** weak memories — derived conclusions that are stale, never reinforced, and low confidence are pruned, while reinforced, high-confidence, and manually-saved facts persist. Conclusions you add manually are preserved untouched. The schedule persists across restarts; run `/consolidate` to trigger a pass on demand.
 
-**Profile Cards** (`USER.md` about you, `MEMORY.md` about the agent) — Compact, always-current cards that the deriver curates automatically and keeps within a character budget. They are injected into every system prompt and are no longer hand-edited by the agent.
+**Profile Card** (`USER.md` about you) — A compact, always-current card that the deriver curates automatically and keeps within a character budget. It is injected into every system prompt and is no longer hand-edited by the agent.
 
 **Conversation Memory** — Every conversation is automatically saved as a raw session transcript and embedded into the vector store in the background. The agent writes no journals itself; instead it recalls its history with the `search_memory` tool, which works two ways and can combine them: **by meaning** (a `query` like a tool, project, decision, or name discussed weeks ago) and **by date** (`date` for one day, or `start_date`+`end_date` for a period). Because a date can't be matched semantically, date/range questions ("what did we talk about on the 15th?", "anything from last week?") filter on each chunk's day metadata instead of embedding distance — and the agent is told today's date so it can resolve "yesterday" or "last Wednesday" to an ISO date on its own. Inter-agent and internal sessions are skipped, and each sub-agent indexes only its own conversations.
 
@@ -331,8 +331,7 @@ The reasoning memory is configured via the optional `memory` section in `config.
 | `reasoning_level` | `low` | Reasoning depth: `minimal`, `low`, `medium`, `high`, `max` |
 | `reasoning_model` | `null` | Optional model override for reasoning (must share the main provider) |
 | `batch_tokens` | `1000` | Approx. tokens accumulated before a background reasoning pass |
-| `peer_card_max_chars` | `1500` | Hard character budget for each profile card, enforced with boundary-safe trimming (no mid-bullet cutoffs) |
-| `dual_peer` | `true` | Model both the user and the agent (vs. user only) |
+| `peer_card_max_chars` | `1500` | Hard character budget for the profile card, enforced with boundary-safe trimming (no mid-bullet cutoffs) |
 | `inject_top_k` | `5` | How many conclusions to inject into the prompt per turn |
 
 The section is optional — omit it and Memtrix runs on these defaults.
@@ -458,7 +457,7 @@ The loop is configured via the optional `agent` section in `config.json`:
 | `max_iterations` | `25` | Maximum tool-call rounds per request before the agent is forced to produce a final answer. |
 | `max_history` | `60` | Maximum messages kept in a session before the oldest turns are trimmed (the system prompt is always preserved). |
 
-The loop is built for reliability: provider calls retry with exponential backoff on transient errors, malformed tool-call arguments are tolerated and surfaced to the model as a correctable error instead of crashing the request, tool arguments are validated against each tool's schema before execution, and independent read-only tool calls in a batch run concurrently. Sessions are bounded by `max_history` so long conversations cannot overflow the context window, and the system prompt is rebuilt mid-session when the background memory re-curates `USER.md` / `MEMORY.md` so card updates take effect immediately.
+The loop is built for reliability: provider calls retry with exponential backoff on transient errors, malformed tool-call arguments are tolerated and surfaced to the model as a correctable error instead of crashing the request, tool arguments are validated against each tool's schema before execution, and independent read-only tool calls in a batch run concurrently. Sessions are bounded by `max_history` so long conversations cannot overflow the context window, and the system prompt is rebuilt mid-session when the background memory re-curates `USER.md` so card updates take effect immediately.
 
 <br>
 
@@ -494,11 +493,7 @@ The web container drops all Linux capabilities, runs read-only and non-root with
 | `MEMTRIX_WEB_TOKEN` | _(unset)_ | Optional shared-secret required in the `X-Memtrix-Token` header |
 | `CHROMA_URL` | `http://chroma:8000` | Shared ChromaDB endpoint for the reasoning store |
 
-<br>
-
-| `MEMORY.md` | Compact profile card about the agent (auto-maintained by reasoning memory) |
-
-These files are injected into the system prompt via placeholders (`{{BEHAVIOR}}`, `{{SOUL}}`, etc.). `BEHAVIOR.md` and `SOUL.md` are **live-editable by Memtrix itself** — when you tell it to behave differently or reshape who it is, it updates the appropriate file and the system prompt is rebuilt immediately. `USER.md` and `MEMORY.md` are curated automatically by the reasoning memory and are **write-protected** — `write_core_file` rejects edits to them at the code level.
+These files are injected into the system prompt via placeholders (`{{BEHAVIOR}}`, `{{SOUL}}`, etc.). `BEHAVIOR.md` and `SOUL.md` are **live-editable by Memtrix itself** — when you tell it to behave differently or reshape who it is, it updates the appropriate file and the system prompt is rebuilt immediately. `USER.md` is curated automatically by the reasoning memory and is **write-protected** — `write_core_file` rejects edits to it at the code level.
 
 <br>
 
@@ -721,7 +716,7 @@ All file and directory tools enforce:
 - **Core file protection** — system files (`AGENT.md`, `SOUL.md`, etc.) are only accessible through dedicated core file tools with a strict allowlist
 - **Memory directory protection** — `memory/` is off-limits to general file tools; only the memory tools can access it
 - **Read-before-write enforcement** — per-room tracking ensures the LLM reads a file before it can modify it
-- **Profile-card write protection** — `USER.md` and `MEMORY.md` are owned by the reasoning memory; `write_core_file` refuses to edit them
+- **Profile-card write protection** — `USER.md` is owned by the reasoning memory; `write_core_file` refuses to edit it
 
 ### Prompt Injection Mitigation
 
@@ -802,8 +797,7 @@ Memtrix/
 │       ├── AGENT.md                  # System prompt template
 │       ├── BEHAVIOR.md               # Behavior defaults
 │       ├── SOUL.md                   # Soul template
-│       ├── USER.md                   # User profile template
-│       └── MEMORY.md                 # Memory template
+│       └── USER.md                   # User profile template
 ├── workspace/                        # Live persona files (mounted into container)
 ├── agents/                           # Sub-agent workspaces (isolated per agent)
 ├── data/                             # Persistent data (config, sessions, vector index)

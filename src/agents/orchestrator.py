@@ -46,8 +46,8 @@ SKILL_PREFIX: str = "🧠 Your skills (reusable workflows you can load on demand
 BUDGET_PREFIX: str = "⏳ Tool-round budget"
 
 # Files whose content is baked into the system prompt; a change to any of them
-# (including the background-curated USER.md/MEMORY.md cards) triggers a rebuild.
-_PROMPT_SOURCE_FILES: tuple[str, ...] = ("AGENT.md", "BEHAVIOR.md", "SOUL.md", "USER.md", "MEMORY.md")
+# (including the background-curated USER.md card) triggers a rebuild.
+_PROMPT_SOURCE_FILES: tuple[str, ...] = ("AGENT.md", "BEHAVIOR.md", "SOUL.md", "USER.md")
 
 # Tools that mutate state, manage sessions/connections, or depend on execution
 # order — these never run concurrently with siblings in the same tool-call batch.
@@ -151,7 +151,7 @@ class Orchestrator:
     def _refresh_system_prompt(self, session: Session) -> None:
         """
         This function rebuilds the system prompt when any source file has changed since
-        the last build (notably the background-curated USER.md/MEMORY.md cards) or when
+        the last build (notably the background-curated USER.md card) or when
         the calendar day has rolled over, and syncs the latest prompt into the given
         session so mid-session updates take effect.
         """
@@ -166,7 +166,7 @@ class Orchestrator:
     def _build_system_prompt(self, workspace_dir: str) -> str:
         """
         This function builds the system prompt by reading AGENT.md and injecting
-        the contents of SOUL.md, USER.md, and MEMORY.md into its placeholders.
+        the contents of SOUL.md and USER.md into its placeholders.
         """
         # Read AGENT.md as the template
         agent_path: str = os.path.join(workspace_dir, "AGENT.md")
@@ -183,8 +183,7 @@ class Orchestrator:
         placeholders: dict[str, str] = {
             "{{BEHAVIOR}}": "BEHAVIOR.md",
             "{{SOUL}}": "SOUL.md",
-            "{{USER}}": "USER.md",
-            "{{MEMORY}}": "MEMORY.md"
+            "{{USER}}": "USER.md"
         }
 
         # Replace each placeholder with the file's content
@@ -225,11 +224,10 @@ class Orchestrator:
         if not relevant:
             return ""
 
-        lines: list[str] = [f"{RECALL_PREFIX} about the user and myself:"]
+        lines: list[str] = [f"{RECALL_PREFIX} about the user:"]
         for match in relevant:
-            who: str = "user" if match.get("peer") == "user" else "me"
             confidence: str = str(match.get("confidence", "medium") or "medium")
-            lines.append(f"- ({who}, {confidence} confidence) {match['content']}")
+            lines.append(f"- ({confidence} confidence) {match['content']}")
         lines.append(
             "(These are recalled memories that may be stale or imperfect — use them only "
             "if relevant, verify before acting on anything critical, and never mention this "

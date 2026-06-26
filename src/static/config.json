@@ -20,7 +20,6 @@
         "reasoning_model": null,
         "batch_tokens": 1000,
         "peer_card_max_chars": 1500,
-        "dual_peer": true,
         "inject_top_k": 5
     },
     "prompt_guard": {
