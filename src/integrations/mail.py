@@ -26,6 +26,10 @@ _NET_TIMEOUT: int = 30
 # Strips control characters from header values to prevent header injection.
 _HEADER_CONTROL_RE: re.Pattern[str] = re.compile(r"[\r\n\x00]")
 
+# Strips characters that would break an IMAP quoted-string / be unsafe in a trusted
+# sender address (quotes, backslash, control chars).
+_SENDER_SANITIZE_RE: re.Pattern[str] = re.compile(r'["\\\r\n\x00]')
+
 # Crude HTML-to-text fallback when an email has no plain-text part.
 _TAG_RE: re.Pattern[str] = re.compile(r"<[^>]+>")
 _WS_RE: re.Pattern[str] = re.compile(r"[ \t]*\n[ \t]*")
@@ -171,6 +175,61 @@ class EmailManager:
         self._auto_mark_read: bool = bool(config.get("auto_mark_read", True))
         self._max_fetch: int = max(1, int(config.get("max_fetch") or 10))
         self._max_body_chars: int = max(200, int(config.get("max_body_chars") or 4000))
+        # Allowlist of trusted sender addresses. When non-empty, check() only ever
+        # returns mail whose parsed From address is in this set — every other message
+        # is filtered out and never reaches the agent (a security boundary applied to
+        # the email tool itself, so the on-demand tool and the background poller both
+        # honour it). An empty set means no filtering (all senders are visible).
+        self._trusted_senders: set[str] = self._parse_trusted_senders(config.get("trusted_senders"))
+
+    # ------------------------------------------------------------------- allowlist
+
+    @staticmethod
+    def _parse_trusted_senders(raw: Any) -> set[str]:
+        """
+        This function normalises the configured allowlist into a set of lowercase email
+        addresses. Each entry may be a bare address or a "Name <addr>" form; only the
+        address part is kept, sanitised, and validated (must contain '@' and no spaces).
+        Invalid entries are dropped so a malformed allowlist can never silently widen
+        access.
+        """
+        senders: set[str] = set()
+        if not isinstance(raw, (list, tuple)):
+            return senders
+        for entry in raw:
+            _, addr = parseaddr(str(entry))
+            addr = _SENDER_SANITIZE_RE.sub("", addr).strip().lower()
+            if addr and "@" in addr and " " not in addr:
+                senders.add(addr)
+        return senders
+
+    def _sender_allowed(self, from_header: str | None) -> bool:
+        """
+        This function returns True when the message may be shown: always when no
+        allowlist is configured, otherwise only when the message's parsed From address
+        is one of the trusted senders. Matching is on the exact address (case
+        insensitive), never the display name, so a spoofed display name containing a
+        trusted address cannot pass.
+        """
+        if not self._trusted_senders:
+            return True
+        _, addr = parseaddr(from_header or "")
+        return addr.strip().lower() in self._trusted_senders
+
+    def _trusted_from_clause(self) -> str:
+        """
+        This function builds the IMAP SEARCH OR/FROM clause that narrows results to the
+        trusted senders server-side (an optimisation; the exact Python check in
+        _sender_allowed remains the security boundary). Returns an empty string when no
+        allowlist is configured.
+        """
+        if not self._trusted_senders:
+            return ""
+        terms: list[str] = [f'FROM "{addr}"' for addr in sorted(self._trusted_senders)]
+        clause: str = terms[-1]
+        for term in reversed(terms[:-1]):
+            clause = f"OR {term} {clause}"
+        return clause
 
     # ------------------------------------------------------------------- readiness
 
@@ -274,23 +333,39 @@ class EmailManager:
             if status != "OK":
                 raise EmailError(f"Mailbox '{self._mailbox}' could not be opened.")
 
+            # Narrow server-side to the trusted senders (when an allowlist is set) so we
+            # don't fetch the whole mailbox; the exact Python check below is still the
+            # real security boundary.
             criteria: str = "UNSEEN" if unread_only else "ALL"
+            from_clause: str = self._trusted_from_clause()
+            if from_clause:
+                criteria = f"UNSEEN {from_clause}" if unread_only else from_clause
             status, data = client.uid("SEARCH", None, criteria)
             if status != "OK":
                 raise EmailError("IMAP search failed.")
 
             uids: list[bytes] = data[0].split() if data and data[0] else []
-            uids = uids[-count:]  # most recent
+            # Without an allowlist, cap to the most recent messages before fetching. With
+            # an allowlist the cap must apply to *trusted* results, so we keep the full
+            # (already-narrowed) set and stop once we have enough below.
+            if not self._trusted_senders:
+                uids = uids[-count:]
             uids.reverse()        # newest first
 
             messages: list[dict[str, Any]] = []
             retrieved_uids: list[bytes] = []
             for uid in uids:
+                if len(messages) >= count:
+                    break
                 status, fetched = client.uid("FETCH", uid, "(BODY.PEEK[])")
                 if status != "OK" or not fetched or not isinstance(fetched[0], tuple):
                     continue
                 raw_bytes: bytes = fetched[0][1]
                 parsed: Message = email.message_from_bytes(raw_bytes)
+                # Enforce the allowlist on the exact parsed From address. Messages from
+                # any other sender are skipped entirely and never reach the agent.
+                if not self._sender_allowed(parsed.get("From")):
+                    continue
                 messages.append({
                     "uid": uid.decode(),
                     "from": _decode_header_value(parsed.get("From")),

@@ -23,6 +23,7 @@ const DEFAULTS: Record<string, any> = {
   auto_mark_read: true,
   max_fetch: 10,
   max_body_chars: 4000,
+  trusted_senders: [],
   react_to_mail: false,
   poll_interval_seconds: 60,
 };
@@ -266,6 +267,33 @@ export function EmailPage() {
             />
           </Field>
         </div>
+      </Card>
+
+      <Card title="Trusted senders (allowlist)">
+        <p style={{ marginTop: 0, fontSize: 13, color: "var(--text-muted)" }}>
+          One email address per line. When this list is non-empty, Memtrix only ever sees
+          mail from these senders — every other message is filtered out before it reaches
+          the agent (applies to checking, reading, and reactive mail). Leave empty to allow
+          all senders.
+        </p>
+        <Field label="Allowed addresses">
+          <textarea
+            className="input"
+            rows={5}
+            style={{ fontFamily: "var(--font-mono, monospace)", resize: "vertical" }}
+            value={(draft.trusted_senders ?? []).join("\n")}
+            onChange={(e) =>
+              set(
+                "trusted_senders",
+                e.target.value
+                  .split(/[\n,]/)
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              )
+            }
+            placeholder={"alice@example.com\nbob@example.org"}
+          />
+        </Field>
       </Card>
 
       {errors.length > 0 && (

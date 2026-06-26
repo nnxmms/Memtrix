@@ -114,6 +114,9 @@ def validate_config(config: dict[str, Any]) -> list[str]:
                 port: Any = email_cfg.get(port_key)
                 if port is not None and (not isinstance(port, int) or isinstance(port, bool) or not (1 <= port <= 65535)):
                     errors.append(f"email.{port_key} must be a port number between 1 and 65535.")
+            trusted: Any = email_cfg.get("trusted_senders")
+            if trusted is not None and not (isinstance(trusted, list) and all(isinstance(s, str) for s in trusted)):
+                errors.append("email.trusted_senders must be a list of email addresses.")
 
     # Validate optional voice-transcription settings
     voice: dict[str, Any] = config.get("voice") or {}

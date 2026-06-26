@@ -261,6 +261,8 @@ Built-in tools are automatically discovered at startup:
 
 > **Reactive mail.** With email enabled you can also turn on `react_to_mail` (off by default). A background poller checks the mailbox every `poll_interval_seconds` (default 60s, minimum 15s) and, when genuinely new mail arrives, pings the agent with a system notification — the same mechanism that delivers finished background-worker results — so it can read, triage, and only bother you when something needs attention. The poll never marks mail read, and an existing unread backlog (or mail that arrived while Memtrix was down) is never announced. Toggle it on the **Email** page of the web panel.
 
+> **Trusted-sender allowlist.** For a tighter security boundary you can set `trusted_senders` (a list of addresses) on the **Email** page. When non-empty, Memtrix only ever sees mail from those senders — every other message is filtered out at the tool level (matching on the exact From address, so a spoofed display name can't slip through) and never reaches the agent, the reasoning memory, or the reactive poller. Leave it empty to allow all senders.
+
 <details>
 <summary><b>Adding a Custom Tool</b></summary>
 <br>
