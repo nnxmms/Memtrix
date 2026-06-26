@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Save, Plug } from "lucide-react";
+import { Save, Plug, Plus, Trash2 } from "lucide-react";
 import { Card, Field, PageHeader, Spinner } from "../components/ui";
 import { useConfig } from "../app/context";
 import { useSaveConfig } from "../app/useSaveConfig";
@@ -45,10 +45,18 @@ export function EmailPage() {
   const agentName = String((config as any)?.["main-agent"]?.name ?? "Memtrix");
   const set = (k: string, v: any) => setDraft((d) => ({ ...d, [k]: v }));
 
+  const senders: string[] = Array.isArray(draft.trusted_senders) ? draft.trusted_senders : [];
+  const setSender = (i: number, v: string) =>
+    set("trusted_senders", senders.map((s, idx) => (idx === i ? v : s)));
+  const addSender = () => set("trusted_senders", [...senders, ""]);
+  const removeSender = (i: number) =>
+    set("trusted_senders", senders.filter((_, idx) => idx !== i));
+
   const buildSection = () => ({
     ...draft,
     password: PASSWORD_PLACEHOLDER,
     from_address: draft.from_address ? String(draft.from_address).trim() : "",
+    trusted_senders: senders.map((s) => String(s).trim()).filter(Boolean),
   });
 
   const onSave = async () => {
@@ -271,29 +279,39 @@ export function EmailPage() {
 
       <Card title="Trusted senders (allowlist)">
         <p style={{ marginTop: 0, fontSize: 13, color: "var(--text-muted)" }}>
-          One email address per line. When this list is non-empty, Memtrix only ever sees
-          mail from these senders — every other message is filtered out before it reaches
-          the agent (applies to checking, reading, and reactive mail). Leave empty to allow
-          all senders.
+          When this list is non-empty, Memtrix only ever sees mail from these senders —
+          every other message is filtered out before it reaches the agent (applies to
+          checking, reading, and reactive mail). Leave empty to allow all senders.
         </p>
-        <Field label="Allowed addresses">
-          <textarea
-            className="input"
-            rows={5}
-            style={{ fontFamily: "var(--font-mono, monospace)", resize: "vertical" }}
-            value={(draft.trusted_senders ?? []).join("\n")}
-            onChange={(e) =>
-              set(
-                "trusted_senders",
-                e.target.value
-                  .split(/[\n,]/)
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              )
-            }
-            placeholder={"alice@example.com\nbob@example.org"}
-          />
-        </Field>
+        {senders.length === 0 && (
+          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 12px" }}>
+            No trusted senders yet — all senders are allowed.
+          </p>
+        )}
+        {senders.map((addr, i) => (
+          <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <input
+              className="input"
+              type="email"
+              value={addr}
+              onChange={(e) => setSender(i, e.target.value)}
+              placeholder="alice@example.com"
+              autoComplete="off"
+              style={{ flex: 1 }}
+            />
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => removeSender(i)}
+              title="Remove address"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ))}
+        <button className="btn btn-secondary" type="button" onClick={addSender}>
+          <Plus size={16} /> Add address
+        </button>
       </Card>
 
       {errors.length > 0 && (
