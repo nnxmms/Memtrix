@@ -179,6 +179,8 @@ def resolve_email_config(config: dict[str, Any]) -> dict[str, Any]:
         "auto_mark_read": True,      # mark fetched messages read after retrieval
         "max_fetch": 10,             # default number of messages email_check returns
         "max_body_chars": 4000,      # cap body length returned to the model
+        "react_to_mail": False,      # proactively ping the agent when new mail arrives
+        "poll_interval_seconds": 60, # how often the background poller checks for new mail
     }
     user_cfg: dict[str, Any] = config.get("email", {}) or {}
     resolved: dict[str, Any] = {**defaults, **user_cfg}

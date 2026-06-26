@@ -58,7 +58,9 @@
         "mailbox": "INBOX",
         "auto_mark_read": true,
         "max_fetch": 10,
-        "max_body_chars": 4000
+        "max_body_chars": 4000,
+        "react_to_mail": false,
+        "poll_interval_seconds": 60
     },
     "providers": {},
     "models": {},

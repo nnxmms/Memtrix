@@ -23,6 +23,8 @@ const DEFAULTS: Record<string, any> = {
   auto_mark_read: true,
   max_fetch: 10,
   max_body_chars: 4000,
+  react_to_mail: false,
+  poll_interval_seconds: 60,
 };
 
 export function EmailPage() {
@@ -239,6 +241,29 @@ export function EmailPage() {
               <option value="ssl">SSL/TLS (465)</option>
               <option value="none">None</option>
             </select>
+          </Field>
+        </div>
+      </Card>
+
+      <Card title="Reactivity">
+        <label className="switch" style={{ marginBottom: 12 }}>
+          <input
+            type="checkbox"
+            checked={!!draft.react_to_mail}
+            onChange={(e) => set("react_to_mail", e.target.checked)}
+          />
+          React to incoming mail (ping the agent when new messages arrive)
+        </label>
+        <div className="grid grid-2">
+          <Field label="Check interval (seconds)" hint="How often the mailbox is polled for new mail. Minimum 15s.">
+            <input
+              className="input"
+              type="number"
+              min={15}
+              value={draft.poll_interval_seconds ?? 60}
+              onChange={(e) => set("poll_interval_seconds", Number(e.target.value))}
+              disabled={!draft.react_to_mail}
+            />
           </Field>
         </div>
       </Card>

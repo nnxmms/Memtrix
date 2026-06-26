@@ -259,6 +259,8 @@ Built-in tools are automatically discovered at startup:
 
 > Write operations for persona and memory files are rejected unless the file was read first in the same request. This is enforced at the code level, not just in the prompt. `USER.md` is a profile card owned by the reasoning memory and cannot be written by the agent at all.
 
+> **Reactive mail.** With email enabled you can also turn on `react_to_mail` (off by default). A background poller checks the mailbox every `poll_interval_seconds` (default 60s, minimum 15s) and, when genuinely new mail arrives, pings the agent with a system notification — the same mechanism that delivers finished background-worker results — so it can read, triage, and only bother you when something needs attention. The poll never marks mail read, and an existing unread backlog (or mail that arrived while Memtrix was down) is never announced. Toggle it on the **Email** page of the web panel.
+
 <details>
 <summary><b>Adding a Custom Tool</b></summary>
 <br>

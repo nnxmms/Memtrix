@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.40.0</span>
+    memtrix<span class="ver">v2.41.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -2584,6 +2584,9 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
         <span class="callout-tag note">note</span>
         <div class="callout-body">Email bodies are external, untrusted content: they are screened for prompt injection (like web pages) and the agent is instructed never to act on instructions found inside a message. Sending always asks for confirmation first.</div>
       </div>
+
+      <h3 id="tr-email-reactive">Reactive mail</h3>
+      <p>Turn on <code>react_to_mail</code> (off by default) to let Memtrix act on mail the moment it arrives instead of only when asked. A background poller checks the mailbox every <code>poll_interval_seconds</code> (default 60s, minimum 15s) and, when genuinely new mail appears, pings the agent with a system notification — the same in-process mechanism that delivers finished background-worker results — so it can read, triage, and only message you when something needs your attention. The poll never marks mail read, and an existing unread backlog (or mail that arrived while Memtrix was offline) is never announced, so enabling it won't trigger a flood. Configure it on the <strong>Email</strong> page of the control panel.</p>
 
       <h2 id="tr-skills">Skills</h2>
       <p>Available to every agent when <code>skills.enabled</code> is true. Lets the agent author and reuse its own task workflows. See <a onclick="navigate('skills')" style="cursor:pointer;color:var(--accent)">Skills</a>.</p>

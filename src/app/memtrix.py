@@ -26,6 +26,7 @@ from src.core.session import Session
 from src.indexing.skills import SKILL_TOOL_FILES, SkillsCatalog
 from src.integrations.ssh import SSH_TOOL_FILES, SSHManager
 from src.integrations.mail import MAIL_TOOL_FILES, EmailManager
+from src.integrations.mail_poller import MailPoller
 from src.integrations.transcription import LocalSpeechToText
 from src.tools import discover_tools
 from src.tools.base import BaseTool
@@ -87,6 +88,13 @@ class Memtrix:
 
         # Background worker-agent manager (ephemeral task runners)
         self._worker_manager: WorkerManager | None = None
+
+        # Background mailbox poller (proactive "you've got mail" notifications)
+        self._mail_poller: MailPoller | None = None
+
+        # Most recently active room id, used to deliver proactive mail notifications
+        # when there is no inherently associated conversation.
+        self._last_active_room: str = ""
 
         # Active channel reference, set once the channel is created in run(). Used to
         # deliver background worker results into the originating room.
@@ -382,6 +390,17 @@ class Memtrix:
         for room_id, session_id in sessions_map.items():
             self._sessions[room_id] = Session(sessions_dir=self._sessions_dir, session_id=session_id)
 
+        # Start the background mailbox poller so the agent reacts to incoming mail. Only
+        # when email access is enabled and the user opted into reactive mail.
+        if email_manager is not None and email_cfg.get("react_to_mail", False):
+            self._mail_poller = MailPoller(
+                email_manager=email_manager,
+                trigger=self._handle_mail_notification,
+                interval_seconds=int(email_cfg.get("poll_interval_seconds", 60)),
+            )
+            self._mail_poller.start()
+            logger.info("Reactive mail enabled (poll every %ss)", email_cfg.get("poll_interval_seconds", 60))
+
     def _seed_bot_user_ids(self) -> None:
         """
         This function populates the shared bot user IDs set from config.
@@ -495,6 +514,62 @@ class Memtrix:
 
         threading.Thread(target=deliver, name=f"worker-deliver-{worker_id}", daemon=True).start()
 
+    def _resolve_notify_room(self) -> str:
+        """
+        This function picks the room a proactive notification (e.g. new mail) should be
+        delivered to. It prefers the most recently active room; if none has been active
+        yet this run it falls back to the only known persisted session room. Returns an
+        empty string when no room can be determined.
+        """
+        if self._last_active_room:
+            return self._last_active_room
+        if len(self._sessions) == 1:
+            return next(iter(self._sessions))
+        return ""
+
+    def _handle_mail_notification(self, count: int, summary: str, uids: list[str]) -> None:
+        """
+        This function is the trigger fired by the MailPoller when new unread mail
+        arrives. It runs the main agent with a synthetic notification so the agent can
+        check and triage the mail in the most recently active room — mirroring the
+        background-worker notification path (own daemon thread, per-room lock). The
+        poller never marks mail read, so the agent's own email_check sees it normally.
+        """
+        room_id: str = self._resolve_notify_room()
+        if not room_id:
+            logger.info("New mail (%d) detected but no active room to notify; skipping.", count)
+            return
+
+        def deliver() -> None:
+            with self._get_room_lock(room_id=room_id):
+                try:
+                    session: Session = self._get_session(room_id=room_id)
+                    plural: str = "message" if count == 1 else "messages"
+                    synthetic: str = (
+                        "[System notification — not from the user]\n"
+                        f"{count} new email {plural} just arrived in your mailbox:\n"
+                        f"{summary}\n\n"
+                        "Check the mailbox with email_check and triage it. Only message the user "
+                        "if something genuinely needs their attention or a reply — stay silent on "
+                        "newsletters, spam, and routine noise. Take any appropriate follow-up action."
+                    )
+                    notify_cb: Callable[[str], None] | None = None
+                    if self._channel is not None and self._commands.verbose:
+                        notify_cb = lambda msg: self._channel.send_to_room(room_id=room_id, body=msg, notice=True)
+                    response: str = self._orchestrator.run(
+                        user_message=synthetic,
+                        session=session,
+                        room_id=room_id,
+                        notify=notify_cb,
+                        agent_depth=0,
+                    )
+                    if self._channel is not None and response.strip():
+                        self._channel.send_to_room(room_id=room_id, body=response)
+                except Exception as e:
+                    logger.error("Failed to deliver mail notification to %s: %s", room_id, e, exc_info=True)
+
+        threading.Thread(target=deliver, name="mail-deliver", daemon=True).start()
+
     def _handle(self, user_input: str, room_id: str, notify: Callable[[str], None], send_file: Callable[[str], None] | None = None, ask: Callable[[str], str] | None = None, react: Callable[[str], None] | None = None) -> str:
         """
         This function handles a user message and returns the response.
@@ -534,6 +609,7 @@ class Memtrix:
         # serializes runs so a background worker-result delivery can never race a live
         # user turn on the same session.
         session: Session = self._get_session(room_id=room_id)
+        self._last_active_room = room_id
         with self._get_room_lock(room_id=room_id):
             result = self._orchestrator.run(
                 user_message=user_input,
@@ -634,6 +710,12 @@ class Memtrix:
                 self._deriver.flush_now()
             except Exception as exc:
                 logger.error("Error flushing deriver on shutdown: %s", exc)
+
+        if self._mail_poller is not None:
+            try:
+                self._mail_poller.stop()
+            except Exception as exc:
+                logger.error("Error stopping mail poller on shutdown: %s", exc)
 
         try:
             SSHManager.get_instance().disconnect_all()
