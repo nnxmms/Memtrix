@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.43.1
+
+- Fixed sub-agents failing to boot with `ModuleNotFoundError: No module named 'src.commands'`. The `_start_agent` path had a stale import (`from src.commands import Commands`) left over from an earlier module layout; it now correctly imports from `src.core.commands`. This only surfaced once sub-agents could actually be provisioned with a complete config (see 2.43.0) and reach that line during boot.
+
 ## 2.43.0
 
 - **Creating a sub-agent from the web control panel now works end to end.** The old Sub-Agents page was a generic key/value editor that only let you pick a model and a channel, and saving it wrote a half-formed entry with no Matrix identity and no workspace — which then crashed the agent on the next boot with `KeyError: 'workspace'`. The page is now a purpose-built flow: enter the agent's name, its area of expertise, and the model, and Memtrix provisions everything for you. On the bundled local homeserver it registers a fresh Matrix account automatically; on an external homeserver it asks for the pre-created user ID and access token instead (the panel detects which case applies and shows the right fields). Behind the scenes the provisioning logic — Matrix registration, workspace scaffolding, persona files — was extracted into a shared module so the web panel and the in-chat `create_agent` tool now follow exactly the same path. Existing sub-agents are listed with their model and Matrix user and can be deleted (which also cleans up the workspace, memory index, and sessions; the Matrix account stays on the homeserver). Config validation was also corrected: sub-agents are validated for their real required keys (`workspace` and Matrix credentials) rather than a `channel` they never had, so a malformed entry is rejected before it can be saved instead of failing silently at boot.

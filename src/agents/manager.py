@@ -549,7 +549,7 @@ class AgentManager:
         sessions_dir: str = os.path.join(data_dir, "sessions", name)
 
         # Import Commands locally to avoid circular imports
-        from src.commands import Commands
+        from src.core.commands import Commands
         agent_commands: Commands = Commands(agent_config=agent_config, config_path=["agents", name], providers=self._config.get("providers", {}))
         self._commands[name] = agent_commands
 
