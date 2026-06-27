@@ -75,18 +75,6 @@ const CHANNELS: ResourceSpec = {
   ],
 };
 
-const AGENTS: ResourceSpec = {
-  sectionKey: "agents",
-  title: "Sub-Agents",
-  subtitle: "Additional agents, each with its own model and channel.",
-  noun: "sub-agent",
-  fields: [
-    { name: "model", label: "Model", optionsFrom: "models" },
-    { name: "channel", label: "Channel", optionsFrom: "channels" },
-  ],
-};
-
 export const ProvidersPage = () => <ResourcePage spec={PROVIDERS} />;
 export const ModelsPage = () => <ResourcePage spec={MODELS} />;
 export const ChannelsPage = () => <ResourcePage spec={CHANNELS} />;
-export const AgentsPage = () => <ResourcePage spec={AGENTS} />;

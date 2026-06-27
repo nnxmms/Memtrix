@@ -526,6 +526,15 @@ Memtrix can create specialist sub-agents — fully independent agents with their
 | **Customized persona** | `SOUL.md` and `AGENT.md` are tailored to the sub-agent's name and expertise |
 | **Full tool access** | All tools except agent management (`create_agent`, `list_agents`, `delete_agent`) |
 
+### Creating a Sub-Agent
+
+There are two ways to create one, and both run the same provisioning path under the hood:
+
+- **Ask Memtrix** — say something like *"Create me a cooking expert, call him Dennis."* Memtrix confirms (human-in-the-loop), then registers the Matrix account, scaffolds the workspace, and brings the agent online.
+- **From the Web Control Panel** — open the **Sub-Agents** page, enter the agent's name, its area of expertise, and the model. On the bundled local homeserver the panel registers a fresh Matrix account automatically; against an external homeserver it asks for the user ID and access token of an account you pre-created (it detects which case applies and shows the right fields). The new agent comes online after the next restart. The page also lists existing sub-agents and lets you delete them (workspace, memory, and sessions are cleaned up; the Matrix account stays on the homeserver).
+
+The name must be a real human name (2–24 characters; letters, spaces, hyphens). A slug is derived internally for directories and config keys.
+
 ### Inter-Agent Communication
 
 Agents can consult each other using the `ask_agent` tool. The main agent can ask sub-agents, sub-agents can ask the main agent, and sub-agents can ask other sub-agents.

@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse, Response
 
 from src import __version__
+from src.web.agents_api import router as agents_router
 from src.web.config_api import router as config_router
 from src.web.deps import require_token
 from src.web.lifecycle_api import router as lifecycle_router
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
     # All API routers require the shared-secret header when one is configured
     guard = Depends(require_token)
     app.include_router(config_router, dependencies=[guard])
+    app.include_router(agents_router, dependencies=[guard])
     app.include_router(secrets_router, dependencies=[guard])
     app.include_router(memory_router, dependencies=[guard])
     app.include_router(lifecycle_router, dependencies=[guard])

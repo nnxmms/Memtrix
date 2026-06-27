@@ -92,8 +92,7 @@ def validate_config(config: dict[str, Any]) -> list[str]:
     errors.extend(_validate_agent(label="main-agent", agent=config.get("main-agent"),
                                   models=models, channels=channels, required=True))
     for name, agent in (config.get("agents") or {}).items():
-        errors.extend(_validate_agent(label=f"agent '{name}'", agent=agent,
-                                      models=models, channels=channels, required=True))
+        errors.extend(_validate_sub_agent(label=f"agent '{name}'", agent=agent, models=models))
 
     # Validate optional email settings
     email_cfg: Any = config.get("email")
@@ -164,6 +163,34 @@ def _validate_agent(label: str, agent: Any, models: dict[str, Any],
         errors.append(f"{label} is missing a 'channel'.")
     elif channel_ref not in channels:
         errors.append(f"{label} references unknown channel '{channel_ref}'.")
+    return errors
+
+
+def _validate_sub_agent(label: str, agent: Any, models: dict[str, Any]) -> list[str]:
+    """
+    This function validates a single sub-agent section. Unlike the main agent, a
+    sub-agent has no 'channel' (it derives its homeserver from the main agent) and
+    instead carries its own scaffolded 'workspace' and Matrix identity. These keys
+    are written by the provisioning flow; a bare entry without them cannot be
+    started and must be rejected so it never reaches the agent runtime.
+    """
+    errors: list[str] = []
+    if not isinstance(agent, dict):
+        errors.append(f"{label} section is missing or invalid.")
+        return errors
+
+    model_ref: Any = agent.get("model")
+    if not model_ref:
+        errors.append(f"{label} is missing a 'model'.")
+    elif model_ref not in models:
+        errors.append(f"{label} references unknown model '{model_ref}'.")
+
+    for key in ("workspace", "matrix_user_id", "matrix_access_token"):
+        if not str(agent.get(key) or "").strip():
+            errors.append(
+                f"{label} is missing '{key}'. Sub-agents must be created through the "
+                f"Sub-Agents page or by asking the agent — they can't be added as a bare entry."
+            )
     return errors
 
 

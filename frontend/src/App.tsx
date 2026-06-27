@@ -3,11 +3,11 @@ import { Sidebar, Topbar } from "./app/Layout";
 import { DashboardPage } from "./pages/DashboardPage";
 import { MainAgentPage } from "./pages/MainAgentPage";
 import {
-  AgentsPage,
   ChannelsPage,
   ModelsPage,
   ProvidersPage,
 } from "./pages/configPages";
+import { AgentsPage } from "./pages/AgentsPage";
 import { MemoryPage } from "./pages/MemoryPage";
 import { VoicePage } from "./pages/VoicePage";
 import { EmailPage } from "./pages/EmailPage";

@@ -220,3 +220,24 @@ class MessageResponse(BaseModel):
     """A simple message acknowledgement."""
 
     message: str
+
+
+# --------------------------------------------------------------------- agents
+
+
+class AgentCreate(BaseModel):
+    """A request to provision a new sub-agent."""
+
+    name: str
+    description: str
+    model: str = ""
+    matrix_user_id: str = ""
+    matrix_access_token: str = ""
+
+
+class AgentMeta(BaseModel):
+    """Provisioning context the Sub-Agents page needs to render the right form."""
+
+    managed: bool
+    server_name: str
+

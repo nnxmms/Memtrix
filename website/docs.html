@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.42.0</span>
+    memtrix<span class="ver">v2.43.0</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -1274,6 +1274,9 @@ docker compose up -d</code></pre>
         <div class="callout-body">Agent creation requires your confirmation (human-in-the-loop). The name must be a real human name (2-24 characters, letters/spaces/hyphens). A slug is derived internally for directories and config keys.</div>
       </div>
 
+      <h3>From the Web Control Panel</h3>
+      <p>You can also create a sub-agent from the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Sub-Agents</a> page of the control panel - no chat required. Enter the agent's name, its area of expertise, and the model, and Memtrix provisions everything: it registers a fresh Matrix account automatically on the bundled local homeserver, or - when you run against an external homeserver - asks for the user ID and access token of an account you pre-created. The panel detects which case applies and shows the right fields. The new agent comes online after the next restart. The page also lists your existing sub-agents and lets you delete them (workspace, memory, and sessions are cleaned up; the Matrix account stays on the homeserver). Both the panel and the chat tool share the same provisioning path, so either way you get a complete, bootable agent.</p>
+
       <h2 id="ag-chat">Chatting with a sub-agent</h2>
       <p>Invite the agent's Matrix user (e.g. <code>@dennis:memtrix.local</code>) to a room and chat like you would with Memtrix. Dennis has his own memory - he'll remember your conversations and preferences independently.</p>
 
@@ -1820,7 +1823,8 @@ description: Steps to audit a remote host's security posture
           <tr><td><strong>Dashboard</strong></td><td>Live status at a glance - agent online/offline (heartbeat), reasoning-memory count, deriver state, and a config summary</td></tr>
           <tr><td><strong>Main Agent</strong></td><td>Name, model, channel, and the verbose / reasoning toggles</td></tr>
           <tr><td><strong>Providers &amp; Models</strong></td><td>Add, edit, or remove LLM providers and model instances; run live connectivity tests</td></tr>
-          <tr><td><strong>Channels &amp; Agents</strong></td><td>Manage Matrix channels and sub-agents; test channel connections</td></tr>
+          <tr><td><strong>Channels</strong></td><td>Manage Matrix channels and test channel connections</td></tr>
+          <tr><td><strong>Sub-Agents</strong></td><td>Create specialist sub-agents (name, expertise, model) - the panel registers the Matrix account automatically on the local homeserver or collects credentials for an external one - and delete existing ones</td></tr>
           <tr><td><strong>Memory</strong></td><td>Tune the reasoning-memory block - backend, recall mode, derivation depth, consolidation</td></tr>
           <tr><td><strong>Memory Admin</strong></td><td>Browse, search, add, edit, and delete conclusions; edit and freeze peer cards; manage people and events; pause the deriver; export/import</td></tr>
           <tr><td><strong>Secrets</strong></td><td>View which secrets are referenced and set or rotate their values</td></tr>

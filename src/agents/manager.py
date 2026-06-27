@@ -4,17 +4,18 @@ import importlib
 import json
 import logging
 import os
-import re
-import secrets
 import shutil
-import string
 import threading
 from types import ModuleType
 from typing import Any, Callable
 
-import requests
-
 from src.agents.orchestrator import Orchestrator
+from src.agents.provisioning import (
+    AGENTS_DIR,
+    AgentProvisionError,
+    get_homeserver,
+    provision_agent,
+)
 from src.channels.matrix import MatrixChannel
 from src.core.config import CONFIG_PATH, CONFIG_LOCK, resolve_agent_config, resolve_prompt_guard_config, resolve_skills_config
 from src.core.session import Session
@@ -29,36 +30,6 @@ from src.tools import discover_tools
 from src.tools.base import BaseTool
 
 logger: logging.Logger = logging.getLogger(__name__)
-
-# Valid agent name: letters, spaces, hyphens. 2–24 chars.
-_AGENT_NAME_PATTERN: re.Pattern[str] = re.compile(r"^[A-Za-z][A-Za-z \-]{1,23}$")
-
-# Agents root directory inside the container
-AGENTS_DIR: str = "/home/memtrix/agents"
-
-# Fallback Matrix server name when it cannot be derived from the bot user ID
-DEFAULT_SERVER_NAME: str = "memtrix.local"
-
-# Default core file templates for new agents
-_SOUL_TEMPLATE: str = """## Soul
-
-You are **{display_name}**, a specialist sub-agent of the {main_name} system.
-
-Your expertise: **{description}**
-
-You exist to provide deep, focused knowledge in your domain. You have your own memory, your own personality, and your own conversation history — separate from the main {main_name} agent and any other sub-agents.
-
-You value accuracy in your domain above all else. If you're unsure about something, say so. If a question falls outside your expertise, be honest about your limits.
-
-You remember conversations and learn from your user over time, just like the main agent — but through the lens of your specialty.
-"""
-
-_BEHAVIOR_TEMPLATE: str = """- Keep it focused. Stay within your area of expertise unless asked otherwise.
-- Be direct and specific. Domain experts don't need fluff.
-- Match the user's language. If they write German, respond in German.
-- Have strong opinions in your domain. Push back when something seems off.
-- Ask clarifying questions when the user's request is ambiguous in your domain.
-"""
 
 
 class AgentManager:
@@ -128,83 +99,6 @@ class AgentManager:
             with open(file=CONFIG_PATH, mode="w") as f:
                 json.dump(obj=disk_config, fp=f, indent=4)
 
-    def _generate_password(self, length: int = 24) -> str:
-        """
-        This function generates a random password for Matrix user registration.
-        """
-        alphabet: str = string.ascii_letters + string.digits
-        return "".join(secrets.choice(seq=alphabet) for _ in range(length))
-
-    def _register_matrix_user(self, homeserver: str, username: str, password: str) -> dict[str, Any]:
-        """
-        This function registers a user on the Matrix homeserver via the Client-Server API.
-        Uses the registration token from config for token-protected registration.
-        """
-        url: str = f"{homeserver.rstrip('/')}/_matrix/client/v3/register"
-        body: dict[str, Any] = {
-            "username": username,
-            "password": password,
-            "auth": {"type": "m.login.dummy"},
-            "inhibit_login": False
-        }
-
-        # Use registration token if available
-        reg_token: str = self._config.get("registration_token", "")
-        if reg_token:
-            body["auth"] = {
-                "type": "m.login.registration_token",
-                "token": reg_token
-            }
-
-        response: requests.Response = requests.post(url=url, json=body, timeout=30)
-        response.raise_for_status()
-        return response.json()
-
-    def _set_display_name(self, homeserver: str, user_id: str, access_token: str, display_name: str) -> None:
-        """
-        This function sets a user's display name on the Matrix homeserver.
-        """
-        url: str = f"{homeserver.rstrip('/')}/_matrix/client/v3/profile/{requests.utils.quote(user_id)}/displayname"
-        requests.put(
-            url=url,
-            headers={"Authorization": f"Bearer {access_token}"},
-            json={"displayname": display_name},
-            timeout=10
-        )
-
-    def _get_homeserver(self) -> str:
-        """
-        This function returns the Matrix homeserver URL from the main agent's channel config.
-        """
-        channel_name: str = self._config["main-agent"]["channel"]
-        return self._config["channels"][channel_name]["homeserver"]
-
-    def _get_main_channel(self) -> dict[str, Any]:
-        """
-        This function returns the main agent's channel config section.
-        """
-        channel_name: str = self._config["main-agent"]["channel"]
-        return self._config["channels"][channel_name]
-
-    def _is_managed(self) -> bool:
-        """
-        This function reports whether the main channel uses the bundled local Conduit
-        homeserver (managed) or an external/already-hosted server. Managed servers
-        support automatic user registration via the registration token.
-        """
-        return bool(self._get_main_channel().get("managed", True))
-
-    def _get_server_name(self) -> str:
-        """
-        This function derives the Matrix server name (the part after ':' in user IDs)
-        from the main agent's bot user ID, e.g. '@memtrix:matrix.org' -> 'matrix.org'.
-        Falls back to the default local Conduit server name.
-        """
-        user_id: str = self._get_main_channel().get("user_id", "")
-        if ":" in user_id:
-            return user_id.split(sep=":", maxsplit=1)[1]
-        return DEFAULT_SERVER_NAME
-
     def _load_provider(self, agent_config: dict[str, Any]) -> tuple[BaseProvider, str, bool, bool]:
         """
         This function loads the provider for a sub-agent.
@@ -229,62 +123,6 @@ class AgentManager:
 
         raise RuntimeError(f"No provider class found for type '{provider_type}'.")
 
-    def _scaffold_workspace(self, name: str, description: str, display_name: str) -> str:
-        """
-        This function creates the workspace directory structure for a new sub-agent.
-        Returns the workspace directory path.
-        """
-        workspace_dir: str = os.path.join(AGENTS_DIR, name)
-        os.makedirs(name=workspace_dir, exist_ok=True)
-        os.makedirs(name=os.path.join(workspace_dir, "memory"), exist_ok=True)
-        os.makedirs(name=os.path.join(workspace_dir, "attachments"), exist_ok=True)
-        os.makedirs(name=os.path.join(workspace_dir, "downloads"), exist_ok=True)
-
-        # Copy AGENT.md from static templates (src/static, one level up from src/agents)
-        src_agent_md: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "AGENT.md")
-        dst_agent_md: str = os.path.join(workspace_dir, "AGENT.md")
-        if os.path.isfile(path=src_agent_md):
-            shutil.copy2(src=src_agent_md, dst=dst_agent_md)
-
-            # Replace the opening line with sub-agent identity
-            with open(file=dst_agent_md, mode="r") as f:
-                content: str = f.read()
-            main_name: str = self._config["main-agent"].get("name", "Memtrix")
-            content: str = content.replace(
-                "You are **Memtrix**, a personal AI assistant.",
-                f"You are **{display_name}**, a specialist sub-agent of {main_name}.\n\nYour expertise: **{description}**"
-            )
-
-            # Remove the Sub-Agents section — sub-agents cannot manage other agents
-            content: str = re.sub(
-                r"\n---\n\n## Sub-Agents\n.*?(?=\n---\n)",
-                "",
-                content,
-                flags=re.DOTALL
-            )
-
-            with open(file=dst_agent_md, mode="w") as f:
-                f.write(content)
-
-        # Write customized core files
-        main_name: str = self._config["main-agent"].get("name", "Memtrix")
-        with open(file=os.path.join(workspace_dir, "SOUL.md"), mode="w") as f:
-            f.write(_SOUL_TEMPLATE.format(display_name=display_name, description=description, main_name=main_name))
-
-        # Copy BEHAVIOR.md from main agent's workspace (inherits user's customizations)
-        main_behavior: str = os.path.join(self._config["workspace-directory"], "BEHAVIOR.md")
-        if os.path.isfile(path=main_behavior):
-            shutil.copy2(src=main_behavior, dst=os.path.join(workspace_dir, "BEHAVIOR.md"))
-        else:
-            with open(file=os.path.join(workspace_dir, "BEHAVIOR.md"), mode="w") as f:
-                f.write(_BEHAVIOR_TEMPLATE)
-
-        # Symlink USER.md to the main agent's copy (shared across all agents)
-        main_user: str = os.path.join(self._config["workspace-directory"], "USER.md")
-        os.symlink(src=main_user, dst=os.path.join(workspace_dir, "USER.md"))
-
-        return workspace_dir
-
     def create_agent(self, name: str, description: str, model: str = "",
                      matrix_user_id: str = "", matrix_access_token: str = "") -> str:
         """
@@ -295,99 +133,25 @@ class AgentManager:
         automatically. On an external homeserver the caller must supply a
         pre-created matrix_user_id and matrix_access_token. Returns a status message.
         """
-        # Validate name
-        if not _AGENT_NAME_PATTERN.match(name):
-            return "Error: agent name must be 2–24 characters, letters, spaces, and hyphens only."
-
-        # Derive slug for technical identifiers (directories, Matrix username, config key)
-        slug: str = name.lower().replace(" ", "-")
-
-        # Check if agent already exists
-        agents: dict[str, Any] = self._config.setdefault("agents", {})
-        if slug in agents:
-            return f"Error: agent '{name}' already exists."
-
-        # Display name is the real name
-        display_name: str = name
-
-        # Default model — same as main agent
-        if not model:
-            model: str = self._config["main-agent"]["model"]
-
-        # Validate model exists
-        if model not in self._config.get("models", {}):
-            return f"Error: model '{model}' not found in config."
-
-        homeserver: str = self._get_homeserver()
-        server_name: str = self._get_server_name()
-
-        if self._is_managed():
-            # Managed (local Conduit): register a fresh Matrix user automatically
-            username: str = slug
-            password: str = self._generate_password()
-            user_id: str = f"@{username}:{server_name}"
-
-            try:
-                result: dict[str, Any] = self._register_matrix_user(
-                    homeserver=homeserver,
-                    username=username,
-                    password=password
-                )
-                access_token: str = result.get("access_token", "")
-                user_id: str = result.get("user_id", user_id)
-            except requests.exceptions.HTTPError as e:
-                return f"Error: failed to register Matrix user — {e.response.text if e.response else e}"
-
-            if not access_token:
-                return "Error: registration succeeded but no access token was returned."
-        else:
-            # External homeserver: the user must pre-create the Matrix account and
-            # provide its credentials, since registration is typically not available.
-            user_id: str = matrix_user_id.strip()
-            access_token: str = matrix_access_token.strip()
-            if not user_id or not access_token:
-                return (
-                    f"This agent runs on an external Matrix homeserver ({server_name}), "
-                    f"which doesn't support automatic account creation.\n\n"
-                    f"Ask the user to create a new Matrix account for '{display_name}' on their "
-                    f"homeserver, then provide:\n"
-                    f"  • the full user ID (e.g. @{slug}:{server_name})\n"
-                    f"  • an access token for that account\n\n"
-                    f"Then call create_agent again with matrix_user_id and matrix_access_token."
-                )
-            if not user_id.startswith("@") or ":" not in user_id:
-                return "Error: matrix_user_id must be a full Matrix ID like '@name:server'."
-
-        # Set display name (best-effort)
         try:
-            self._set_display_name(
-                homeserver=homeserver,
-                user_id=user_id,
-                access_token=access_token,
-                display_name=f"{display_name} ⚡"
+            slug, agent_config = provision_agent(
+                config=self._config,
+                name=name,
+                description=description,
+                model=model,
+                matrix_user_id=matrix_user_id,
+                matrix_access_token=matrix_access_token,
             )
-        except Exception:
-            logger.warning("Failed to set display name for agent '%s'", name)
-
-        # Scaffold workspace
-        workspace_dir: str = self._scaffold_workspace(
-            name=slug,
-            description=description,
-            display_name=display_name
-        )
+        except AgentProvisionError as e:
+            return str(e)
 
         # Persist agent config
-        agent_config: dict[str, Any] = {
-            "description": description,
-            "display_name": display_name,
-            "model": model,
-            "matrix_user_id": user_id,
-            "matrix_access_token": access_token,
-            "workspace": workspace_dir,
-            "sessions": {}
-        }
+        agents: dict[str, Any] = self._config.setdefault("agents", {})
         agents[slug] = agent_config
         self._save_config()
+
+        user_id: str = agent_config["matrix_user_id"]
+        display_name: str = agent_config["display_name"]
 
         # Register the new user ID in the shared bot filter set
         self._bot_user_ids.add(user_id)
@@ -400,7 +164,7 @@ class AgentManager:
             f"Agent '{display_name}' created successfully.\n\n"
             f"  Matrix user: {user_id}\n"
             f"  Workspace: agents/{slug}/\n"
-            f"  Model: {model}\n\n"
+            f"  Model: {agent_config['model']}\n\n"
             f"The user can now invite {user_id} to a Matrix room to start chatting."
         )
 
@@ -835,7 +599,7 @@ class AgentManager:
             )
 
         # Create Matrix channel for this agent
-        homeserver: str = self._get_homeserver()
+        homeserver: str = get_homeserver(config=self._config)
         display_name: str = agent_config.get("display_name", f"Memtrix {name.title()}")
         attachments_dir: str = os.path.join(workspace_dir, "attachments")
 

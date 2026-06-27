@@ -97,6 +97,19 @@ export interface StatusResponse {
   memory_count: number;
 }
 
+export interface AgentMeta {
+  managed: boolean;
+  server_name: string;
+}
+
+export interface AgentCreate {
+  name: string;
+  description: string;
+  model?: string;
+  matrix_user_id?: string;
+  matrix_access_token?: string;
+}
+
 export type Config = Record<string, any>;
 
 const TOKEN_KEY = "memtrix_web_token";
@@ -161,8 +174,7 @@ export const api = {
   validateConfig: (config: Config) =>
     request<ValidateResponse>("POST", "/api/config/validate", { config }),
   putConfig: (config: Config) =>
-    request<{ message: string }>("PUT", "/api/config", { config }),
-  testProvider: (type: string, params: Record<string, any>) =>
+    request<{ message: string }>("PUT", "/api/config", { config }),  testProvider: (type: string, params: Record<string, any>) =>
     request<TestResult>("POST", "/api/config/test/provider", { type, params }),
   testChannel: (type: string, params: Record<string, any>) =>
     request<TestResult>("POST", "/api/config/test/channel", { type, params }),
@@ -173,6 +185,13 @@ export const api = {
       type,
       params,
     }),
+
+  // sub-agents
+  agentMeta: () => request<AgentMeta>("GET", "/api/agents/meta"),
+  createAgent: (body: AgentCreate) =>
+    request<{ message: string }>("POST", "/api/agents", body),
+  deleteAgent: (slug: string) =>
+    request<{ message: string }>("DELETE", `/api/agents/${encodeURIComponent(slug)}`),
 
   // secrets
   listSecrets: () => request<SecretListResponse>("GET", "/api/secrets"),
