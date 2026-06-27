@@ -611,6 +611,10 @@ class Memtrix:
         session: Session = self._get_session(room_id=room_id)
         self._last_active_room = room_id
         with self._get_room_lock(room_id=room_id):
+            # Surface any inter-agent exchanges that arrived while this room had no
+            # active turn, so the main agent remembers what a sub-agent told it.
+            for note in self._agent_manager.drain_pending_notes(agent_key="main"):
+                session.append(message={"role": "assistant", "content": note})
             result = self._orchestrator.run(
                 user_message=user_input,
                 session=session,

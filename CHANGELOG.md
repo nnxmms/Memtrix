@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.43.3
+
+- Fixed inter-agent exchanges not reaching the target agent's user-facing conversation. When one agent used `ask_agent` to message another, a note about the exchange was only written if the target already had an active user session with non-empty history - so a brand-new sub-agent (one the user had never messaged) silently lost the context, and so did any case where the user later resumed in a different room. Notes are now queued per agent and drained into the user-facing session on the agent's next turn, for both sub-agents and the main agent. Concretely: if you ask Memtrix to pass something to a sub-agent, the sub-agent will actually remember it the next time you message it directly.
+
 ## 2.43.2
 
 - Hardened the Matrix channel against a failed initial sync. If the homeserver returned an error instead of a sync response — most commonly an invalid or expired access token on an external homeserver — the agent thread crashed with `AttributeError: 'SyncError' object has no attribute 'rooms'`. The initial sync now checks for a real `SyncResponse` and, on an error, logs a clear warning and keeps retrying instead of taking down the agent thread. A sub-agent with bad Matrix credentials will now stay alive and complain in the logs rather than crashing.

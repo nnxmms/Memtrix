@@ -687,7 +687,7 @@
   </button>
   <a href="docs.html" class="doc-header-brand" onclick="navigate('overview');return false;">
     <img src="static/logo.png" alt="Memtrix" width="24" height="24">
-    memtrix<span class="ver">v2.43.2</span>
+    memtrix<span class="ver">v2.43.3</span>
   </a>
   <nav class="doc-header-nav">
     <a href="#" class="active" onclick="navigate('getting-started');return false;">Get Started</a>
@@ -1315,7 +1315,7 @@ docker compose up -d</code></pre>
       </ul>
 
       <h2 id="ag-memory-exchange">Memory exchange</h2>
-      <p>As of v2.7, after an inter-agent call, a summary of the exchange is appended to the target agent's active user session. If Agent B asks Agent A something, A can later tell the user what B asked and what it answered.</p>
+      <p>After an inter-agent call, a summary of the exchange is queued for the target agent and surfaced in its user-facing conversation on its next turn. If Agent B asks Agent A something, A can later tell the user what B asked and what it answered - even if A had never spoken to the user before (a brand-new sub-agent) or the user resumes the conversation in a different room.</p>
 
       <h2 id="ag-workers">Background workers</h2>
       <p>Separate from persistent sub-agents, the main agent can spawn <strong>ephemeral background workers</strong> with <code>spawn_worker</code> for one-off, self-contained tasks - without blocking the conversation. A worker is a lightweight orchestrator on a background daemon thread with an in-memory session, no Matrix identity and no memory. The agent gets a worker id back immediately and keeps talking to you while the worker runs.</p>

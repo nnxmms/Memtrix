@@ -64,6 +64,12 @@ class AgentManager:
         # Inter-agent sessions (keyed by "caller_slug:target_slug")
         self._internal_sessions: dict[str, Session] = {}
 
+        # Pending inter-agent exchange notes, queued per target agent key ("main" or a
+        # sub-agent slug). Drained into the target's user-facing session on its next user
+        # turn, so the agent remembers what another agent told it even if it had no active
+        # session at the time (e.g. a brand-new sub-agent) or the user resumes in a new room.
+        self._pending_notes: dict[str, list[str]] = {}
+
         # Reference to the main agent's user sessions (set by register_main_orchestrator)
         self._main_sessions: dict[str, Session] = {}
 
@@ -297,23 +303,29 @@ class AgentManager:
 
     def _log_inter_agent_exchange(self, target_key: str, caller_display: str, message: str, response: str) -> None:
         """
-        This function appends a note about an inter-agent exchange to the target agent's
-        active user session. This allows the agent to recall what it discussed with
-        other agents when the user asks about it.
+        This function queues a note about an inter-agent exchange for the target agent.
+        The note is drained into the target's user-facing session on its next user turn
+        (see drain_pending_notes), so the agent can recall what another agent told it —
+        even if it had no active user session at the time (e.g. a freshly created
+        sub-agent) or the user later resumes in a different room.
         """
-        user_session: Session | None = self._get_active_user_session(target_key=target_key)
-        if not user_session or not user_session.history:
-            return
-
         # Cap message and response length to avoid bloating the session
         msg_summary: str = message[:500] + "…" if len(message) > 500 else message
         resp_summary: str = response[:500] + "…" if len(response) > 500 else response
 
         note: str = (
-            f"[Internal note: {caller_display} just asked you: \"{msg_summary}\" "
-            f"and you responded: \"{resp_summary}\"]"
+            f"[Internal note: Earlier, {caller_display} asked you: \"{msg_summary}\" "
+            f"and you answered: \"{resp_summary}\". Keep this in mind if the user refers to it.]"
         )
-        user_session.append(message={"role": "assistant", "content": note})
+        self._pending_notes.setdefault(target_key, []).append(note)
+
+    def drain_pending_notes(self, agent_key: str) -> list[str]:
+        """
+        This function returns and clears any queued inter-agent exchange notes for an
+        agent. Called at the start of a user turn so the agent's user-facing session
+        includes context from exchanges that happened while it had no active session.
+        """
+        return self._pending_notes.pop(agent_key, [])
 
     def _get_recent_context(self, target_key: str, max_pairs: int = 10) -> str:
         """
@@ -587,6 +599,12 @@ class AgentManager:
                 self._save_config()
 
             session: Session = self._sessions[session_key]
+
+            # Surface any inter-agent exchanges that happened while this agent had no
+            # active session (or in another room) so it remembers them this turn.
+            for note in self.drain_pending_notes(agent_key=name):
+                session.append(message={"role": "assistant", "content": note})
+
             return orchestrator.run(
                 user_message=user_input,
                 session=session,
