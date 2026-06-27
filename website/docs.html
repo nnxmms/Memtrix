@@ -747,6 +747,7 @@
     <a class="sidebar-link" onclick="navigate('agents')">Sub-Agents</a>
     <a class="sidebar-link" onclick="navigate('web-panel')">Web Control Panel</a>
     <a class="sidebar-link" onclick="navigate('voice')">Voice & Transcription</a>
+    <a class="sidebar-link" onclick="navigate('email')">Email & Mail</a>
     <a class="sidebar-link" onclick="navigate('ssh')">SSH Remote Admin</a>
     <a class="sidebar-link" onclick="navigate('custom-tools')">Custom Tools</a>
     <a class="sidebar-link" onclick="navigate('custom-providers')">Custom Providers</a>
@@ -891,6 +892,9 @@ docker compose up -d</code></pre>
 
       <h2 id="ft-voice">Local Voice Notes</h2>
       <p>Send a voice message and Memtrix transcribes it <strong>on-device</strong> with a local faster-whisper model, then answers as if you had typed it. No audio leaves your machine. Off by default - see <a onclick="navigate('voice')" style="cursor:pointer;color:var(--accent)">Voice &amp; Transcription</a>.</p>
+
+      <h2 id="ft-email">Email Access</h2>
+      <p>Connect a mailbox and Memtrix can read it over IMAP and send over SMTP. It can stay passive (only checking when asked) or, with <strong>reactive mail</strong> on, watch the inbox in the background and act on genuinely new messages the moment they arrive - triaging and only interrupting you when something matters. A <strong>trusted-sender allowlist</strong> can restrict it to mail from specific addresses, and every message is screened for prompt injection. Off by default - see <a onclick="navigate('email')" style="cursor:pointer;color:var(--accent)">Email &amp; Mail</a>.</p>
 
       <h2 id="ft-security">Security Hardened</h2>
       <p>Defense-in-depth: non-root container, read-only filesystem, all capabilities dropped, no shell access for the LLM, SSRF protection, human-in-the-loop for destructive operations, path traversal prevention, and prompt injection mitigation.</p>
@@ -1069,7 +1073,7 @@ docker compose up -d</code></pre>
 
       <div class="callout note">
         <span class="callout-tag note">note</span>
-        <div class="callout-body"><strong>First startup:</strong> Memtrix downloads the embedding model (~100 MB) on first launch. This can take a couple of minutes, but the agent stays responsive while it loads in the background. Subsequent starts reuse <code>data/cache/</code>.</div>
+        <div class="callout-body"><strong>First startup:</strong> Memtrix downloads the embedding model (~100 MB) on first launch. This can take a couple of minutes, but the agent stays responsive while it loads in the background. Subsequent starts reuse the cached model in <code>data/models/</code>.</div>
       </div>
 
       <h2 id="gs-next">What to do next</h2>
@@ -1333,7 +1337,7 @@ docker compose up -d</code></pre>
           <div></div>
           <div class="step-content">
             <h4>Build the system prompt</h4>
-            <p>The <code>AGENT.md</code> template is filled in: <code>{{DATE}}</code> becomes today's ISO date, and <code>{{BEHAVIOR}}</code>, <code>{{SOUL}}</code>, <code>{{USER}}</code>, <code>{{MEMORY}}</code> are replaced with the live contents of those persona files. If any source file changed since last turn, the prompt is rebuilt mid-session so edits take effect immediately.</p>
+            <p>The <code>AGENT.md</code> template is filled in: <code>{{DATE}}</code> becomes today's ISO date, and <code>{{BEHAVIOR}}</code>, <code>{{SOUL}}</code>, <code>{{USER}}</code> are replaced with the live contents of those persona files. If any source file changed since last turn, the prompt is rebuilt mid-session so edits take effect immediately.</p>
           </div>
         </div>
         <div class="step">
@@ -1380,7 +1384,7 @@ docker compose up -d</code></pre>
         <li><strong>Argument validation</strong> - missing required parameters and basic type mismatches are returned to the model as a precise, correctable error instead of failing deep inside a tool.</li>
         <li><strong>Malformed JSON</strong> - if the model emits invalid JSON for a tool's arguments, the arguments become an empty object and the model is told to fix it next round, rather than the whole turn crashing.</li>
         <li><strong>One-to-one tool IDs</strong> - every tool call is paired exactly with its result, so strict providers never see an orphaned tool result.</li>
-        <li><strong>Secret redaction</strong> - tool-call notifications redact argument values whose names look like secrets (password, token, api_key, secret, credential, auth, private_key).</li>
+        <li><strong>Secret redaction</strong> - tool-call notifications redact argument values whose names look like secrets (password, passwd, token, api_key, apikey, secret, passphrase, credential, auth, private_key).</li>
       </ul>
 
       <h2 id="al-budget">Iteration budget</h2>
@@ -1422,7 +1426,7 @@ docker compose up -d</code></pre>
       </table>
 
       <h2 id="ps-inject">How injection works</h2>
-      <p><code>AGENT.md</code> contains placeholders like <code>{{BEHAVIOR}}</code>, <code>{{SOUL}}</code>, <code>{{USER}}</code>, <code>{{MEMORY}}</code>. At system prompt construction time, the orchestrator reads each file and replaces the placeholder with its contents.</p>
+      <p><code>AGENT.md</code> contains placeholders like <code>{{BEHAVIOR}}</code>, <code>{{SOUL}}</code>, <code>{{USER}}</code>, plus <code>{{DATE}}</code> for today's ISO date. At system prompt construction time, the orchestrator reads each file and replaces the placeholder with its contents.</p>
 
       <h2 id="ps-live">Live updates</h2>
       <p><code>BEHAVIOR.md</code> and <code>SOUL.md</code> are <strong>live-editable by Memtrix itself</strong>. When you tell it to behave differently or correct its style, it updates them with <code>write_core_file</code> - and the system prompt is rebuilt immediately after.</p>
@@ -1518,7 +1522,7 @@ docker compose up -d</code></pre>
 
       <div class="callout note">
         <span class="callout-tag note">note</span>
-        <div class="callout-body">Reasoning memory complements the <a onclick="navigate('memory')" style="cursor:pointer;color:var(--accent)">daily-journal RAG</a>. Journals are a verbatim log; reasoning memory is the distilled understanding derived <em>from</em> conversations.</div>
+        <div class="callout-body">Reasoning memory complements the <a onclick="navigate('memory')" style="cursor:pointer;color:var(--accent)">conversation-history RAG</a>. That layer is a verbatim transcript log; reasoning memory is the distilled understanding derived <em>from</em> conversations.</div>
       </div>
 
       <h2 id="rm-peers">The user model</h2>
@@ -1817,9 +1821,10 @@ description: Steps to audit a remote host's security posture
           <tr><td><strong>Providers &amp; Models</strong></td><td>Add, edit, or remove LLM providers and model instances; run live connectivity tests</td></tr>
           <tr><td><strong>Channels &amp; Agents</strong></td><td>Manage Matrix channels and sub-agents; test channel connections</td></tr>
           <tr><td><strong>Memory</strong></td><td>Tune the reasoning-memory block - backend, recall mode, derivation depth, consolidation</td></tr>
-          <tr><td><strong>Memory Admin</strong></td><td>Browse, search, add, edit, and delete conclusions; edit and freeze peer cards; pause the deriver; export/import</td></tr>
+          <tr><td><strong>Memory Admin</strong></td><td>Browse, search, add, edit, and delete conclusions; edit and freeze peer cards; manage people and events; pause the deriver; export/import</td></tr>
           <tr><td><strong>Secrets</strong></td><td>View which secrets are referenced and set or rotate their values</td></tr>
           <tr><td><strong>Voice</strong></td><td>Enable local transcription and pick the model tier and language</td></tr>
+          <tr><td><strong>Email</strong></td><td>Configure the mailbox (IMAP/SMTP), enable reactive mail, and set the trusted-sender allowlist</td></tr>
           <tr><td><strong>Panel Settings</strong></td><td>The panel's own auth token, port, and CORS dev origins</td></tr>
         </tbody>
       </table>
@@ -1959,6 +1964,121 @@ description: Steps to audit a remote host's security posture
       <div class="callout tip">
         <span class="callout-tag tip">tip</span>
         <div class="callout-body">If you mostly speak one language, set <code>language</code> explicitly (e.g. <code>"en"</code>) - it is slightly faster and more accurate than auto-detection.</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ EMAIL & MAIL ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-email">
+      <div class="doc-breadcrumb">Guides</div>
+      <h1>Email &amp; Mail</h1>
+      <p class="lead">Give Memtrix a mailbox and it can read your mail over IMAP and send over SMTP - on demand, or reactively the moment new mail arrives. Off by default, main-agent only, and screened for prompt injection.</p>
+
+      <div class="callout warn">
+        <span class="callout-tag warn">warn</span>
+        <div class="callout-body">Email is <strong>off by default</strong> and available to the <strong>main agent only</strong> - sub-agents and background workers never get the email tools. The tools load only when <code>email.enabled</code> is true.</div>
+      </div>
+
+      <h2 id="em-tools">The tools</h2>
+      <table>
+        <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>email_check</code></td><td>Fetch recent messages (unread only by default) with sender, subject, date, body, and a stable UID. Marks them read after retrieval unless <code>mark_read</code> is false</td></tr>
+          <tr><td><code>email_mark_unread</code></td><td>Restore one or more messages to unread by UID</td></tr>
+          <tr><td><code>email_send</code></td><td>Send a plain-text email (<code>to</code>, <code>subject</code>, <code>body</code>, optional <code>cc</code>/<code>bcc</code>) - always asks for confirmation first</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout note">
+        <span class="callout-tag note">note</span>
+        <div class="callout-body">Mail bodies are <strong>untrusted external content</strong>. They are screened for prompt injection (just like web pages), prefixed with a disclaimer, and the agent is instructed never to act on instructions found inside a message. Sending always requires explicit confirmation.</div>
+      </div>
+
+      <h2 id="em-config">Configuration</h2>
+      <p>Configure the mailbox on the <strong>Email</strong> page of the <a onclick="navigate('web-panel')" style="cursor:pointer;color:var(--accent)">Web Control Panel</a>, or edit the <code>email</code> block in <code>config.json</code> by hand. The mailbox password is never stored in config - it is supplied as the <code>EMAIL_PASSWORD</code> secret (from <code>.env</code>, the managed <code>data/secrets.env</code>, or Bitwarden) and resolved at startup.</p>
+
+      <div class="code-title"><svg fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg> data/config.json</div>
+      <pre><code>{
+  <span style="color:var(--blue)">"email"</span>: {
+    <span style="color:var(--blue)">"enabled"</span>: <span style="color:var(--purple)">false</span>,
+    <span style="color:var(--blue)">"imap_host"</span>: <span style="color:var(--orange)">"imap.example.com"</span>,
+    <span style="color:var(--blue)">"imap_port"</span>: <span style="color:var(--accent)">993</span>,
+    <span style="color:var(--blue)">"imap_ssl"</span>: <span style="color:var(--purple)">true</span>,
+    <span style="color:var(--blue)">"smtp_host"</span>: <span style="color:var(--orange)">"smtp.example.com"</span>,
+    <span style="color:var(--blue)">"smtp_port"</span>: <span style="color:var(--accent)">587</span>,
+    <span style="color:var(--blue)">"smtp_security"</span>: <span style="color:var(--orange)">"starttls"</span>, <span style="color:var(--text-muted)">// starttls | ssl | none</span>
+    <span style="color:var(--blue)">"username"</span>: <span style="color:var(--orange)">"me@example.com"</span>,
+    <span style="color:var(--blue)">"password"</span>: <span style="color:var(--orange)">"$EMAIL_PASSWORD"</span>,
+    <span style="color:var(--blue)">"from_address"</span>: <span style="color:var(--orange)">"me@example.com"</span>,
+    <span style="color:var(--blue)">"from_name"</span>: <span style="color:var(--orange)">"Memtrix"</span>,
+    <span style="color:var(--blue)">"mailbox"</span>: <span style="color:var(--orange)">"INBOX"</span>,
+    <span style="color:var(--blue)">"auto_mark_read"</span>: <span style="color:var(--purple)">true</span>,
+    <span style="color:var(--blue)">"max_fetch"</span>: <span style="color:var(--accent)">10</span>,
+    <span style="color:var(--blue)">"max_body_chars"</span>: <span style="color:var(--accent)">4000</span>,
+    <span style="color:var(--blue)">"react_to_mail"</span>: <span style="color:var(--purple)">false</span>,
+    <span style="color:var(--blue)">"poll_interval_seconds"</span>: <span style="color:var(--accent)">60</span>,
+    <span style="color:var(--blue)">"trusted_senders"</span>: []
+  }
+}</code></pre>
+
+      <table>
+        <thead><tr><th>Key</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>enabled</code></td><td><code>false</code></td><td>Load the email tools (main agent only)</td></tr>
+          <tr><td><code>imap_host</code></td><td><em>(required)</em></td><td>IMAP server hostname for reading mail</td></tr>
+          <tr><td><code>imap_port</code></td><td><code>993</code></td><td>IMAP port</td></tr>
+          <tr><td><code>imap_ssl</code></td><td><code>true</code></td><td>Use implicit TLS for IMAP</td></tr>
+          <tr><td><code>smtp_host</code></td><td><em>(required)</em></td><td>SMTP server hostname for sending mail</td></tr>
+          <tr><td><code>smtp_port</code></td><td><code>587</code></td><td>SMTP port</td></tr>
+          <tr><td><code>smtp_security</code></td><td><code>starttls</code></td><td>SMTP transport security - <code>starttls</code>, <code>ssl</code>, or <code>none</code></td></tr>
+          <tr><td><code>username</code></td><td><em>(required)</em></td><td>Mailbox login username</td></tr>
+          <tr><td><code>password</code></td><td><code>$EMAIL_PASSWORD</code></td><td>Mailbox password as a <code>$PLACEHOLDER</code> secret - never a literal value</td></tr>
+          <tr><td><code>from_address</code></td><td><em>(username)</em></td><td>Address outgoing mail is sent from; defaults to <code>username</code></td></tr>
+          <tr><td><code>from_name</code></td><td><em>(empty)</em></td><td>Display name on outgoing mail</td></tr>
+          <tr><td><code>mailbox</code></td><td><code>INBOX</code></td><td>IMAP folder to read</td></tr>
+          <tr><td><code>auto_mark_read</code></td><td><code>true</code></td><td>Mark messages read after <code>email_check</code> retrieves them</td></tr>
+          <tr><td><code>max_fetch</code></td><td><code>10</code></td><td>Maximum messages returned per check</td></tr>
+          <tr><td><code>max_body_chars</code></td><td><code>4000</code></td><td>Per-message body truncation cap</td></tr>
+          <tr><td><code>react_to_mail</code></td><td><code>false</code></td><td>Watch the mailbox and act on new mail proactively (see below)</td></tr>
+          <tr><td><code>poll_interval_seconds</code></td><td><code>60</code></td><td>How often the reactive poller checks (minimum 15s)</td></tr>
+          <tr><td><code>trusted_senders</code></td><td><code>[]</code></td><td>Allowlist of sender addresses; empty allows all (see below)</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="em-reactive">Reactive mail</h2>
+      <p>By default Memtrix only touches your mailbox when you ask it to. Turn on <code>react_to_mail</code> and it watches the inbox in the background, acting on mail the moment it arrives:</p>
+      <ul>
+        <li>A background poller checks the mailbox over IMAP every <code>poll_interval_seconds</code> (default 60s, clamped to a 15s minimum).</li>
+        <li>When genuinely new mail appears, it pings the agent with a system notification - the <strong>same in-process mechanism</strong> that delivers finished background-worker results - so the agent can read, triage, and only message you when something actually needs attention.</li>
+        <li>The poll <strong>never marks mail read</strong>, so your own <code>email_check</code> still sees it as new.</li>
+        <li>An existing unread backlog (and mail that arrived while Memtrix was offline) is <strong>never announced</strong> - turning the feature on won't trigger a flood. Only mail arriving <em>after</em> the baseline is seeded gets a notification.</li>
+        <li>The notification is delivered to your most recently active room.</li>
+      </ul>
+
+      <h2 id="em-trusted">Trusted-sender allowlist</h2>
+      <p>For a tighter security boundary, set <code>trusted_senders</code> to a list of addresses. When the list is non-empty, Memtrix only ever sees mail from those senders - every other message is filtered out <strong>at the tool level</strong> and never reaches the agent, the reasoning memory, or the reactive poller.</p>
+      <ul>
+        <li>Matching is on the <strong>exact parsed From address</strong> (case-insensitive), never the display name - so a message that merely puts a trusted address in its display name cannot slip through.</li>
+        <li>Each entry may be a bare address or a <code>Name &lt;addr&gt;</code> form; only the address part is kept. Invalid entries are dropped so a malformed allowlist can never silently widen access.</li>
+        <li>The allowlist also narrows the IMAP search server-side as an optimisation, while the exact in-process check remains the real boundary.</li>
+        <li>Leave the list empty to allow mail from all senders.</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="callout-tag tip">tip</span>
+        <div class="callout-body">For app-password-based providers (Gmail, Fastmail, etc.), create a dedicated app password and store it as the <code>EMAIL_PASSWORD</code> secret through the panel's Secrets page - never paste it into <code>config.json</code>.</div>
+      </div>
+
+      <div class="nav-cards">
+        <a class="nav-card" onclick="navigate('tools-ref')">
+          <div class="nav-card-label">Reference</div>
+          <div class="nav-card-title">Tools Reference →</div>
+          <div class="nav-card-desc">The email tools in the full catalog</div>
+        </a>
+        <a class="nav-card" onclick="navigate('secrets')">
+          <div class="nav-card-label">Reference</div>
+          <div class="nav-card-title">Secrets &amp; Bitwarden →</div>
+          <div class="nav-card-desc">How the EMAIL_PASSWORD secret is resolved</div>
+        </a>
       </div>
     </div>
 
@@ -2270,6 +2390,7 @@ description: Steps to audit a remote host's security posture
           <tr><td><code>provider</code></td><td>string</td><td>Which provider runs this model</td></tr>
           <tr><td><code>model</code></td><td>string</td><td>Model identifier (e.g. <code>llama3</code>, <code>anthropic/claude-sonnet-4-20250514</code>)</td></tr>
           <tr><td><code>think</code></td><td>boolean</td><td>Enable extended thinking / reasoning mode</td></tr>
+          <tr><td><code>vision</code></td><td>boolean</td><td>Let the model see images sent in chat - see <a onclick="navigate('custom-providers')" style="cursor:pointer;color:var(--accent)">Custom Providers</a></td></tr>
         </tbody>
       </table>
 
@@ -2317,6 +2438,9 @@ description: Steps to audit a remote host's security posture
           <tr><td><code>max_history</code></td><td><code>60</code></td><td>Maximum messages kept in a session before the oldest turns are trimmed (the system prompt is always preserved), bounding context growth on long conversations.</td></tr>
         </tbody>
       </table>
+
+      <h2 id="cf-email">Email config</h2>
+      <p>The optional <code>email</code> block connects a mailbox over IMAP/SMTP and is off by default. Full key-by-key details, reactive mail, and the trusted-sender allowlist are on the <a onclick="navigate('email')" style="cursor:pointer;color:var(--accent)">Email &amp; Mail</a> page.</p>
 
       <h2 id="cf-web">Web Control Panel</h2>
       <p>The panel is configured through environment variables on the <code>web</code> service, not <code>config.json</code>:</p>
@@ -2469,7 +2593,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
       <table>
         <thead><tr><th>Tool</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>read_core_file</code></td><td>Reads a core persona file (BEHAVIOR, SOUL, USER, MEMORY)</td></tr>
+          <tr><td><code>read_core_file</code></td><td>Reads a core persona file (BEHAVIOR, SOUL, USER)</td></tr>
           <tr><td><code>write_core_file</code></td><td>Updates a writable persona file (BEHAVIOR, SOUL). Enforces read-before-write; rejects writes to the deriver-owned USER.md profile card</td></tr>
         </tbody>
       </table>
@@ -2491,6 +2615,7 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
           <tr><td><code>memory_search</code></td><td>Searches reasoned conclusions and returns the most relevant excerpts</td></tr>
           <tr><td><code>memory_context</code></td><td>Answers a natural-language question grounded in reasoned memory</td></tr>
           <tr><td><code>memory_conclude</code></td><td>Stores a high-signal durable fact in reasoned memory</td></tr>
+          <tr><td><code>memory_event</code></td><td>Logs, lists, or cancels a dated event (e.g. a birthday or appointment), optionally linked to a person</td></tr>
         </tbody>
       </table>
 
@@ -2703,8 +2828,8 @@ MEMTRIX_SECRET_REGISTRATION_TOKEN=...</code></pre>
         <tbody>
           <tr><td><code>./workspace</code></td><td><code>/home/memtrix/workspace</code></td><td>Core files, memory, attachments</td></tr>
           <tr><td><code>./agents</code></td><td><code>/home/memtrix/agents</code></td><td>Sub-agent workspaces</td></tr>
-          <tr><td><code>./data</code></td><td><code>/home/memtrix/data</code></td><td>Config, secrets.env, sessions</td></tr>
-          <tr><td><code>./data/cache</code></td><td><code>/home/memtrix/.cache</code></td><td>HuggingFace embedding models</td></tr>
+          <tr><td><code>./data</code></td><td><code>/home/memtrix/data</code></td><td>Config, secrets.env, sessions, and downloaded models (embedding, prompt-guard, whisper) under <code>data/models/</code></td></tr>
+          <tr><td><code>./data/cache</code></td><td><code>/home/memtrix/.cache</code></td><td>ChromaDB client cache &amp; general HuggingFace cache</td></tr>
           <tr><td><em>chroma volume</em></td><td><code>/chroma</code></td><td>Persistent vector data for the <code>chroma</code> service</td></tr>
         </tbody>
       </table>
@@ -2788,7 +2913,7 @@ docker compose build && docker compose up -d</code></pre>
 
       <h2 id="pf-firststart">First start vs. warm start</h2>
       <ul>
-        <li><strong>First start</strong> downloads the embedding model (~100 MB) into <code>data/cache/</code> and, for voice, the whisper model into <code>data/models/</code> on first use. The agent stays responsive throughout.</li>
+        <li><strong>First start</strong> downloads the embedding model (~100 MB) into <code>data/models/</code> and, for voice, the whisper model into <code>data/models/</code> on first use. The agent stays responsive throughout.</li>
         <li><strong>Warm start</strong> reuses the cached models and the hash caches, so there is no re-download and only new/changed content is re-embedded.</li>
       </ul>
 
@@ -2901,7 +3026,8 @@ docker compose up -d</code></pre>
     'agentic-loop': 'getting-started', 'skills': 'getting-started',
     'voice': 'getting-started', 'ssh': 'getting-started', 'performance': 'getting-started',
     'persona': 'getting-started', 'custom-providers': 'getting-started',
-    'commands': 'getting-started', 'docker': 'getting-started', 'troubleshooting': 'getting-started'
+    'commands': 'getting-started', 'docker': 'getting-started', 'troubleshooting': 'getting-started',
+    'email': 'getting-started'
   };
 
   function navigate(pageId) {
