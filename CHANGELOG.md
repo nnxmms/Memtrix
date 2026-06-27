@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.43.2
+
+- Hardened the Matrix channel against a failed initial sync. If the homeserver returned an error instead of a sync response — most commonly an invalid or expired access token on an external homeserver — the agent thread crashed with `AttributeError: 'SyncError' object has no attribute 'rooms'`. The initial sync now checks for a real `SyncResponse` and, on an error, logs a clear warning and keeps retrying instead of taking down the agent thread. A sub-agent with bad Matrix credentials will now stay alive and complain in the logs rather than crashing.
+
 ## 2.43.1
 
 - Fixed sub-agents failing to boot with `ModuleNotFoundError: No module named 'src.commands'`. The `_start_agent` path had a stale import (`from src.commands import Commands`) left over from an earlier module layout; it now correctly imports from `src.core.commands`. This only surfaced once sub-agents could actually be provisioned with a complete config (see 2.43.0) and reach that line during boot.

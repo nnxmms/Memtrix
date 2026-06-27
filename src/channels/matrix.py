@@ -685,11 +685,17 @@ class MatrixChannel:
             try:
                 await self._set_display_name()
                 response = await self._client.sync(timeout=10000)
-                break
+                if isinstance(response, SyncResponse):
+                    break
+                # The homeserver returned an error rather than a sync (e.g. an invalid
+                # or expired access token, or the server still starting up). Don't
+                # crash the thread — log and keep retrying.
+                if attempt == 1 or attempt % 10 == 0:
+                    logger.warning("Matrix sync failed for %s (attempt %d): %s", self._user_id, attempt, getattr(response, "message", response))
             except Exception as e:
                 if attempt == 1 or attempt % 10 == 0:
                     logger.warning("Homeserver not reachable yet (attempt %d): %s", attempt, e)
-                await asyncio.sleep(delay=min(30, 2 * attempt))
+            await asyncio.sleep(delay=min(30, 2 * attempt))
 
         # Join any rooms we were invited to while offline
         for room_id in response.rooms.invite:
