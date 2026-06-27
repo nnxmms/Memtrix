@@ -762,6 +762,7 @@
     <a class="sidebar-link" onclick="navigate('docker')">Docker & Services</a>
     <a class="sidebar-link" onclick="navigate('performance')">Performance & Startup</a>
     <a class="sidebar-link" onclick="navigate('troubleshooting')">Troubleshooting</a>
+    <a class="sidebar-link" onclick="navigate('changelog')">Changelog</a>
   </div>
 </aside>
 
@@ -2998,6 +2999,16 @@ rm -rf data/ workspace/ agents/ .env
 docker compose up -d</code></pre>
     </div>
 
+    <!-- ═══════════════════════════════════════ CHANGELOG ═══════════════════════════════════════ -->
+    <div class="doc-page" id="page-changelog">
+      <div class="doc-breadcrumb">Reference</div>
+      <h1>Changelog</h1>
+      <p class="lead">Every release, newest first. This page is rendered live from <code>CHANGELOG.md</code> in the repository - the single source of truth.</p>
+      <div id="changelogBody">
+        <p style="color:var(--text-muted)">Loading changelog…</p>
+      </div>
+    </div>
+
   </div><!-- /doc-main -->
 </div><!-- /doc-layout -->
 
@@ -3027,7 +3038,7 @@ docker compose up -d</code></pre>
     'voice': 'getting-started', 'ssh': 'getting-started', 'performance': 'getting-started',
     'persona': 'getting-started', 'custom-providers': 'getting-started',
     'commands': 'getting-started', 'docker': 'getting-started', 'troubleshooting': 'getting-started',
-    'email': 'getting-started'
+    'email': 'getting-started', 'changelog': 'getting-started'
   };
 
   function navigate(pageId) {
@@ -3049,6 +3060,8 @@ docker compose up -d</code></pre>
     });
     // Update TOC
     buildToc();
+    // Lazily render the changelog from CHANGELOG.md (single source of truth)
+    if (pageId === 'changelog') loadChangelog();
     // Scroll to top
     window.scrollTo(0, 0);
     // Close mobile sidebar
@@ -3095,6 +3108,58 @@ docker compose up -d</code></pre>
   function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('sidebarOverlay').classList.toggle('open');
+  }
+
+  // ── Changelog (rendered from CHANGELOG.md — single source of truth) ──
+  let changelogLoaded = false;
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function inlineMd(s) {
+    s = escapeHtml(s);
+    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, t, u) => '<a href="' + u + '" target="_blank" rel="noopener">' + t + '</a>');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    return s;
+  }
+  function renderChangelog(md) {
+    const lines = md.split('\n');
+    let html = '', inList = false;
+    const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
+    for (const raw of lines) {
+      const line = raw.replace(/\s+$/, '');
+      if (/^#\s+/.test(line)) continue;                 // skip the top-level "# Changelog" (page has its own h1)
+      if (/^##\s+/.test(line)) {
+        closeList();
+        const v = line.replace(/^##\s+/, '').trim();
+        html += '<h2 id="v' + v.replace(/[^\w.]/g, '-') + '">v' + escapeHtml(v) + '</h2>';
+      } else if (/^[-*]\s+/.test(line)) {
+        if (!inList) { html += '<ul>'; inList = true; }
+        html += '<li>' + inlineMd(line.replace(/^[-*]\s+/, '')) + '</li>';
+      } else if (line.trim() === '') {
+        closeList();
+      } else {
+        closeList();
+        html += '<p>' + inlineMd(line) + '</p>';
+      }
+    }
+    closeList();
+    return html;
+  }
+  function loadChangelog() {
+    if (changelogLoaded) return;
+    changelogLoaded = true;
+    const body = document.getElementById('changelogBody');
+    fetch('CHANGELOG.md', { cache: 'no-cache' })
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(md => {
+        body.innerHTML = renderChangelog(md);
+        if (document.querySelector('.doc-page.active')?.id === 'page-changelog') buildToc();
+      })
+      .catch(() => {
+        changelogLoaded = false;
+        body.innerHTML = '<div class="callout"><div class="callout-body">Couldn\'t load the changelog here. Read it on <a href="https://github.com/nnxmms/Memtrix/blob/main/CHANGELOG.md" target="_blank" rel="noopener">GitHub</a>.</div></div>';
+      });
   }
 
   // ── Init ──
